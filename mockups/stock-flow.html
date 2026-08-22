@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Erdkeller — Bestand</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --stone:#E4E1D6;
+    --stone-dark:#D3CFC0;
+    --cellar:#2E4034;
+    --cellar-light:#3E5747;
+    --rust:#A15A2E;
+    --rust-light:#C97B4E;
+    --charcoal:#20241F;
+    --paper:#F4F2EA;
+    --ok:#4A6B4F;
+    --warn:#B8632F;
+    --danger:#9C3B2E;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--stone);
+    color:var(--charcoal);
+    font-family:'Inter',sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .display{font-family:'Fraunces',serif;}
+  .app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    background:var(--paper);
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  @media(min-width:900px){
+    .app{max-width:900px;}
+    .tile-grid{grid-template-columns:repeat(4,1fr) !important;}
+    .home-buttons{flex-direction:row !important;}
+  }
+  header.topbar{
+    background:var(--cellar);
+    color:var(--paper);
+    padding:18px 20px 16px;
+    position:sticky; top:0; z-index:10;
+  }
+  header.topbar .title{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:20px;
+    letter-spacing:0.2px;
+  }
+  .breadcrumb{
+    display:flex; align-items:center; gap:6px;
+    margin-top:10px;
+    font-size:13px;
+    flex-wrap:wrap;
+    opacity:0.9;
+  }
+  .crumb{
+    background:rgba(244,242,234,0.12);
+    border:none;
+    color:var(--paper);
+    padding:5px 10px;
+    border-radius:20px;
+    font-size:13px;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  .crumb.current{background:var(--paper); color:var(--cellar); font-weight:600;}
+  .crumb-sep{opacity:0.5;}
+
+  .screen{padding:20px; flex:1; display:none;}
+  .screen.active{display:block;}
+
+  .home-buttons{
+    display:flex; flex-direction:column; gap:16px;
+    margin-top:40px;
+  }
+  .big-btn{
+    border:none; border-radius:20px;
+    padding:36px 20px;
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:26px;
+    cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    color:var(--paper);
+    transition:transform .12s ease;
+  }
+  .big-btn:active{transform:scale(0.97);}
+  .big-btn.in{background:var(--cellar);}
+  .big-btn.out{background:var(--rust);}
+  .big-btn .icon{font-size:38px;}
+
+  .search-bar{
+    display:flex; align-items:center; gap:8px;
+    background:var(--stone-dark);
+    border-radius:12px;
+    padding:12px 14px;
+    margin-bottom:18px;
+  }
+  .search-bar input{
+    border:none; background:transparent; outline:none;
+    font-size:15px; width:100%; font-family:'Inter',sans-serif;
+    color:var(--charcoal);
+  }
+
+  .section-label{
+    font-size:12px; text-transform:uppercase; letter-spacing:0.08em;
+    color:#6b6a5f; margin:22px 0 10px; font-weight:600;
+  }
+  .section-label:first-child{margin-top:0;}
+
+  .recent-row{display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;}
+  .recent-chip{
+    flex:0 0 auto;
+    background:var(--stone-dark);
+    border:none; border-radius:12px;
+    padding:12px 16px;
+    font-size:14px; font-weight:600;
+    cursor:pointer; white-space:nowrap;
+  }
+
+  .tile-grid{
+    display:grid; grid-template-columns:repeat(2,1fr);
+    gap:12px;
+  }
+  .tile{
+    background:white;
+    border:1px solid var(--stone-dark);
+    border-radius:16px;
+    padding:22px 14px;
+    text-align:center;
+    cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    font-weight:600; font-size:15px;
+    transition:border-color .12s ease, transform .1s ease;
+  }
+  .tile:active{transform:scale(0.96);}
+  .tile .sym{font-size:30px;}
+  .tile.type-tile{background:var(--cellar); color:var(--paper); border:none;}
+
+  .product-list{display:flex; flex-direction:column; gap:8px;}
+  .product-row{
+    background:white; border:1px solid var(--stone-dark);
+    border-radius:12px; padding:14px 16px;
+    display:flex; justify-content:space-between; align-items:center;
+    cursor:pointer;
+  }
+  .product-row .pname{font-weight:600; font-size:15px;}
+  .product-row .pmeta{font-size:12px; color:#6b6a5f; margin-top:2px;}
+  .badge{
+    width:12px; height:12px; border-radius:50%;
+    display:inline-block; margin-right:6px;
+  }
+  .badge.green{background:#4A6B4F;}
+  .badge.blue{background:#3E6B8A;}
+
+  .form-group{margin-bottom:18px;}
+  .form-group label{
+    display:block; font-size:13px; font-weight:600;
+    margin-bottom:6px; color:#4a4940;
+  }
+  .form-group input, .form-group select{
+    width:100%; padding:13px 14px; border-radius:10px;
+    border:1px solid var(--stone-dark); font-size:15px;
+    font-family:'Inter',sans-serif; background:white;
+  }
+  .qty-stepper{
+    display:flex; align-items:center; gap:16px; justify-content:center;
+    background:white; border-radius:14px; padding:18px;
+    border:1px solid var(--stone-dark);
+  }
+  .qty-stepper button{
+    width:48px; height:48px; border-radius:50%; border:none;
+    background:var(--cellar); color:white; font-size:22px; cursor:pointer;
+  }
+  .qty-stepper .qty-num{font-size:28px; font-weight:700; min-width:50px; text-align:center;}
+
+  .confirm-btn{
+    width:100%; padding:16px; border:none; border-radius:14px;
+    background:var(--cellar); color:white; font-size:16px; font-weight:700;
+    cursor:pointer; margin-top:10px; font-family:'Inter',sans-serif;
+  }
+  .confirm-btn.out{background:var(--rust);}
+
+  .success-screen{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:60px 30px; gap:16px; min-height:60vh;
+  }
+  .success-screen .check{
+    width:72px; height:72px; border-radius:50%;
+    background:var(--ok); color:white; display:flex; align-items:center; justify-content:center;
+    font-size:36px;
+  }
+  .success-screen h2{font-family:'Fraunces',serif; margin:0;}
+  .success-screen p{color:#6b6a5f; margin:0;}
+  .back-home-btn{
+    margin-top:10px; padding:12px 24px; border-radius:12px;
+    border:1px solid var(--stone-dark); background:white; font-weight:600;
+    cursor:pointer;
+  }
+
+  .note{
+    font-size:12px; color:#8a8776; text-align:center; margin-top:16px;
+    padding:0 10px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="title">Erdkeller</div>
+    <div class="breadcrumb" id="breadcrumb"></div>
+  </header>
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="home-buttons">
+      <button class="big-btn in" onclick="startFlow('in')">
+        <span class="icon">⬇</span> Einlagern
+      </button>
+      <button class="big-btn out" onclick="startFlow('out')">
+        <span class="icon">⬆</span> Entnehmen
+      </button>
+    </div>
+    <p class="note">Mockup — testet den Ablauf für Ein-/Auslagerung.<br>Zurück-Pfeil oben in der Kopfzeile nutzbar.</p>
+  </div>
+
+  <!-- TYPE -->
+  <div class="screen" id="screen-type">
+    <div class="search-bar"><span>🔍</span><input placeholder="Produkt direkt suchen…" onclick="jumpToProduct()"></div>
+    <div class="section-label">Häufig verwendet</div>
+    <div class="recent-row">
+      <button class="recent-chip" onclick="jumpToDetails('Nudeln')">🍝 Nudeln</button>
+      <button class="recent-chip" onclick="jumpToDetails('Reis')">🍚 Reis</button>
+      <button class="recent-chip" onclick="jumpToDetails('Bohnen rot')">🫘 Bohnen rot</button>
+    </div>
+    <div class="section-label">Typ wählen</div>
+    <div class="tile-grid" id="type-grid"></div>
+  </div>
+
+  <!-- CATEGORY -->
+  <div class="screen" id="screen-category">
+    <div class="section-label">Kategorie wählen</div>
+    <div class="tile-grid" id="category-grid"></div>
+  </div>
+
+  <!-- SUBCATEGORY -->
+  <div class="screen" id="screen-subcategory">
+    <div class="section-label">Unterkategorie wählen</div>
+    <div class="tile-grid" id="subcategory-grid"></div>
+  </div>
+
+  <!-- PRODUCT -->
+  <div class="screen" id="screen-product">
+    <div class="search-bar"><span>🔍</span><input id="product-search" placeholder="Produkt suchen…" oninput="filterProducts(this.value)"></div>
+    <div class="section-label">Produkt wählen</div>
+    <div class="product-list" id="product-list"></div>
+  </div>
+
+  <!-- DETAILS: CHECK-IN -->
+  <div class="screen" id="screen-details-in">
+    <div class="section-label" id="detail-product-name">Bohnen rot</div>
+    <div class="form-group">
+      <label>Menge</label>
+      <div class="qty-stepper">
+        <button onclick="changeQty(-1)">−</button>
+        <span class="qty-num" id="qty-in">1</span>
+        <button onclick="changeQty(1)">+</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Inhalt (z.B. 500g, 800ml)</label>
+      <input type="text" placeholder="500g" value="400g">
+    </div>
+    <div class="form-group">
+      <label>Mindesthaltbarkeit (MM/JJJJ)</label>
+      <input type="text" placeholder="06/2026" value="09/2027">
+    </div>
+    <div class="form-group">
+      <label>Lagerort</label>
+      <select>
+        <option>Regal 1</option>
+        <option>Box A</option>
+        <option>Box B</option>
+      </select>
+    </div>
+    <button class="confirm-btn" onclick="showSuccess('in')">Einlagern bestätigen</button>
+  </div>
+
+  <!-- DETAILS: CHECK-OUT -->
+  <div class="screen" id="screen-details-out">
+    <div class="section-label" id="detail-product-name-out">Bohnen rot</div>
+    <p style="font-size:14px; color:#6b6a5f; margin-top:-6px;">
+      <span class="badge green"></span>5× Dose · 400g · MHD 09/2027 · Regal 1
+    </p>
+    <div class="form-group">
+      <label>Wie viel entnehmen?</label>
+      <div class="qty-stepper">
+        <button onclick="changeQty(-1)">−</button>
+        <span class="qty-num" id="qty-out">1</span>
+        <button onclick="changeQty(1)">+</button>
+      </div>
+    </div>
+    <button class="confirm-btn out" onclick="showSuccess('out')">Entnahme bestätigen</button>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="screen" id="screen-success">
+    <div class="success-screen">
+      <div class="check">✓</div>
+      <h2 class="display" id="success-title">Eingelagert</h2>
+      <p id="success-detail">Bohnen rot wurde dem Bestand hinzugefügt.</p>
+      <button class="back-home-btn" onclick="goHome()">Zurück zur Übersicht</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const data = {
+  types: [
+    {id:'lebensmittel', name:'Lebensmittel', sym:'🥫'},
+    {id:'medikamente', name:'Medikamente', sym:'💊'},
+    {id:'tiernahrung', name:'Tiernahrung', sym:'🐾'},
+  ],
+  categories: {
+    lebensmittel: [
+      {id:'gemuese', name:'Gemüse & Hülsenfrüchte', sym:'🫛'},
+      {id:'fleisch', name:'Fisch & Fleisch & Eier', sym:'🥩'},
+      {id:'getreide', name:'Getreide & Teigwaren', sym:'🌾'},
+    ],
+    medikamente: [{id:'schmerz', name:'Schmerzmittel', sym:'💊'}],
+    tiernahrung: [{id:'hund', name:'Hundefutter', sym:'🐕'}],
+  },
+  subcategories: {
+    gemuese: [
+      {id:'eingelegt', name:'Eingelegtes Gemüse', sym:'🥒'},
+      {id:'huelsen', name:'Hülsenfrüchte getrocknet', sym:'🫘'},
+      {id:'eintopf', name:'Eintopf', sym:'🍲'},
+    ],
+    fleisch: [{id:'konserve', name:'Konserven', sym:'🥫'}],
+    getreide: [{id:'nudeln', name:'Teigwaren', sym:'🍝'}],
+  },
+  products: {
+    huelsen: [
+      {name:'Bohnen rot', meta:'Dose · 400g', badge:'green'},
+      {name:'Bohnen weiß', meta:'Dose · 400g', badge:'blue'},
+      {name:'Linsen', meta:'Beutel · 500g', badge:'green'},
+      {name:'Erbsen', meta:'Dose · 400g', badge:'green'},
+    ],
+    eingelegt: [{name:'Gurken sauer', meta:'Glas · 650g', badge:'blue'}],
+    eintopf: [{name:'Linseneintopf', meta:'Glas · 800g', badge:'green'}],
+  }
+};
+
+let flow = {mode:null, type:null, category:null, subcategory:null, product:null, qty:1};
+let path = [];
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function renderBreadcrumb(){
+  const bc = document.getElementById('breadcrumb');
+  bc.innerHTML = '';
+  const home = document.createElement('button');
+  home.className = 'crumb';
+  home.textContent = '⌂';
+  home.onclick = goHome;
+  bc.appendChild(home);
+  path.forEach((p, i)=>{
+    const sep = document.createElement('span');
+    sep.className='crumb-sep'; sep.textContent='›';
+    bc.appendChild(sep);
+    const btn = document.createElement('button');
+    btn.className = 'crumb' + (i===path.length-1 ? ' current':'');
+    btn.textContent = p.label;
+    btn.onclick = ()=>goTo(p.step);
+    bc.appendChild(btn);
+  });
+}
+
+function goHome(){
+  flow = {mode:null, type:null, category:null, subcategory:null, product:null, qty:1};
+  path = [];
+  renderBreadcrumb();
+  showScreen('screen-home');
+}
+
+function startFlow(mode){
+  flow.mode = mode;
+  path = [{label: mode==='in' ? 'Einlagern' : 'Entnehmen', step:'type'}];
+  renderTypeGrid();
+  renderBreadcrumb();
+  showScreen('screen-type');
+}
+
+function goTo(step){
+  if(step==='type'){ path = path.slice(0,1); renderBreadcrumb(); showScreen('screen-type'); }
+  if(step==='category'){ path = path.slice(0,2); renderBreadcrumb(); showScreen('screen-category'); }
+  if(step==='subcategory'){ path = path.slice(0,3); renderBreadcrumb(); showScreen('screen-subcategory'); }
+}
+
+function renderTypeGrid(){
+  const grid = document.getElementById('type-grid');
+  grid.innerHTML = '';
+  data.types.forEach(t=>{
+    const tile = document.createElement('button');
+    tile.className = 'tile type-tile';
+    tile.innerHTML = `<span class="sym">${t.sym}</span>${t.name}`;
+    tile.onclick = ()=>selectType(t);
+    grid.appendChild(tile);
+  });
+}
+
+function selectType(t){
+  flow.type = t.id;
+  path.push({label:t.name, step:'category'});
+  renderBreadcrumb();
+  const grid = document.getElementById('category-grid');
+  grid.innerHTML = '';
+  (data.categories[t.id]||[]).forEach(c=>{
+    const tile = document.createElement('button');
+    tile.className = 'tile';
+    tile.innerHTML = `<span class="sym">${c.sym}</span>${c.name}`;
+    tile.onclick = ()=>selectCategory(c);
+    grid.appendChild(tile);
+  });
+  showScreen('screen-category');
+}
+
+function selectCategory(c){
+  flow.category = c.id;
+  path.push({label:c.name, step:'subcategory'});
+  renderBreadcrumb();
+  const grid = document.getElementById('subcategory-grid');
+  grid.innerHTML = '';
+  (data.subcategories[c.id]||[]).forEach(s=>{
+    const tile = document.createElement('button');
+    tile.className = 'tile';
+    tile.innerHTML = `<span class="sym">${s.sym}</span>${s.name}`;
+    tile.onclick = ()=>selectSubcategory(s);
+    grid.appendChild(tile);
+  });
+  showScreen('screen-subcategory');
+}
+
+function selectSubcategory(s){
+  flow.subcategory = s.id;
+  path.push({label:s.name, step:'product'});
+  renderBreadcrumb();
+  renderProductList(data.products[s.id]||[]);
+  showScreen('screen-product');
+}
+
+function renderProductList(list){
+  const wrap = document.getElementById('product-list');
+  wrap.innerHTML = '';
+  list.forEach(p=>{
+    const row = document.createElement('div');
+    row.className = 'product-row';
+    row.innerHTML = `<div><div class="pname"><span class="badge ${p.badge}"></span>${p.name}</div><div class="pmeta">${p.meta}</div></div><span>›</span>`;
+    row.onclick = ()=>jumpToDetails(p.name);
+    wrap.appendChild(row);
+  });
+}
+
+function filterProducts(query){
+  const all = data.products[flow.subcategory] || [];
+  const filtered = all.filter(p=>p.name.toLowerCase().includes(query.toLowerCase()));
+  renderProductList(filtered);
+}
+
+function jumpToDetails(name){
+  flow.product = name;
+  flow.qty = 1;
+  document.getElementById('qty-in').textContent = 1;
+  document.getElementById('qty-out').textContent = 1;
+  if(flow.mode === 'in'){
+    document.getElementById('detail-product-name').textContent = name;
+    showScreen('screen-details-in');
+  } else {
+    document.getElementById('detail-product-name-out').textContent = name;
+    showScreen('screen-details-out');
+  }
+}
+
+function jumpToProduct(){
+  // simulates tapping search from the type screen — skips straight to a product search
+  path = [{label: flow.mode==='in' ? 'Einlagern':'Entnehmen', step:'type'}, {label:'Suche', step:'product'}];
+  renderBreadcrumb();
+  renderProductList(data.products['huelsen']);
+  showScreen('screen-product');
+}
+
+function changeQty(delta){
+  flow.qty = Math.max(1, flow.qty + delta);
+  document.getElementById('qty-in').textContent = flow.qty;
+  document.getElementById('qty-out').textContent = flow.qty;
+}
+
+function showSuccess(mode){
+  document.getElementById('success-title').textContent = mode==='in' ? 'Eingelagert' : 'Entnommen';
+  document.getElementById('success-detail').textContent =
+    mode==='in'
+      ? `${flow.qty}× ${flow.product} wurde dem Bestand hinzugefügt.`
+      : `${flow.qty}× ${flow.product} wurde entnommen.`;
+  showScreen('screen-success');
+}
+
+goHome();
+</script>
+</body>
+</html>

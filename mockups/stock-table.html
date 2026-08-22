@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Erdkeller — Bestand durchsuchen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --stone:#E4E1D6; --stone-dark:#D3CFC0; --cellar:#2E4034; --cellar-light:#3E5747;
+    --rust:#A15A2E; --charcoal:#20241F; --paper:#F4F2EA; --ok:#4A6B4F; --danger:#9C3B2E;
+  }
+  *{box-sizing:border-box; overscroll-behavior:none;}
+  html,body{overscroll-behavior:none;}
+  body{margin:0; background:var(--stone); color:var(--charcoal); font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent;}
+  .display{font-family:'Fraunces',serif;}
+  .shell{max-width:480px; margin:0 auto; min-height:100vh; background:var(--paper); display:flex; flex-direction:column; position:relative;}
+
+  header.topbar{background:var(--cellar); color:var(--paper); padding:16px 16px 14px; position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:10px;}
+  .back-btn{background:none; border:none; font-size:20px; color:var(--paper); cursor:pointer;}
+  header.topbar .title{font-family:'Fraunces',serif; font-weight:600; font-size:18px; flex:1;}
+
+  .toolbar{padding:14px 16px 0;}
+  .search-bar{display:flex; align-items:center; gap:8px; background:white; border:1px solid var(--stone-dark); border-radius:12px; padding:10px 14px; margin-bottom:10px;}
+  .search-bar input{border:none; outline:none; width:100%; font-size:14px; font-family:'Inter',sans-serif;}
+  .filter-row{display:flex; gap:8px; overflow-x:auto; padding-bottom:10px;}
+  .filter-chip{flex:0 0 auto; background:white; border:1px solid var(--stone-dark); border-radius:20px; padding:7px 13px; font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap; font-family:'Inter',sans-serif;}
+  .filter-chip.active{background:var(--cellar); color:var(--paper); border-color:var(--cellar);}
+
+  .table-wrap{overflow-x:auto; padding:0 0 90px; -webkit-overflow-scrolling:touch;}
+  table{border-collapse:collapse; width:100%; min-width:760px; font-size:13px;}
+  th{
+    position:sticky; top:0; background:var(--stone-dark); text-align:left; padding:11px 12px;
+    font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:#4a4940;
+    cursor:pointer; white-space:nowrap; user-select:none;
+  }
+  th .arrow{opacity:0.4; margin-left:4px;}
+  th.sorted .arrow{opacity:1; color:var(--cellar);}
+  td{padding:12px; border-bottom:1px solid var(--stone-dark); white-space:nowrap; background:white;}
+  tr.selected td{background:#EFEAD9;}
+  .row-check{width:18px; height:18px;}
+  .badge-dot{width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:6px;}
+  .badge-dot.green{background:#4A6B4F;} .badge-dot.blue{background:#3E6B8A;} .badge-dot.red{background:var(--danger);}
+  tr{cursor:pointer;}
+
+  .bulk-bar{
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px;
+    background:var(--cellar); color:var(--paper); padding:14px 18px; display:none;
+    align-items:center; justify-content:space-between; z-index:15;
+  }
+  .bulk-bar.show{display:flex;}
+  .bulk-bar button{background:var(--danger); color:white; border:none; border-radius:10px; padding:9px 16px; font-weight:700; font-size:13px; cursor:pointer; font-family:'Inter',sans-serif;}
+  .bulk-bar .cancel{background:rgba(244,242,234,0.15); margin-left:8px;}
+
+  /* Detail edit screen */
+  .fullscreen{display:none; position:fixed; inset:0; background:var(--paper); z-index:30; overflow-y:auto;}
+  .fullscreen.active{display:block;}
+  .detail-header{background:var(--cellar); color:var(--paper); padding:16px; display:flex; align-items:center; gap:10px;}
+  .detail-body{padding:20px;}
+  .form-group{margin-bottom:18px;}
+  .form-group label{display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:#4a4940;}
+  .form-group input, .form-group select{width:100%; padding:13px 14px; border-radius:10px; border:1px solid var(--stone-dark); font-size:15px; font-family:'Inter',sans-serif; background:white;}
+  .date-display{display:flex; justify-content:space-between; align-items:center; cursor:pointer;}
+  .date-display span:last-child{color:var(--cellar); font-weight:700;}
+  .confirm-btn{width:100%; padding:15px; border:none; border-radius:14px; background:var(--cellar); color:white; font-size:15px; font-weight:700; cursor:pointer; margin-top:6px;}
+  .delete-btn{width:100%; padding:15px; border:1px solid #e3c3ba; background:var(--danger-bg,#F5E4DF); color:var(--danger); border-radius:14px; font-weight:700; font-size:15px; cursor:pointer; margin-top:10px;}
+
+  /* Date picker modal */
+  .modal-overlay{display:none; position:fixed; inset:0; background:rgba(32,36,31,0.5); z-index:50; align-items:flex-end; justify-content:center;}
+  .modal-overlay.show{display:flex;}
+  .modal-sheet{background:white; width:100%; max-width:480px; border-radius:20px 20px 0 0; padding:20px 0 0;}
+  .modal-title{font-family:'Fraunces',serif; font-weight:600; font-size:17px; text-align:center; margin-bottom:14px;}
+  .picker-row{display:flex; height:180px; border-top:1px solid var(--stone-dark); border-bottom:1px solid var(--stone-dark); position:relative;}
+  .picker-col{flex:1; overflow-y:scroll; scroll-snap-type:y mandatory; text-align:center;}
+  .picker-col::-webkit-scrollbar{display:none;}
+  .picker-item{scroll-snap-align:center; padding:14px 0; font-size:17px; color:#9a9788;}
+  .picker-item.center{font-weight:700; color:var(--charcoal); font-size:19px;}
+  .picker-highlight{position:absolute; top:72px; left:0; right:0; height:36px; background:rgba(46,64,52,0.06); pointer-events:none; border-top:1px solid var(--stone-dark); border-bottom:1px solid var(--stone-dark);}
+  .modal-actions{padding:14px 20px 20px;}
+  .modal-confirm{width:100%; padding:14px; border:none; border-radius:12px; background:var(--cellar); color:white; font-weight:700; font-size:15px; cursor:pointer;}
+
+  @media(min-width:900px){
+    .shell{max-width:1100px;}
+    table{min-width:0;}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <button class="back-btn">‹</button>
+    <div class="title">Bestand durchsuchen</div>
+  </header>
+
+  <div class="toolbar">
+    <div class="search-bar"><span>🔍</span><input placeholder="Produkt suchen…"></div>
+    <div class="filter-row">
+      <button class="filter-chip active">Alle Typen</button>
+      <button class="filter-chip">Lebensmittel</button>
+      <button class="filter-chip">Medikamente</button>
+      <button class="filter-chip">Tiernahrung</button>
+      <button class="filter-chip">Regal 1</button>
+      <button class="filter-chip">Box A</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="stock-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th data-key="product">Produkt <span class="arrow">▾</span></th>
+          <th data-key="subcategory">Unterkategorie <span class="arrow">▾</span></th>
+          <th data-key="category">Kategorie <span class="arrow">▾</span></th>
+          <th data-key="type">Typ <span class="arrow">▾</span></th>
+          <th data-key="quantity">Menge <span class="arrow">▾</span></th>
+          <th data-key="content">Inhalt <span class="arrow">▾</span></th>
+          <th data-key="bestBefore">MHD <span class="arrow">▾</span></th>
+          <th data-key="storage">Lagerort <span class="arrow">▾</span></th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <div class="bulk-bar" id="bulk-bar">
+    <span id="bulk-count">2 ausgewählt</span>
+    <div>
+      <button onclick="bulkDelete()">Löschen</button>
+      <button class="cancel" onclick="clearSelection()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT DETAIL -->
+<div class="fullscreen" id="screen-edit">
+  <div class="detail-header">
+    <button class="back-btn" onclick="closeEdit()">‹</button>
+    <div class="title display" id="edit-title" style="font-size:18px;">Bohnen weiß</div>
+  </div>
+  <div class="detail-body">
+    <div class="form-group">
+      <label>Menge</label>
+      <input type="number" id="edit-qty" value="5">
+    </div>
+    <div class="form-group">
+      <label>Inhalt</label>
+      <input type="text" id="edit-content" value="400g">
+    </div>
+    <div class="form-group">
+      <label>Mindesthaltbarkeit</label>
+      <div class="date-display" onclick="openDatePicker()">
+        <input type="text" id="edit-mhd" value="11/2027" readonly style="pointer-events:none;">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Lagerort</label>
+      <select id="edit-storage">
+        <option>Regal 1</option><option>Regal 2</option><option>Box A</option><option>Box B</option>
+      </select>
+    </div>
+    <button class="confirm-btn" onclick="closeEdit()">Änderungen speichern</button>
+    <button class="delete-btn" onclick="closeEdit()">Eintrag löschen</button>
+  </div>
+</div>
+
+<!-- DATE PICKER MODAL -->
+<div class="modal-overlay" id="date-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">Mindesthaltbarkeit wählen</div>
+    <div class="picker-row">
+      <div class="picker-highlight"></div>
+      <div class="picker-col" id="month-col"></div>
+      <div class="picker-col" id="year-col"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-confirm" onclick="confirmDate()">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const data = [
+  {product:'Bohnen weiß', subcategory:'Hülsenfrüchte getrocknet', category:'Gemüse & Hülsenfrüchte', type:'Lebensmittel', quantity:5, content:'400g', bestBefore:'11/2027', storage:'Regal 1', badge:'blue'},
+  {product:'Bohnen rot', subcategory:'Hülsenfrüchte getrocknet', category:'Gemüse & Hülsenfrüchte', type:'Lebensmittel', quantity:3, content:'400g', bestBefore:'07/2026', storage:'Regal 1', badge:'red'},
+  {product:'Linsen', subcategory:'Hülsenfrüchte getrocknet', category:'Gemüse & Hülsenfrüchte', type:'Lebensmittel', quantity:6, content:'500g', bestBefore:'09/2026', storage:'Regal 2', badge:'green'},
+  {product:'Gurken sauer', subcategory:'Eingelegtes Gemüse', category:'Gemüse & Hülsenfrüchte', type:'Lebensmittel', quantity:4, content:'650g', bestBefore:'01/2027', storage:'Box A', badge:'blue'},
+  {product:'Nudeln', subcategory:'Teigwaren', category:'Getreide & Teigwaren', type:'Lebensmittel', quantity:8, content:'500g', bestBefore:'09/2026', storage:'Box A', badge:'green'},
+  {product:'Reis', subcategory:'Reis', category:'Getreide & Teigwaren', type:'Lebensmittel', quantity:7, content:'1kg', bestBefore:'12/2026', storage:'Box A', badge:'green'},
+  {product:'Hustensaft', subcategory:'Erkältung', category:'Erkältung & Schmerz', type:'Medikamente', quantity:2, content:'100ml', bestBefore:'03/2027', storage:'Box B', badge:'blue'},
+  {product:'Hundefutter Trocken', subcategory:'Hundefutter', category:'Hundefutter', type:'Tiernahrung', quantity:3, content:'2kg', bestBefore:'10/2026', storage:'Box B', badge:'green'},
+];
+let sortKey = 'product', sortAsc = true;
+let selected = new Set();
+
+function renderTable(){
+  const sorted = [...data].sort((a,b)=>{
+    let cmp = String(a[sortKey]).localeCompare(String(b[sortKey]), 'de');
+    return sortAsc ? cmp : -cmp;
+  });
+  const body = document.getElementById('table-body');
+  body.innerHTML = '';
+  sorted.forEach((item, i)=>{
+    const tr = document.createElement('tr');
+    if(selected.has(item.product)) tr.classList.add('selected');
+    tr.innerHTML = `
+      <td><input type="checkbox" class="row-check" ${selected.has(item.product)?'checked':''} onclick="event.stopPropagation(); toggleSelect('${item.product}', this)"></td>
+      <td><span class="badge-dot ${item.badge}"></span>${item.product}</td>
+      <td>${item.subcategory}</td>
+      <td>${item.category}</td>
+      <td>${item.type}</td>
+      <td>${item.quantity}</td>
+      <td>${item.content}</td>
+      <td>${item.bestBefore}</td>
+      <td>${item.storage}</td>
+    `;
+    tr.onclick = ()=>openEdit(item);
+    body.appendChild(tr);
+  });
+}
+
+document.querySelectorAll('th[data-key]').forEach(th=>{
+  th.onclick = ()=>{
+    const key = th.dataset.key;
+    if(sortKey === key){ sortAsc = !sortAsc; } else { sortKey = key; sortAsc = true; }
+    document.querySelectorAll('th').forEach(h=>h.classList.remove('sorted'));
+    th.classList.add('sorted');
+    th.querySelector('.arrow').textContent = sortAsc ? '▾' : '▴';
+    renderTable();
+  };
+});
+
+function toggleSelect(product, checkbox){
+  if(checkbox.checked) selected.add(product); else selected.delete(product);
+  document.getElementById('bulk-bar').classList.toggle('show', selected.size > 0);
+  document.getElementById('bulk-count').textContent = selected.size + ' ausgewählt';
+  renderTable();
+}
+function clearSelection(){
+  selected.clear();
+  document.getElementById('bulk-bar').classList.remove('show');
+  renderTable();
+}
+function bulkDelete(){
+  clearSelection();
+}
+
+function openEdit(item){
+  document.getElementById('edit-title').textContent = item.product;
+  document.getElementById('edit-qty').value = item.quantity;
+  document.getElementById('edit-content').value = item.content;
+  document.getElementById('edit-mhd').value = item.bestBefore;
+  document.getElementById('edit-storage').value = item.storage;
+  document.getElementById('screen-edit').classList.add('active');
+}
+function closeEdit(){
+  document.getElementById('screen-edit').classList.remove('active');
+}
+
+// Date picker
+const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+const years = Array.from({length:15}, (_,i)=>2026+i);
+function buildPicker(){
+  const mCol = document.getElementById('month-col');
+  const yCol = document.getElementById('year-col');
+  mCol.innerHTML = '<div class="picker-item"></div>' + months.map(m=>`<div class="picker-item">${m}</div>`).join('') + '<div class="picker-item"></div>';
+  yCol.innerHTML = '<div class="picker-item"></div>' + years.map(y=>`<div class="picker-item">${y}</div>`).join('') + '<div class="picker-item"></div>';
+}
+buildPicker();
+function openDatePicker(){
+  document.getElementById('date-modal').classList.add('show');
+  setTimeout(()=>{
+    document.getElementById('month-col').scrollTop = 36*10; // ~Nov
+    document.getElementById('year-col').scrollTop = 36*1;
+  }, 50);
+}
+function confirmDate(){
+  document.getElementById('date-modal').classList.remove('show');
+}
+document.getElementById('date-modal').addEventListener('click', (e)=>{
+  if(e.target.id === 'date-modal') document.getElementById('date-modal').classList.remove('show');
+});
+
+renderTable();
+</script>
+</body>
+</html>

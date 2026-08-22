@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Erdkeller — Einstellungen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --stone:#E4E1D6; --stone-dark:#D3CFC0; --cellar:#2E4034; --cellar-light:#3E5747;
+    --rust:#A15A2E; --charcoal:#20241F; --paper:#F4F2EA; --ok:#4A6B4F; --danger:#9C3B2E;
+  }
+  *{box-sizing:border-box; overscroll-behavior:none;}
+  html,body{overscroll-behavior:none;}
+  body{margin:0; background:var(--stone); color:var(--charcoal); font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent;}
+  .display{font-family:'Fraunces',serif;}
+  .shell{max-width:480px; margin:0 auto; min-height:100vh; background:var(--paper); display:flex; flex-direction:column; position:relative; padding-bottom:76px;}
+
+  header.topbar{background:var(--cellar); color:var(--paper); padding:18px 20px 16px; position:sticky; top:0; z-index:10;}
+  header.topbar .title{font-family:'Fraunces',serif; font-weight:600; font-size:20px;}
+  header.topbar .subtitle{font-size:12px; opacity:0.75; margin-top:2px;}
+
+  main{padding:18px 20px 10px; flex:1;}
+
+  .settings-card{display:flex; align-items:center; gap:14px; background:white; border:1px solid var(--stone-dark); border-radius:14px; padding:16px; margin-bottom:10px; cursor:pointer;}
+  .settings-card .sym{font-size:22px; width:36px; text-align:center;}
+  .settings-card .sc-text{flex:1;}
+  .settings-card .sc-title{font-weight:700; font-size:15px;}
+  .settings-card .sc-sub{font-size:12px; color:#6b6a5f; margin-top:2px;}
+  .settings-card .chev{color:#9a9788;}
+
+  .fullscreen{display:none;}
+  .fullscreen.active{display:block;}
+  .hidden{display:none;}
+  .back-row{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+  .back-btn{background:none; border:none; font-size:20px; cursor:pointer; color:var(--cellar); padding:2px;}
+  .fs-title{font-family:'Fraunces',serif; font-weight:600; font-size:19px; flex:1;}
+  .add-btn{background:var(--cellar); color:var(--paper); border:none; width:32px; height:32px; border-radius:50%; font-size:17px; cursor:pointer;}
+
+  .tax-type{background:white; border:1px solid var(--stone-dark); border-radius:14px; margin-bottom:10px; overflow:hidden;}
+  .tax-type-head{display:flex; align-items:center; gap:10px; padding:13px 14px; cursor:pointer; font-weight:700; font-size:14.5px;}
+  .tax-type-head .sym{font-size:18px;}
+  .tax-type-head .chev{margin-left:auto; color:#9a9788;}
+  .tax-body{display:none; padding:0 14px 12px;}
+  .tax-body.open{display:block;}
+  .tax-cat{border-top:1px solid var(--stone-dark); padding:10px 0;}
+  .tax-cat-head{display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; cursor:pointer;}
+  .tax-sub-list{padding-left:20px; margin-top:6px;}
+  .tax-sub-row{display:flex; align-items:center; gap:8px; padding:8px 6px; border-radius:8px; font-size:13px; cursor:grab; margin-bottom:3px;}
+  .tax-sub-row.dragging{opacity:0.4;}
+  .tax-sub-row:hover{background:var(--stone);}
+  .drag-handle{color:#b3b09f; font-size:14px;}
+  .tax-del{margin-left:auto; color:#c0968a; font-size:13px; background:none; border:none; cursor:pointer;}
+  .add-sub-row{display:flex; align-items:center; gap:6px; padding:8px 6px; font-size:12.5px; color:var(--cellar); font-weight:600; cursor:pointer;}
+
+  .target-row{display:flex; align-items:center; gap:12px; background:white; border:1px solid var(--stone-dark); border-radius:12px; padding:13px 15px; margin-bottom:8px;}
+  .target-level{font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:#6b6a5f; font-weight:700; background:var(--stone); padding:3px 8px; border-radius:6px; flex-shrink:0;}
+  .target-name{flex:1; font-weight:600; font-size:14px;}
+  .target-val{font-size:13px; color:var(--cellar); font-weight:700;}
+
+  .person-row{display:flex; align-items:center; gap:12px; background:white; border:1px solid var(--stone-dark); border-radius:14px; padding:14px 16px; margin-bottom:8px;}
+  .person-avatar{width:38px; height:38px; border-radius:50%; background:var(--cellar); color:var(--paper); display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .person-name{font-weight:600; font-size:14.5px;}
+  .role-toggle{display:flex; background:var(--stone); border-radius:20px; padding:3px; margin-left:auto;}
+  .role-toggle button{border:none; background:none; padding:6px 12px; border-radius:16px; font-size:11.5px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; color:#6b6a5f;}
+  .role-toggle button.active{background:var(--cellar); color:var(--paper);}
+  .role-toggle.locked button{cursor:not-allowed; opacity:0.6;}
+
+  .export-btn{width:100%; background:white; border:1px solid var(--stone-dark); border-radius:14px; padding:16px; text-align:left; font-weight:600; font-size:14.5px; cursor:pointer; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; font-family:'Inter',sans-serif;}
+
+  nav.bottomnav{position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; background:var(--cellar); display:flex; padding:10px 6px calc(10px + env(safe-area-inset-bottom)); z-index:20;}
+  nav.bottomnav button{flex:1; background:none; border:none; color:rgba(244,242,234,0.6); display:flex; flex-direction:column; align-items:center; gap:3px; font-family:'Inter',sans-serif; font-size:10.5px; cursor:pointer; padding:4px;}
+  nav.bottomnav button.active{color:var(--paper);}
+  nav.bottomnav button .icon{font-size:19px;}
+
+  @media(min-width:900px){
+    .shell{max-width:1100px; flex-direction:row; padding-bottom:0;}
+    .sidebar{width:220px; background:var(--cellar); color:var(--paper); padding:24px 14px; display:flex; flex-direction:column; gap:4px; flex-shrink:0;}
+    .sidebar .brand{font-family:'Fraunces',serif; font-size:20px; font-weight:600; padding:0 10px 24px;}
+    .sidebar button{background:none; border:none; color:rgba(244,242,234,0.65); text-align:left; padding:12px 12px; border-radius:10px; font-size:14.5px; cursor:pointer; display:flex; align-items:center; gap:10px; font-family:'Inter',sans-serif;}
+    .sidebar button.active{background:rgba(244,242,234,0.12); color:var(--paper); font-weight:600;}
+    nav.bottomnav{display:none;}
+    header.topbar{display:none;}
+    main{flex:1; padding:32px 40px; max-width:700px;}
+    .tablet-header{font-family:'Fraunces',serif; font-size:26px; font-weight:600; margin-bottom:24px;}
+    .tablet-only{display:block;}
+    .mobile-only{display:none;}
+  }
+  .tablet-only{display:none;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="sidebar tablet-only">
+    <div class="brand">🏔 Erdkeller</div>
+    <button><span>🏠</span> Übersicht</button>
+    <button><span>📦</span> Bestand</button>
+    <button><span>✅</span> Checklisten</button>
+    <button><span>📚</span> Info</button>
+    <button class="active"><span>⚙️</span> Einstellungen</button>
+  </div>
+
+  <header class="topbar mobile-only">
+    <div class="title">Erdkeller</div>
+    <div class="subtitle">Einstellungen</div>
+  </header>
+
+  <main>
+    <h1 class="tablet-header tablet-only">Einstellungen</h1>
+
+    <div id="main-view">
+      <div class="settings-card" onclick="openSection('data')"><span class="sym">🗂️</span><div class="sc-text"><div class="sc-title">Daten</div><div class="sc-sub">Kategorien, Lagerorte, Farben, Produkte</div></div><span class="chev">›</span></div>
+      <div class="settings-card" onclick="openSection('people')"><span class="sym">👥</span><div class="sc-text"><div class="sc-title">Personen</div><div class="sc-sub">Rollen verwalten</div></div><span class="chev">›</span></div>
+      <div class="settings-card" onclick="openSection('checklists')"><span class="sym">✅</span><div class="sc-text"><div class="sc-title">Checklisten</div><div class="sc-sub">Wartung & Krise verwalten</div></div><span class="chev">›</span></div>
+      <div class="settings-card" onclick="openSection('targets')"><span class="sym">🎯</span><div class="sc-text"><div class="sc-title">Ziele</div><div class="sc-sub">Zielmengen je Ebene festlegen</div></div><span class="chev">›</span></div>
+      <div class="settings-card" onclick="openSection('export')"><span class="sym">📤</span><div class="sc-text"><div class="sc-title">Export</div><div class="sc-sub">PDF & CSV-Sicherung</div></div><span class="chev">›</span></div>
+    </div>
+
+    <div class="fullscreen" id="screen-data">
+      <div class="back-row"><button class="back-btn" onclick="close_()">‹</button><span class="fs-title">Daten</span></div>
+
+      <div class="tax-type">
+        <div class="tax-type-head" onclick="toggleType(this)"><span class="sym">🥫</span>Lebensmittel<span class="chev">▾</span></div>
+        <div class="tax-body open">
+          <div class="tax-cat">
+            <div class="tax-cat-head">Gemüse & Hülsenfrüchte</div>
+            <div class="tax-sub-list" id="sublist-1">
+              <div class="tax-sub-row" draggable="true"><span class="drag-handle">☰</span>Hülsenfrüchte getrocknet<button class="tax-del">✕</button></div>
+              <div class="tax-sub-row" draggable="true"><span class="drag-handle">☰</span>Eingelegtes Gemüse<button class="tax-del">✕</button></div>
+              <div class="tax-sub-row" draggable="true"><span class="drag-handle">☰</span>Eintopf<button class="tax-del">✕</button></div>
+              <div class="add-sub-row">+ Unterkategorie hinzufügen</div>
+            </div>
+          </div>
+          <div class="tax-cat">
+            <div class="tax-cat-head">Getreide & Teigwaren</div>
+            <div class="tax-sub-list">
+              <div class="tax-sub-row" draggable="true"><span class="drag-handle">☰</span>Teigwaren<button class="tax-del">✕</button></div>
+              <div class="tax-sub-row" draggable="true"><span class="drag-handle">☰</span>Reis<button class="tax-del">✕</button></div>
+              <div class="add-sub-row">+ Unterkategorie hinzufügen</div>
+            </div>
+          </div>
+          <div class="add-sub-row">+ Kategorie hinzufügen</div>
+        </div>
+      </div>
+
+      <div class="tax-type">
+        <div class="tax-type-head" onclick="toggleType(this)"><span class="sym">💊</span>Medikamente<span class="chev">▾</span></div>
+        <div class="tax-body"></div>
+      </div>
+      <div class="tax-type">
+        <div class="tax-type-head" onclick="toggleType(this)"><span class="sym">🐾</span>Tiernahrung<span class="chev">▾</span></div>
+        <div class="tax-body"></div>
+      </div>
+
+      <div class="add-sub-row" style="margin-top:6px; font-size:13.5px;">+ Neuer Typ</div>
+      <p style="font-size:12px; color:#8a8776; margin-top:18px;">Ziehe an ☰ um Unterkategorien neu zu sortieren. Lagerorte, Jahresfarben und Produktkatalog folgen in eigenen Reitern (hier vereinfacht dargestellt).</p>
+    </div>
+
+    <div class="fullscreen" id="screen-people">
+      <div class="back-row"><button class="back-btn" onclick="close_()">‹</button><span class="fs-title">Personen</span></div>
+      <div class="person-row">
+        <div class="person-avatar">M</div><div class="person-name">Markus</div>
+        <div class="role-toggle locked"><button class="active">Admin</button><button disabled>Mitglied</button></div>
+      </div>
+      <div class="person-row">
+        <div class="person-avatar">J</div><div class="person-name">Julia</div>
+        <div class="role-toggle" id="role-julia"><button onclick="setRole(this)">Admin</button><button class="active" onclick="setRole(this)">Mitglied</button></div>
+      </div>
+      <div class="person-row">
+        <div class="person-avatar">S</div><div class="person-name">Sophia</div>
+        <div class="role-toggle" id="role-sophia"><button onclick="setRole(this)">Admin</button><button class="active" onclick="setRole(this)">Mitglied</button></div>
+      </div>
+    </div>
+
+    <div class="fullscreen" id="screen-checklists">
+      <div class="back-row"><button class="back-btn" onclick="close_()">‹</button><span class="fs-title">Checklisten</span><button class="add-btn">+</button></div>
+      <div class="settings-card"><span class="sym">🔧</span><div class="sc-text"><div class="sc-title">Wassertank reinigen</div><div class="sc-sub">Quartalsweise · Empfänger: Markus</div></div><span class="chev">›</span></div>
+      <div class="settings-card"><span class="sym">🔋</span><div class="sc-text"><div class="sc-title">Batterien laden</div><div class="sc-sub">Monatlich · Empfänger: Markus, Julia</div></div><span class="chev">›</span></div>
+      <div class="settings-card"><span class="sym">⚡</span><div class="sc-text"><div class="sc-title">Stromausfall (Krise)</div><div class="sc-sub">5 Schritte</div></div><span class="chev">›</span></div>
+    </div>
+
+    <div class="fullscreen" id="screen-targets">
+      <div class="back-row"><button class="back-btn" onclick="close_()">‹</button><span class="fs-title">Ziele</span><button class="add-btn">+</button></div>
+      <div class="target-row"><span class="target-level">Typ</span><span class="target-name">Lebensmittel</span><span class="target-val">60 kg</span></div>
+      <div class="target-row"><span class="target-level">Kategorie</span><span class="target-name">Getreide & Teigwaren</span><span class="target-val">25 kg</span></div>
+      <div class="target-row"><span class="target-level">Produkt</span><span class="target-name">Reis</span><span class="target-val">10 kg</span></div>
+      <div class="target-row"><span class="target-level">Produkt</span><span class="target-name">Hustensaft</span><span class="target-val">2 Stück</span></div>
+      <p style="font-size:12px; color:#8a8776; margin-top:10px;">Neues Ziel: Ebene wählen (Typ / Kategorie / Unterkategorie / Produkt), Element auswählen, dann Zielwert manuell oder per Personen × Zeitraum berechnen.</p>
+    </div>
+
+    <div class="fullscreen" id="screen-export">
+      <div class="back-row"><button class="back-btn" onclick="close_()">‹</button><span class="fs-title">Export</span></div>
+      <button class="export-btn">PDF — Bestand exportieren <span>📄</span></button>
+      <button class="export-btn">PDF — Checklisten exportieren <span>📄</span></button>
+      <button class="export-btn">PDF — Notfallkontakte exportieren <span>📄</span></button>
+      <button class="export-btn">CSV-Sicherung herunterladen <span>⬇️</span></button>
+    </div>
+  </main>
+
+  <nav class="bottomnav mobile-only">
+    <button><span class="icon">🏠</span>Übersicht</button>
+    <button><span class="icon">📦</span>Bestand</button>
+    <button><span class="icon">✅</span>Checklisten</button>
+    <button><span class="icon">📚</span>Info</button>
+    <button class="active"><span class="icon">⚙️</span>Mehr</button>
+  </nav>
+</div>
+
+<script>
+function openSection(id){
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('screen-'+id).classList.add('active');
+}
+function close_(){
+  document.querySelectorAll('.fullscreen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('main-view').classList.remove('hidden');
+}
+function toggleType(head){
+  head.nextElementSibling.classList.toggle('open');
+}
+function setRole(btn){
+  const wrap = btn.parentElement;
+  wrap.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+let dragEl = null;
+document.querySelectorAll('.tax-sub-row').forEach(row=>{
+  row.addEventListener('dragstart', ()=>{ dragEl = row; row.classList.add('dragging'); });
+  row.addEventListener('dragend', ()=>{ row.classList.remove('dragging'); });
+});
+document.querySelectorAll('.tax-sub-list').forEach(list=>{
+  list.addEventListener('dragover', (e)=>{
+    e.preventDefault();
+    const after = [...list.querySelectorAll('.tax-sub-row:not(.dragging)')].find(el=>{
+      const box = el.getBoundingClientRect();
+      return e.clientY < box.top + box.height/2;
+    });
+    if(dragEl){
+      if(after) list.insertBefore(dragEl, after);
+      else list.insertBefore(dragEl, list.querySelector('.add-sub-row'));
+    }
+  });
+});
+</script>
+</body>
+</html>

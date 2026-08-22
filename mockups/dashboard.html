@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Erdkeller — Übersicht</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --stone:#E4E1D6; --stone-dark:#D3CFC0; --cellar:#2E4034; --cellar-light:#3E5747;
+    --rust:#A15A2E; --charcoal:#20241F; --paper:#F4F2EA; --ok:#4A6B4F;
+    --warn:#B8632F; --danger:#9C3B2E; --danger-bg:#F5E4DF; --warn-bg:#F7E9DA;
+  }
+  *{box-sizing:border-box; overscroll-behavior:none;}
+  html,body{overscroll-behavior:none;}
+  body{margin:0; background:var(--stone); color:var(--charcoal); font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent;}
+  .display{font-family:'Fraunces',serif;}
+  .shell{max-width:480px; margin:0 auto; min-height:100vh; background:var(--paper); display:flex; flex-direction:column; position:relative; padding-bottom:76px;}
+
+  header.topbar{background:var(--cellar); color:var(--paper); padding:18px 20px 16px; position:sticky; top:0; z-index:10;}
+  header.topbar .title{font-family:'Fraunces',serif; font-weight:600; font-size:20px;}
+  header.topbar .subtitle{font-size:12px; opacity:0.75; margin-top:2px;}
+
+  main{padding:18px 20px 10px; flex:1;}
+
+  .section-head{display:flex; justify-content:space-between; align-items:baseline; margin:22px 0 10px;}
+  .section-head:first-child{margin-top:0;}
+  .section-label{font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b6a5f; font-weight:600;}
+  .see-all{background:none; border:none; color:var(--cellar); font-weight:700; font-size:12.5px; cursor:pointer; font-family:'Inter',sans-serif;}
+
+  .preview-box{max-height:168px; overflow-y:auto; border-radius:14px;}
+  .preview-box::-webkit-scrollbar{width:4px;}
+  .preview-box::-webkit-scrollbar-thumb{background:var(--stone-dark); border-radius:4px;}
+
+  .alert-card{display:flex; align-items:center; gap:12px; padding:13px 15px; border-radius:14px; margin-bottom:8px; cursor:pointer;}
+  .alert-card.overdue{background:var(--danger-bg); border:1px solid #e3c3ba;}
+  .alert-card.soon{background:var(--warn-bg); border:1px solid #ecd2af;}
+  .alert-dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+  .alert-card.overdue .alert-dot{background:var(--danger);}
+  .alert-card.soon .alert-dot{background:var(--warn);}
+  .alert-text{flex:1; min-width:0;}
+  .alert-title{font-weight:600; font-size:14px;}
+  .alert-sub{font-size:12px; color:#6b6a5f; margin-top:1px;}
+  .alert-chevron{color:#9a9788; font-size:16px;}
+
+  .gaps-card{background:white; border:1px solid var(--stone-dark); border-radius:14px; padding:4px 16px;}
+  .gap-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; font-size:14px;}
+  .gap-row:not(:last-child){border-bottom:1px solid var(--stone-dark);}
+  .gap-row .missing{color:var(--rust); font-weight:600; font-size:13px;}
+
+  .totals-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .total-card{background:var(--cellar); color:var(--paper); border-radius:14px; padding:14px 10px 12px; text-align:center; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:5px;}
+  .total-card .sym{font-size:20px;}
+  .total-card .num{font-family:'Fraunces',serif; font-weight:700; font-size:17px;}
+  .total-card .target{font-size:10.5px; opacity:0.75;}
+  .total-card .bar{width:100%; height:4px; background:rgba(244,242,234,0.25); border-radius:4px; margin-top:2px; overflow:hidden;}
+  .total-card .bar-fill{height:100%; background:var(--paper); border-radius:4px;}
+  .total-card .lbl{font-size:10.5px; opacity:0.9;}
+
+  .shop-btn{width:100%; display:flex; align-items:center; justify-content:space-between; background:var(--rust); color:white; border:none; border-radius:14px; padding:16px 18px; font-size:15px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif;}
+  .shop-btn .count{background:rgba(255,255,255,0.25); border-radius:20px; padding:3px 10px; font-size:13px;}
+
+  nav.bottomnav{position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; background:var(--cellar); display:flex; padding:10px 6px calc(10px + env(safe-area-inset-bottom)); z-index:20;}
+  nav.bottomnav button{flex:1; background:none; border:none; color:rgba(244,242,234,0.6); display:flex; flex-direction:column; align-items:center; gap:3px; font-family:'Inter',sans-serif; font-size:10.5px; cursor:pointer; padding:4px;}
+  nav.bottomnav button.active{color:var(--paper);}
+  nav.bottomnav button .icon{font-size:19px;}
+
+  .fullscreen{display:none;}
+  .fullscreen.active{display:block;}
+  .dashboard-view.hidden{display:none;}
+  .back-row{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+  .back-btn{background:none; border:none; font-size:20px; cursor:pointer; color:var(--cellar); padding:2px;}
+  .fs-title{font-family:'Fraunces',serif; font-weight:600; font-size:19px;}
+
+  .horizon-chips{display:flex; gap:8px; margin-bottom:16px;}
+  .h-chip{background:white; border:1px solid var(--stone-dark); border-radius:20px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;}
+  .h-chip.active{background:var(--cellar); color:var(--paper); border-color:var(--cellar);}
+
+  .full-list .alert-card, .full-list .gap-row{margin-bottom:8px;}
+  .full-list .gaps-card{padding:4px 16px;}
+
+  .tree-type{margin-bottom:10px; border:1px solid var(--stone-dark); border-radius:14px; overflow:hidden; background:white;}
+  .tree-type-head{display:flex; justify-content:space-between; align-items:center; padding:14px 16px; cursor:pointer; font-weight:700;}
+  .tree-type-head .sym{margin-right:8px;}
+  .tree-progress{font-size:12px; color:#6b6a5f; font-weight:500;}
+  .tree-body{display:none; padding:0 16px 12px;}
+  .tree-body.open{display:block;}
+  .tree-cat{padding:10px 0; border-top:1px solid var(--stone-dark);}
+  .tree-cat-head{display:flex; justify-content:space-between; font-size:13.5px; font-weight:600;}
+  .tree-bar{height:5px; background:var(--stone-dark); border-radius:4px; margin-top:6px; overflow:hidden;}
+  .tree-bar-fill{height:100%; background:var(--ok); border-radius:4px;}
+  .tree-sub{display:flex; justify-content:space-between; font-size:12px; color:#6b6a5f; padding:6px 0 0 10px;}
+
+  .shop-item{display:flex; align-items:center; gap:12px; background:white; border:1px solid var(--stone-dark); border-radius:12px; padding:13px 15px; margin-bottom:8px;}
+  .shop-item input{width:18px; height:18px;}
+  .shop-item .sn{flex:1; font-size:14.5px; font-weight:600;}
+  .shop-item .sa{font-size:12.5px; color:#6b6a5f;}
+
+  @media(min-width:900px){
+    .shell{max-width:1100px; flex-direction:row; padding-bottom:0;}
+    .sidebar{width:220px; background:var(--cellar); color:var(--paper); padding:24px 14px; display:flex; flex-direction:column; gap:4px; flex-shrink:0;}
+    .sidebar .brand{font-family:'Fraunces',serif; font-size:20px; font-weight:600; padding:0 10px 24px;}
+    .sidebar button{background:none; border:none; color:rgba(244,242,234,0.65); text-align:left; padding:12px 12px; border-radius:10px; font-size:14.5px; cursor:pointer; display:flex; align-items:center; gap:10px; font-family:'Inter',sans-serif;}
+    .sidebar button.active{background:rgba(244,242,234,0.12); color:var(--paper); font-weight:600;}
+    nav.bottomnav{display:none;}
+    header.topbar{display:none;}
+    main{flex:1; padding:32px 40px; max-width:900px;}
+    .top-row{display:grid; grid-template-columns:1.3fr 1fr; gap:24px; align-items:start;}
+    .totals-grid{grid-template-columns:repeat(3,1fr); max-width:420px;}
+    .tablet-header{font-family:'Fraunces',serif; font-size:26px; font-weight:600; margin-bottom:24px;}
+    .tablet-only{display:block;}
+    .mobile-only{display:none;}
+    .preview-box{max-height:220px;}
+  }
+  .tablet-only{display:none;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="sidebar tablet-only">
+    <div class="brand">🏔 Erdkeller</div>
+    <button class="active"><span>🏠</span> Übersicht</button>
+    <button><span>📦</span> Bestand</button>
+    <button><span>✅</span> Checklisten</button>
+    <button><span>📚</span> Info</button>
+    <button><span>⚙️</span> Einstellungen</button>
+  </div>
+
+  <header class="topbar mobile-only">
+    <div class="title">Erdkeller</div>
+    <div class="subtitle">Übersicht</div>
+  </header>
+
+  <main>
+    <h1 class="tablet-header tablet-only">Übersicht</h1>
+
+    <div class="dashboard-view" id="dash-main">
+      <div class="top-row">
+        <div>
+          <div class="section-head">
+            <span class="section-label">Fällig / Überfällig (3 Mo.)</span>
+            <button class="see-all" onclick="openScreen('alerts')">Alle anzeigen</button>
+          </div>
+          <div class="preview-box">
+            <div class="alert-card overdue" onclick="openScreen('alerts')">
+              <div class="alert-dot"></div>
+              <div class="alert-text"><div class="alert-title">Bohnen weiß · 2 Dosen überfällig</div><div class="alert-sub">MHD 07/2026 · Regal 1</div></div>
+              <div class="alert-chevron">›</div>
+            </div>
+            <div class="alert-card soon" onclick="openScreen('alerts')">
+              <div class="alert-dot"></div>
+              <div class="alert-text"><div class="alert-title">Nudeln · fällig in 3 Wochen</div><div class="alert-sub">MHD 09/2026 · Box A</div></div>
+              <div class="alert-chevron">›</div>
+            </div>
+            <div class="alert-card soon" onclick="openScreen('alerts')">
+              <div class="alert-dot"></div>
+              <div class="alert-text"><div class="alert-title">Hundefutter · fällig in 2 Monaten</div><div class="alert-sub">MHD 10/2026 · Box B</div></div>
+              <div class="alert-chevron">›</div>
+            </div>
+            <div class="alert-card soon" onclick="openScreen('alerts')">
+              <div class="alert-dot"></div>
+              <div class="alert-text"><div class="alert-title">Linsen · fällig in 10 Wochen</div><div class="alert-sub">MHD 11/2026 · Regal 2</div></div>
+              <div class="alert-chevron">›</div>
+            </div>
+          </div>
+
+          <div class="section-head">
+            <span class="section-label">Fehlende Mengen</span>
+            <button class="see-all" onclick="openScreen('gaps')">Alle anzeigen</button>
+          </div>
+          <div class="preview-box">
+            <div class="gaps-card">
+              <div class="gap-row"><span>Reis</span><span class="missing">−2,0 kg</span></div>
+              <div class="gap-row"><span>Nudeln</span><span class="missing">−1,0 kg</span></div>
+              <div class="gap-row"><span>Hustensaft</span><span class="missing">−1 Stück</span></div>
+              <div class="gap-row"><span>Katzenfutter</span><span class="missing">−3,0 kg</span></div>
+              <div class="gap-row"><span>Kerzen</span><span class="missing">−6 Stück</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-head">
+            <span class="section-label">Bestand gesamt</span>
+            <button class="see-all" onclick="openScreen('totals')">Alle anzeigen</button>
+          </div>
+          <div class="totals-grid">
+            <div class="total-card" onclick="openScreen('totals')">
+              <span class="sym">🥫</span>
+              <span class="num">45 kg</span>
+              <span class="target">Ziel: 60 kg</span>
+              <div class="bar"><div class="bar-fill" style="width:75%"></div></div>
+              <span class="lbl">Lebensmittel</span>
+            </div>
+            <div class="total-card" onclick="openScreen('totals')">
+              <span class="sym">💊</span>
+              <span class="num">12</span>
+              <span class="target">Ziel: 15</span>
+              <div class="bar"><div class="bar-fill" style="width:80%"></div></div>
+              <span class="lbl">Medikamente</span>
+            </div>
+            <div class="total-card" onclick="openScreen('totals')">
+              <span class="sym">🐾</span>
+              <span class="num">8 kg</span>
+              <span class="target">Ziel: 12 kg</span>
+              <div class="bar"><div class="bar-fill" style="width:66%"></div></div>
+              <span class="lbl">Tiernahrung</span>
+            </div>
+          </div>
+
+          <div class="section-head"><span class="section-label">Einkauf</span></div>
+          <button class="shop-btn" onclick="openScreen('shopping')">Einkaufsliste anzeigen <span class="count">5 Artikel</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="fullscreen" id="screen-alerts">
+      <div class="back-row"><button class="back-btn" onclick="closeScreen()">‹</button><span class="fs-title">Fällig / Überfällig</span></div>
+      <div class="horizon-chips">
+        <button class="h-chip" onclick="setHorizon(this)">1 Monat</button>
+        <button class="h-chip active" onclick="setHorizon(this)">6 Monate</button>
+        <button class="h-chip" onclick="setHorizon(this)">Bis Jahresende</button>
+      </div>
+      <div class="full-list">
+        <div class="alert-card overdue"><div class="alert-dot"></div><div class="alert-text"><div class="alert-title">Bohnen weiß · 2 Dosen überfällig</div><div class="alert-sub">MHD 07/2026 · Regal 1</div></div></div>
+        <div class="alert-card soon"><div class="alert-dot"></div><div class="alert-text"><div class="alert-title">Nudeln · fällig in 3 Wochen</div><div class="alert-sub">MHD 09/2026 · Box A</div></div></div>
+        <div class="alert-card soon"><div class="alert-dot"></div><div class="alert-text"><div class="alert-title">Hundefutter · fällig in 2 Monaten</div><div class="alert-sub">MHD 10/2026 · Box B</div></div></div>
+        <div class="alert-card soon"><div class="alert-dot"></div><div class="alert-text"><div class="alert-title">Linsen · fällig in 10 Wochen</div><div class="alert-sub">MHD 11/2026 · Regal 2</div></div></div>
+        <div class="alert-card soon"><div class="alert-dot"></div><div class="alert-text"><div class="alert-title">Erbsen · fällig in 4 Monaten</div><div class="alert-sub">MHD 12/2026 · Regal 2</div></div></div>
+        <div class="alert-card soon"><div class="alert-dot"></div><div class="alert-text"><div class="alert-title">Gurken sauer · fällig in 5 Monaten</div><div class="alert-sub">MHD 01/2027 · Box A</div></div></div>
+      </div>
+    </div>
+
+    <div class="fullscreen" id="screen-gaps">
+      <div class="back-row"><button class="back-btn" onclick="closeScreen()">‹</button><span class="fs-title">Fehlende Mengen</span></div>
+      <div class="full-list">
+        <div class="gaps-card">
+          <div class="gap-row"><span>Reis</span><span class="missing">−2,0 kg</span></div>
+          <div class="gap-row"><span>Nudeln</span><span class="missing">−1,0 kg</span></div>
+          <div class="gap-row"><span>Hustensaft</span><span class="missing">−1 Stück</span></div>
+          <div class="gap-row"><span>Katzenfutter</span><span class="missing">−3,0 kg</span></div>
+          <div class="gap-row"><span>Kerzen</span><span class="missing">−6 Stück</span></div>
+          <div class="gap-row"><span>Batterien AA</span><span class="missing">−8 Stück</span></div>
+          <div class="gap-row"><span>Trinkwasser</span><span class="missing">−10,0 kg</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fullscreen" id="screen-totals">
+      <div class="back-row"><button class="back-btn" onclick="closeScreen()">‹</button><span class="fs-title">Bestand vs. Ziel</span></div>
+      <div class="tree-type">
+        <div class="tree-type-head" onclick="toggleTree(this)">
+          <span><span class="sym">🥫</span>Lebensmittel</span>
+          <span class="tree-progress">45 / 60 kg ▾</span>
+        </div>
+        <div class="tree-body">
+          <div class="tree-cat">
+            <div class="tree-cat-head"><span>Gemüse & Hülsenfrüchte</span><span>18 / 22 kg</span></div>
+            <div class="tree-bar"><div class="tree-bar-fill" style="width:82%"></div></div>
+            <div class="tree-sub"><span>Hülsenfrüchte getrocknet</span><span>9 / 10 kg</span></div>
+            <div class="tree-sub"><span>Eingelegtes Gemüse</span><span>6 / 8 kg</span></div>
+            <div class="tree-sub"><span>Eintopf</span><span>3 / 4 kg</span></div>
+          </div>
+          <div class="tree-cat">
+            <div class="tree-cat-head"><span>Getreide & Teigwaren</span><span>15 / 25 kg</span></div>
+            <div class="tree-bar"><div class="tree-bar-fill" style="width:60%"></div></div>
+            <div class="tree-sub"><span>Teigwaren</span><span>8 / 15 kg</span></div>
+            <div class="tree-sub"><span>Reis</span><span>7 / 10 kg</span></div>
+          </div>
+          <div class="tree-cat">
+            <div class="tree-cat-head"><span>Fisch & Fleisch & Eier</span><span>12 / 13 kg</span></div>
+            <div class="tree-bar"><div class="tree-bar-fill" style="width:92%"></div></div>
+            <div class="tree-sub"><span>Konserven</span><span>12 / 13 kg</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="tree-type">
+        <div class="tree-type-head" onclick="toggleTree(this)">
+          <span><span class="sym">💊</span>Medikamente</span>
+          <span class="tree-progress">12 / 15 ▾</span>
+        </div>
+        <div class="tree-body">
+          <div class="tree-cat">
+            <div class="tree-cat-head"><span>Schmerzmittel</span><span>12 / 15</span></div>
+            <div class="tree-bar"><div class="tree-bar-fill" style="width:80%"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="tree-type">
+        <div class="tree-type-head" onclick="toggleTree(this)">
+          <span><span class="sym">🐾</span>Tiernahrung</span>
+          <span class="tree-progress">8 / 12 kg ▾</span>
+        </div>
+        <div class="tree-body">
+          <div class="tree-cat">
+            <div class="tree-cat-head"><span>Hundefutter</span><span>8 / 12 kg</span></div>
+            <div class="tree-bar"><div class="tree-bar-fill" style="width:66%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fullscreen" id="screen-shopping">
+      <div class="back-row"><button class="back-btn" onclick="closeScreen()">‹</button><span class="fs-title">Einkaufsliste</span></div>
+      <div class="section-label">Lebensmittel</div>
+      <div class="shop-item"><input type="checkbox"><div class="sn">Reis<div class="sa">2,0 kg</div></div></div>
+      <div class="shop-item"><input type="checkbox"><div class="sn">Nudeln<div class="sa">1,0 kg</div></div></div>
+      <div class="section-label">Medikamente</div>
+      <div class="shop-item"><input type="checkbox"><div class="sn">Hustensaft<div class="sa">1 Stück</div></div></div>
+      <div class="section-label">Tiernahrung</div>
+      <div class="shop-item"><input type="checkbox"><div class="sn">Katzenfutter<div class="sa">3,0 kg</div></div></div>
+      <div class="section-label">Sonstiges</div>
+      <div class="shop-item"><input type="checkbox"><div class="sn">Kerzen<div class="sa">6 Stück</div></div></div>
+    </div>
+  </main>
+
+  <nav class="bottomnav mobile-only">
+    <button class="active"><span class="icon">🏠</span>Übersicht</button>
+    <button><span class="icon">📦</span>Bestand</button>
+    <button><span class="icon">✅</span>Checklisten</button>
+    <button><span class="icon">📚</span>Info</button>
+    <button><span class="icon">⚙️</span>Mehr</button>
+  </nav>
+
+</div>
+
+<script>
+function openScreen(id){
+  document.getElementById('dash-main').classList.add('hidden');
+  document.querySelectorAll('.fullscreen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function closeScreen(){
+  document.querySelectorAll('.fullscreen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('dash-main').classList.remove('hidden');
+}
+function setHorizon(el){
+  document.querySelectorAll('.h-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+function toggleTree(head){
+  const body = head.nextElementSibling;
+  body.classList.toggle('open');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Erdkeller — Info</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --stone:#E4E1D6; --stone-dark:#D3CFC0; --cellar:#2E4034; --cellar-light:#3E5747;
+    --rust:#A15A2E; --charcoal:#20241F; --paper:#F4F2EA; --ok:#4A6B4F;
+    --danger:#9C3B2E; --danger-bg:#F5E4DF;
+  }
+  *{box-sizing:border-box; overscroll-behavior:none;}
+  html,body{overscroll-behavior:none;}
+  body{margin:0; background:var(--stone); color:var(--charcoal); font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent;}
+  .display{font-family:'Fraunces',serif;}
+  .shell{max-width:480px; margin:0 auto; min-height:100vh; background:var(--paper); display:flex; flex-direction:column; position:relative; padding-bottom:76px;}
+
+  header.topbar{background:var(--cellar); color:var(--paper); padding:18px 20px 16px; position:sticky; top:0; z-index:10; display:flex; justify-content:space-between; align-items:flex-start;}
+  header.topbar .title{font-family:'Fraunces',serif; font-weight:600; font-size:20px;}
+  header.topbar .subtitle{font-size:12px; opacity:0.75; margin-top:2px;}
+  .admin-add{background:rgba(244,242,234,0.15); border:none; color:var(--paper); width:34px; height:34px; border-radius:50%; font-size:18px; cursor:pointer;}
+
+  main{padding:18px 20px 10px; flex:1;}
+
+  .segmented{display:flex; background:var(--stone-dark); border-radius:12px; padding:4px; margin-bottom:20px;}
+  .seg-btn{flex:1; border:none; background:none; padding:10px; border-radius:9px; font-weight:700; font-size:13px; cursor:pointer; font-family:'Inter',sans-serif; color:#5c5a4e;}
+  .seg-btn.active{background:var(--cellar); color:var(--paper);}
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .section-label{font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b6a5f; font-weight:700; margin-bottom:8px;}
+  .section-label.emergency{color:var(--danger);}
+
+  .contact-row{display:flex; align-items:center; gap:12px; border-radius:14px; padding:13px 15px; margin-bottom:8px; cursor:pointer;}
+  .contact-row.emergency{background:var(--danger-bg); border:1px solid #e3c3ba;}
+  .contact-row.general{background:white; border:1px solid var(--stone-dark);}
+  .contact-avatar{width:38px; height:38px; border-radius:50%; background:var(--cellar); color:var(--paper); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;}
+  .contact-row.emergency .contact-avatar{background:var(--danger);}
+  .contact-text{flex:1;}
+  .contact-name{font-weight:600; font-size:14.5px;}
+  .contact-role{font-size:12px; color:#6b6a5f;}
+  .call-btn{background:var(--cellar); color:var(--paper); border:none; border-radius:50%; width:36px; height:36px; font-size:15px; cursor:pointer;}
+  .contact-row.emergency .call-btn{background:var(--danger);}
+
+  .note-row{background:white; border:1px solid var(--stone-dark); border-radius:14px; padding:14px 16px; margin-bottom:8px; cursor:pointer;}
+  .note-title{font-weight:600; font-size:14.5px;}
+  .note-preview{font-size:12.5px; color:#6b6a5f; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  .tag-row{display:flex; gap:8px; overflow-x:auto; margin-bottom:16px; padding-bottom:4px;}
+  .tag-chip{flex:0 0 auto; background:white; border:1px solid var(--stone-dark); border-radius:20px; padding:8px 14px; font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap; font-family:'Inter',sans-serif;}
+  .tag-chip.active{background:var(--rust); color:white; border-color:var(--rust);}
+
+  .recipe-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .recipe-card{border-radius:14px; overflow:hidden; cursor:pointer; background:white; border:1px solid var(--stone-dark);}
+  .recipe-photo{height:100px; display:flex; align-items:center; justify-content:center; font-size:34px; background:var(--cellar-light);}
+  .recipe-info{padding:10px 12px;}
+  .recipe-name{font-weight:600; font-size:13.5px; line-height:1.3;}
+  .recipe-tag{font-size:11px; color:var(--rust); margin-top:3px; font-weight:600;}
+
+  .fullscreen{display:none;}
+  .fullscreen.active{display:block;}
+  .dashboard-view.hidden{display:none;}
+  .back-row{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+  .back-btn{background:none; border:none; font-size:20px; cursor:pointer; color:var(--cellar); padding:2px;}
+  .fs-title{font-family:'Fraunces',serif; font-weight:600; font-size:19px;}
+
+  .note-detail-body{font-size:14.5px; line-height:1.7; color:#3a3930;}
+  .photo-placeholder{width:100%; height:160px; background:var(--stone-dark); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:34px; margin-bottom:16px; color:#8a8776;}
+
+  .recipe-detail-photo{width:100%; height:200px; border-radius:14px; background:var(--cellar-light); display:flex; align-items:center; justify-content:center; font-size:52px; margin-bottom:16px;}
+  .recipe-detail-tag{display:inline-block; background:var(--danger-bg); color:var(--rust); font-size:12px; font-weight:700; padding:5px 12px; border-radius:20px; margin-bottom:14px;}
+
+  nav.bottomnav{position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; background:var(--cellar); display:flex; padding:10px 6px calc(10px + env(safe-area-inset-bottom)); z-index:20;}
+  nav.bottomnav button{flex:1; background:none; border:none; color:rgba(244,242,234,0.6); display:flex; flex-direction:column; align-items:center; gap:3px; font-family:'Inter',sans-serif; font-size:10.5px; cursor:pointer; padding:4px;}
+  nav.bottomnav button.active{color:var(--paper);}
+  nav.bottomnav button .icon{font-size:19px;}
+
+  @media(min-width:900px){
+    .shell{max-width:1100px; flex-direction:row; padding-bottom:0;}
+    .sidebar{width:220px; background:var(--cellar); color:var(--paper); padding:24px 14px; display:flex; flex-direction:column; gap:4px; flex-shrink:0;}
+    .sidebar .brand{font-family:'Fraunces',serif; font-size:20px; font-weight:600; padding:0 10px 24px;}
+    .sidebar button{background:none; border:none; color:rgba(244,242,234,0.65); text-align:left; padding:12px 12px; border-radius:10px; font-size:14.5px; cursor:pointer; display:flex; align-items:center; gap:10px; font-family:'Inter',sans-serif;}
+    .sidebar button.active{background:rgba(244,242,234,0.12); color:var(--paper); font-weight:600;}
+    nav.bottomnav{display:none;}
+    header.topbar{display:none;}
+    main{flex:1; padding:32px 40px; max-width:800px;}
+    .tablet-header-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;}
+    .tablet-header{font-family:'Fraunces',serif; font-size:26px; font-weight:600;}
+    .tablet-only{display:block;}
+    .mobile-only{display:none;}
+    .recipe-grid{grid-template-columns:repeat(4,1fr);}
+    .admin-add.tablet-add{background:var(--cellar); color:var(--paper); width:38px; height:38px;}
+  }
+  .tablet-only{display:none;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="sidebar tablet-only">
+    <div class="brand">🏔 Erdkeller</div>
+    <button><span>🏠</span> Übersicht</button>
+    <button><span>📦</span> Bestand</button>
+    <button><span>✅</span> Checklisten</button>
+    <button class="active"><span>📚</span> Info</button>
+    <button><span>⚙️</span> Einstellungen</button>
+  </div>
+
+  <header class="topbar mobile-only">
+    <div><div class="title">Erdkeller</div><div class="subtitle">Info</div></div>
+    <button class="admin-add" title="Hinzufügen (nur Admin)">+</button>
+  </header>
+
+  <main id="main-content">
+    <div class="tablet-header-row tablet-only">
+      <h1 class="tablet-header">Info</h1>
+      <button class="admin-add tablet-add" title="Hinzufügen (nur Admin)">+</button>
+    </div>
+
+    <div id="main-view">
+      <div class="segmented">
+        <button class="seg-btn active" onclick="switchTab('contacts', this)">Kontakte</button>
+        <button class="seg-btn" onclick="switchTab('notes', this)">Notizen</button>
+        <button class="seg-btn" onclick="switchTab('recipes', this)">Rezepte</button>
+      </div>
+
+      <!-- CONTACTS -->
+      <div class="view active" id="view-contacts">
+        <div class="section-label emergency">Notfall</div>
+        <div class="contact-row emergency">
+          <div class="contact-avatar">🚑</div>
+          <div class="contact-text"><div class="contact-name">Notruf</div><div class="contact-role">Feuerwehr / Rettungsdienst</div></div>
+          <button class="call-btn">📞</button>
+        </div>
+        <div class="contact-row emergency">
+          <div class="contact-avatar">🔧</div>
+          <div class="contact-text"><div class="contact-name">Handwerker Notdienst</div><div class="contact-role">Wasser / Strom</div></div>
+          <button class="call-btn">📞</button>
+        </div>
+
+        <div class="section-label" style="margin-top:22px;">Allgemein</div>
+        <div class="contact-row general">
+          <div class="contact-avatar">👤</div>
+          <div class="contact-text"><div class="contact-name">Julia</div><div class="contact-role">Familie</div></div>
+          <button class="call-btn">📞</button>
+        </div>
+        <div class="contact-row general">
+          <div class="contact-avatar">🔩</div>
+          <div class="contact-text"><div class="contact-name">Klempner Dubois</div><div class="contact-role">Sanitär</div></div>
+          <button class="call-btn">📞</button>
+        </div>
+        <div class="contact-row general">
+          <div class="contact-avatar">⚡</div>
+          <div class="contact-text"><div class="contact-name">EDF Störungsdienst</div><div class="contact-role">Stromversorger</div></div>
+          <button class="call-btn">📞</button>
+        </div>
+      </div>
+
+      <!-- NOTES -->
+      <div class="view" id="view-notes">
+        <div class="note-row" onclick="openNote('Wassertank reinigen', 'Zuerst den Haupthahn schließen, dann den Tank vollständig entleeren. Mit Trinkwasserreiniger schrubben und dreimal nachspülen…')">
+          <div class="note-title">Wassertank reinigen</div>
+          <div class="note-preview">Zuerst den Haupthahn schließen, dann den Tank vollständig entleeren…</div>
+        </div>
+        <div class="note-row" onclick="openNote('Notstromaggregat starten', 'Kraftstoffhahn öffnen, Choke ziehen, Starterseil dreimal ziehen…')">
+          <div class="note-title">Notstromaggregat starten</div>
+          <div class="note-preview">Kraftstoffhahn öffnen, Choke ziehen, Starterseil dreimal ziehen…</div>
+        </div>
+        <div class="note-row" onclick="openNote('Sicherungskasten', 'Übersicht der Sicherungen: 1 = Küche, 2 = Keller, 3 = Heizung…')">
+          <div class="note-title">Sicherungskasten Übersicht</div>
+          <div class="note-preview">Übersicht der Sicherungen: 1 = Küche, 2 = Keller, 3 = Heizung…</div>
+        </div>
+      </div>
+
+      <!-- RECIPES -->
+      <div class="view" id="view-recipes">
+        <div class="tag-row" id="tag-row">
+          <button class="tag-chip active" onclick="filterTag('alle', this)">Alle</button>
+          <button class="tag-chip" onclick="filterTag('dutch', this)">Dutch Oven</button>
+          <button class="tag-chip" onclick="filterTag('eintopf', this)">Eintopf</button>
+          <button class="tag-chip" onclick="filterTag('brot', this)">Brot</button>
+        </div>
+        <div class="recipe-grid" id="recipe-grid"></div>
+      </div>
+    </div>
+
+    <!-- NOTE DETAIL -->
+    <div class="fullscreen" id="screen-note">
+      <div class="back-row"><button class="back-btn" onclick="closeDetail()">‹</button><span class="fs-title" id="note-title">Titel</span></div>
+      <div class="photo-placeholder">📷</div>
+      <div class="note-detail-body" id="note-body">Text</div>
+    </div>
+
+    <!-- RECIPE DETAIL -->
+    <div class="fullscreen" id="screen-recipe">
+      <div class="back-row"><button class="back-btn" onclick="closeDetail()">‹</button><span class="fs-title" id="recipe-title">Titel</span></div>
+      <div class="recipe-detail-photo" id="recipe-photo">🍲</div>
+      <div class="recipe-detail-tag" id="recipe-tag">Eintopf</div>
+      <div class="note-detail-body" id="recipe-body">Text</div>
+    </div>
+  </main>
+
+  <nav class="bottomnav mobile-only">
+    <button><span class="icon">🏠</span>Übersicht</button>
+    <button><span class="icon">📦</span>Bestand</button>
+    <button><span class="icon">✅</span>Checklisten</button>
+    <button class="active"><span class="icon">📚</span>Info</button>
+    <button><span class="icon">⚙️</span>Mehr</button>
+  </nav>
+</div>
+
+<script>
+const recipes = [
+  {name:'Linseneintopf mit Speck', tag:'eintopf', tagLabel:'Eintopf', sym:'🍲', body:'Zwiebeln und Speck anbraten, Linsen und Brühe zugeben, 40 Minuten köcheln lassen. Mit Essig abschmecken.'},
+  {name:'Dutch Oven Brot', tag:'brot', tagLabel:'Brot', sym:'🍞', body:'Teig 12 Stunden ruhen lassen, in vorgeheiztem Dutch Oven mit Deckel 45 Minuten backen.'},
+  {name:'Chili con Carne (DO)', tag:'dutch', tagLabel:'Dutch Oven', sym:'🌶️', body:'Hackfleisch anbraten, Bohnen, Tomaten und Gewürze zugeben, im Dutch Oven 1,5 Stunden schmoren.'},
+  {name:'Gulaschsuppe', tag:'eintopf', tagLabel:'Eintopf', sym:'🥘', body:'Rindfleisch würfeln, mit Paprika und Zwiebeln anbraten, mit Brühe auffüllen und 2 Stunden köcheln.'},
+  {name:'Fladenbrot im DO', tag:'dutch', tagLabel:'Dutch Oven', sym:'🫓', body:'Einfacher Hefeteig, im heißen Dutch Oven von beiden Seiten je 8 Minuten backen.'},
+  {name:'Bauernbrot', tag:'brot', tagLabel:'Brot', sym:'🍞', body:'Sauerteig mit Mehl und Wasser verkneten, über Nacht gehen lassen, bei 230°C backen.'}
+];
+let activeTag = 'alle';
+
+function renderRecipes(){
+  const grid = document.getElementById('recipe-grid');
+  grid.innerHTML = '';
+  recipes.filter(r => activeTag==='alle' || r.tag===activeTag).forEach(r=>{
+    const card = document.createElement('div');
+    card.className = 'recipe-card';
+    card.innerHTML = `<div class="recipe-photo">${r.sym}</div><div class="recipe-info"><div class="recipe-name">${r.name}</div><div class="recipe-tag">${r.tagLabel}</div></div>`;
+    card.onclick = ()=>openRecipe(r);
+    grid.appendChild(card);
+  });
+}
+function filterTag(tag, btn){
+  activeTag = tag;
+  document.querySelectorAll('.tag-chip').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  renderRecipes();
+}
+renderRecipes();
+
+function switchTab(tab, btn){
+  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['contacts','notes','recipes'].forEach(t=>{
+    document.getElementById('view-'+t).classList.toggle('active', t===tab);
+  });
+}
+
+function openNote(title, body){
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('screen-note').classList.add('active');
+  document.getElementById('note-title').textContent = title;
+  document.getElementById('note-body').textContent = body;
+}
+function openRecipe(r){
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('screen-recipe').classList.add('active');
+  document.getElementById('recipe-title').textContent = r.name;
+  document.getElementById('recipe-photo').textContent = r.sym;
+  document.getElementById('recipe-tag').textContent = r.tagLabel;
+  document.getElementById('recipe-body').textContent = r.body;
+}
+function closeDetail(){
+  document.querySelectorAll('.fullscreen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('main-view').classList.remove('hidden');
+}
+</script>
+</body>
+</html>

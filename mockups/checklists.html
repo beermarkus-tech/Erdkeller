@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Erdkeller — Checklisten</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --stone:#E4E1D6; --stone-dark:#D3CFC0; --cellar:#2E4034; --cellar-light:#3E5747;
+    --rust:#A15A2E; --charcoal:#20241F; --paper:#F4F2EA; --ok:#4A6B4F;
+    --warn:#B8632F; --danger:#9C3B2E; --danger-bg:#F5E4DF; --warn-bg:#F7E9DA; --ok-bg:#E7EEE7;
+  }
+  *{box-sizing:border-box; overscroll-behavior:none;}
+  html,body{overscroll-behavior:none;}
+  body{margin:0; background:var(--stone); color:var(--charcoal); font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent;}
+  .display{font-family:'Fraunces',serif;}
+  .shell{max-width:480px; margin:0 auto; min-height:100vh; background:var(--paper); display:flex; flex-direction:column; position:relative; padding-bottom:76px;}
+
+  header.topbar{background:var(--cellar); color:var(--paper); padding:18px 20px 16px; position:sticky; top:0; z-index:10;}
+  header.topbar .title{font-family:'Fraunces',serif; font-weight:600; font-size:20px;}
+  header.topbar .subtitle{font-size:12px; opacity:0.75; margin-top:2px;}
+
+  main{padding:18px 20px 10px; flex:1;}
+
+  .segmented{display:flex; background:var(--stone-dark); border-radius:12px; padding:4px; margin-bottom:20px;}
+  .seg-btn{flex:1; border:none; background:none; padding:10px; border-radius:9px; font-weight:700; font-size:14px; cursor:pointer; font-family:'Inter',sans-serif; color:#5c5a4e;}
+  .seg-btn.active{background:var(--cellar); color:var(--paper);}
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .freq-group{margin-bottom:22px;}
+  .freq-label{font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b6a5f; font-weight:700; margin-bottom:8px;}
+  .check-row{display:flex; align-items:center; gap:12px; background:white; border:1px solid var(--stone-dark); border-radius:14px; padding:14px 16px; margin-bottom:8px; cursor:pointer;}
+  .status-dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+  .status-dot.overdue{background:var(--danger);}
+  .status-dot.soon{background:var(--warn);}
+  .status-dot.ok{background:var(--ok);}
+  .check-row-text{flex:1;}
+  .check-row-title{font-weight:600; font-size:14.5px;}
+  .check-row-sub{font-size:12px; color:#6b6a5f; margin-top:1px;}
+  .check-row-chevron{color:#9a9788;}
+
+  .crisis-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .crisis-card{background:var(--cellar); color:var(--paper); border-radius:16px; padding:22px 14px; text-align:center; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:10px;}
+  .crisis-card .sym{font-size:32px;}
+  .crisis-card .name{font-weight:700; font-size:14px; font-family:'Fraunces',serif;}
+
+  /* Maintenance detail */
+  .fullscreen{display:none;}
+  .fullscreen.active{display:block;}
+  .dashboard-view.hidden{display:none;}
+  .back-row{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+  .back-btn{background:none; border:none; font-size:20px; cursor:pointer; color:var(--cellar); padding:2px;}
+  .fs-title{font-family:'Fraunces',serif; font-weight:600; font-size:19px;}
+  .fs-sub{font-size:13px; color:#6b6a5f; margin:0 0 20px 34px;}
+
+  .progress-track{height:6px; background:var(--stone-dark); border-radius:6px; overflow:hidden; margin-bottom:22px;}
+  .progress-fill{height:100%; background:var(--ok); border-radius:6px; transition:width .2s ease;}
+
+  .step-row{display:flex; align-items:flex-start; gap:12px; background:white; border:1px solid var(--stone-dark); border-radius:12px; padding:14px 16px; margin-bottom:8px; cursor:pointer;}
+  .step-row.checked{background:var(--ok-bg); border-color:#c3d4c5;}
+  .step-check{width:22px; height:22px; border-radius:6px; border:2px solid var(--stone-dark); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; color:white; margin-top:1px;}
+  .step-row.checked .step-check{background:var(--ok); border-color:var(--ok);}
+  .step-text{font-size:14.5px; line-height:1.4;}
+  .step-row.checked .step-text{text-decoration:line-through; color:#7a7a70;}
+
+  /* Crisis reference view - distinct */
+  .crisis-view{background:#FDFCF8; min-height:100vh; padding:22px 22px 40px;}
+  .crisis-view-head{display:flex; align-items:center; gap:12px; margin-bottom:8px;}
+  .crisis-back{background:var(--danger-bg); border:none; width:40px; height:40px; border-radius:50%; font-size:20px; color:var(--danger); cursor:pointer;}
+  .crisis-view-title{font-family:'Fraunces',serif; font-weight:700; font-size:26px;}
+  .crisis-view-note{font-size:14px; color:#6b6a5f; margin:6px 0 24px;}
+  .crisis-step{display:flex; gap:16px; margin-bottom:26px; align-items:flex-start;}
+  .crisis-step-num{width:38px; height:38px; border-radius:50%; background:var(--danger); color:white; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; flex-shrink:0; font-family:'Fraunces',serif;}
+  .crisis-step-text{font-size:20px; line-height:1.5; font-weight:500; padding-top:4px;}
+
+  nav.bottomnav{position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; background:var(--cellar); display:flex; padding:10px 6px calc(10px + env(safe-area-inset-bottom)); z-index:20;}
+  nav.bottomnav button{flex:1; background:none; border:none; color:rgba(244,242,234,0.6); display:flex; flex-direction:column; align-items:center; gap:3px; font-family:'Inter',sans-serif; font-size:10.5px; cursor:pointer; padding:4px;}
+  nav.bottomnav button.active{color:var(--paper);}
+  nav.bottomnav button .icon{font-size:19px;}
+
+  @media(min-width:900px){
+    .shell{max-width:1100px; flex-direction:row; padding-bottom:0;}
+    .sidebar{width:220px; background:var(--cellar); color:var(--paper); padding:24px 14px; display:flex; flex-direction:column; gap:4px; flex-shrink:0;}
+    .sidebar .brand{font-family:'Fraunces',serif; font-size:20px; font-weight:600; padding:0 10px 24px;}
+    .sidebar button{background:none; border:none; color:rgba(244,242,234,0.65); text-align:left; padding:12px 12px; border-radius:10px; font-size:14.5px; cursor:pointer; display:flex; align-items:center; gap:10px; font-family:'Inter',sans-serif;}
+    .sidebar button.active{background:rgba(244,242,234,0.12); color:var(--paper); font-weight:600;}
+    nav.bottomnav{display:none;}
+    header.topbar{display:none;}
+    main{flex:1; padding:32px 40px; max-width:700px;}
+    .tablet-header{font-family:'Fraunces',serif; font-size:26px; font-weight:600; margin-bottom:24px;}
+    .tablet-only{display:block;}
+    .mobile-only{display:none;}
+    .crisis-grid{grid-template-columns:repeat(3,1fr);}
+    .crisis-view{max-width:700px; margin:0 auto;}
+  }
+  .tablet-only{display:none;}
+</style>
+</head>
+<body>
+<div class="shell" id="shell">
+
+  <div class="sidebar tablet-only">
+    <div class="brand">🏔 Erdkeller</div>
+    <button><span>🏠</span> Übersicht</button>
+    <button><span>📦</span> Bestand</button>
+    <button class="active"><span>✅</span> Checklisten</button>
+    <button><span>📚</span> Info</button>
+    <button><span>⚙️</span> Einstellungen</button>
+  </div>
+
+  <header class="topbar mobile-only">
+    <div class="title">Erdkeller</div>
+    <div class="subtitle">Checklisten</div>
+  </header>
+
+  <main id="main-content">
+    <h1 class="tablet-header tablet-only">Checklisten</h1>
+
+    <div id="main-view">
+      <div class="segmented">
+        <button class="seg-btn active" onclick="switchTab('maint', this)">Wartung</button>
+        <button class="seg-btn" onclick="switchTab('crisis', this)">Krise</button>
+      </div>
+
+      <!-- MAINTENANCE LIST -->
+      <div class="view active" id="view-maint">
+        <div class="freq-group">
+          <div class="freq-label">Monatlich</div>
+          <div class="check-row" onclick="openMaint('Batterien laden', 4, 4)">
+            <div class="status-dot ok"></div>
+            <div class="check-row-text"><div class="check-row-title">Batterien laden</div><div class="check-row-sub">Nächste Fälligkeit: 15.09.2026</div></div>
+            <div class="check-row-chevron">›</div>
+          </div>
+          <div class="check-row" onclick="openMaint('Wasserstand prüfen', 2, 3)">
+            <div class="status-dot soon"></div>
+            <div class="check-row-text"><div class="check-row-title">Wasserstand prüfen</div><div class="check-row-sub">Fällig in 4 Tagen</div></div>
+            <div class="check-row-chevron">›</div>
+          </div>
+        </div>
+        <div class="freq-group">
+          <div class="freq-label">Quartalsweise</div>
+          <div class="check-row" onclick="openMaint('Wassertank reinigen', 0, 5)">
+            <div class="status-dot overdue"></div>
+            <div class="check-row-text"><div class="check-row-title">Wassertank reinigen</div><div class="check-row-sub">Überfällig seit 6 Tagen</div></div>
+            <div class="check-row-chevron">›</div>
+          </div>
+          <div class="check-row" onclick="openMaint('Notstromaggregat testen', 3, 4)">
+            <div class="status-dot ok"></div>
+            <div class="check-row-text"><div class="check-row-title">Notstromaggregat testen</div><div class="check-row-sub">Nächste Fälligkeit: 01.12.2026</div></div>
+            <div class="check-row-chevron">›</div>
+          </div>
+        </div>
+        <div class="freq-group">
+          <div class="freq-label">Jährlich</div>
+          <div class="check-row" onclick="openMaint('Diesel wechseln', 0, 2)">
+            <div class="status-dot ok"></div>
+            <div class="check-row-text"><div class="check-row-title">Diesel wechseln</div><div class="check-row-sub">Nächste Fälligkeit: 03/2027</div></div>
+            <div class="check-row-chevron">›</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CRISIS LIST -->
+      <div class="view" id="view-crisis">
+        <div class="crisis-grid">
+          <div class="crisis-card" onclick="openCrisis('Stromausfall', ['Ruhe bewahren und Sicherungskasten prüfen.','Nachbarn fragen, ob nur ihr betroffen seid oder das ganze Gebiet.','Kühlschrank/Gefriertruhe geschlossen halten.','Notstromaggregat vorbereiten, falls Ausfall länger dauert.','Wichtige Geräte (Medizin, Kommunikation) auf Akku umstellen.'])">
+            <span class="sym">⚡</span><span class="name">Stromausfall</span>
+          </div>
+          <div class="crisis-card" onclick="openCrisis('Wasserausfall', ['Haupthahn prüfen und ggf. schließen.','Trinkwasserreserve im Keller anzapfen (siehe Lagerort Regal 1).','Nachbarschaft informieren, ob es ein lokales oder größeres Problem ist.','Wasserversorger kontaktieren (Nummer in Kontakte).'])">
+            <span class="sym">💧</span><span class="name">Wasserausfall</span>
+          </div>
+          <div class="crisis-card" onclick="openCrisis('Medizinischer Notfall', ['Notruf 112 wählen.','Erste Hilfe leisten, sofern möglich.','Person nicht allein lassen.','Wichtige Kontakte informieren (siehe Kontakte).'])">
+            <span class="sym">🩹</span><span class="name">Medizinischer Notfall</span>
+          </div>
+          <div class="crisis-card" onclick="openCrisis('Evakuierung', ['Notfallrucksack greifen (Standort: Flur, Regal).','Wichtige Dokumente mitnehmen.','Gas und Strom abstellen, wenn Zeit bleibt.','Sammelpunkt ansteuern (siehe Notizen).'])">
+            <span class="sym">🎒</span><span class="name">Evakuierung</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAINTENANCE DETAIL -->
+    <div class="fullscreen" id="screen-maint-detail">
+      <div class="back-row"><button class="back-btn" onclick="closeDetail()">‹</button><span class="fs-title" id="maint-title">Wassertank reinigen</span></div>
+      <p class="fs-sub" id="maint-sub">Quartalsweise · nächste Fälligkeit nach Abschluss neu berechnet</p>
+      <div class="progress-track"><div class="progress-fill" id="maint-progress" style="width:0%"></div></div>
+      <div id="maint-steps"></div>
+    </div>
+
+  </main>
+
+  <nav class="bottomnav mobile-only">
+    <button><span class="icon">🏠</span>Übersicht</button>
+    <button><span class="icon">📦</span>Bestand</button>
+    <button class="active"><span class="icon">✅</span>Checklisten</button>
+    <button><span class="icon">📚</span>Info</button>
+    <button><span class="icon">⚙️</span>Mehr</button>
+  </nav>
+</div>
+
+<!-- CRISIS REFERENCE — full takeover, distinct style, no app chrome -->
+<div class="crisis-view" id="crisis-view" style="display:none;">
+  <div class="crisis-view-head">
+    <button class="crisis-back" onclick="closeCrisis()">‹</button>
+    <div class="crisis-view-title" id="crisis-title">Stromausfall</div>
+  </div>
+  <p class="crisis-view-note">Erste Schritte — ruhig der Reihe nach lesen.</p>
+  <div id="crisis-steps"></div>
+</div>
+
+<script>
+const maintSteps = {
+  'Wassertank reinigen': ['Wasserzufuhr am Haupthahn absperren.','Tank vollständig entleeren.','Innenwände mit Bürste und Trinkwasserreiniger schrubben.','Mit klarem Wasser mehrfach nachspülen.','Tank wieder befüllen und Zeitpunkt notieren.'],
+  'Batterien laden': ['Alle Reserve-Batterien einsammeln.','Ladezustand am Ladegerät prüfen.','Vollständig aufladen.','An Lagerort zurücklegen.'],
+  'Wasserstand prüfen': ['Zisterne/Tank öffnen.','Füllstand ablesen und notieren.','Bei Bedarf nachfüllen.'],
+  'Notstromaggregat testen': ['Kraftstoffstand prüfen.','Gerät starten und 5 Minuten laufen lassen.','Ölstand kontrollieren.','Ergebnis notieren.'],
+  'Diesel wechseln': ['Alten Diesel fachgerecht entsorgen.','Tank reinigen, falls nötig.','Neuen Diesel einfüllen.']
+};
+
+function switchTab(tab, btn){
+  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('view-maint').classList.toggle('active', tab==='maint');
+  document.getElementById('view-crisis').classList.toggle('active', tab==='crisis');
+}
+
+function openMaint(title, doneCount, total){
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('screen-maint-detail').classList.add('active');
+  document.getElementById('maint-title').textContent = title;
+  const steps = maintSteps[title] || [];
+  const wrap = document.getElementById('maint-steps');
+  wrap.innerHTML = '';
+  steps.forEach((s,i)=>{
+    const row = document.createElement('div');
+    row.className = 'step-row' + (i < doneCount ? ' checked' : '');
+    row.innerHTML = `<div class="step-check">✓</div><div class="step-text">${s}</div>`;
+    row.onclick = ()=>{ row.classList.toggle('checked'); updateProgress(); };
+    wrap.appendChild(row);
+  });
+  updateProgress();
+}
+function updateProgress(){
+  const rows = document.querySelectorAll('#maint-steps .step-row');
+  const checked = document.querySelectorAll('#maint-steps .step-row.checked').length;
+  document.getElementById('maint-progress').style.width = (rows.length ? (checked/rows.length*100) : 0) + '%';
+}
+function closeDetail(){
+  document.getElementById('screen-maint-detail').classList.remove('active');
+  document.getElementById('main-view').classList.remove('hidden');
+}
+
+function openCrisis(title, steps){
+  document.getElementById('shell').style.display = 'none';
+  const view = document.getElementById('crisis-view');
+  view.style.display = 'block';
+  document.getElementById('crisis-title').textContent = title;
+  const wrap = document.getElementById('crisis-steps');
+  wrap.innerHTML = '';
+  steps.forEach((s,i)=>{
+    const step = document.createElement('div');
+    step.className = 'crisis-step';
+    step.innerHTML = `<div class="crisis-step-num">${i+1}</div><div class="crisis-step-text">${s}</div>`;
+    wrap.appendChild(step);
+  });
+}
+function closeCrisis(){
+  document.getElementById('crisis-view').style.display = 'none';
+  document.getElementById('shell').style.display = 'flex';
+}
+</script>
+</body>
+</html>
