@@ -1,5 +1,5 @@
-import { db } from './firebase-init.js?v=30';
-import { PALETTE } from './year-colors.js?v=30';
+import { db } from './firebase-init.js?v=31';
+import { PALETTE } from './year-colors.js?v=31';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc, query, orderBy, limit,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -535,11 +535,12 @@ async function renderRecentLog(container) {
       return;
     }
     snap.docs.forEach((d) => {
-      const { icon, text } = formatLogRow(d.data());
+      const entry = d.data();
+      const { icon, text } = formatLogRow(entry);
       const row = document.createElement('div');
       row.className = 'recent-log-row';
       const iconEl = document.createElement('span');
-      iconEl.className = 'log-icon';
+      iconEl.className = 'log-icon ' + (entry.action === 'in' ? 'log-in' : 'log-out');
       iconEl.textContent = icon;
       const textEl = document.createElement('span');
       textEl.className = 'log-text';
