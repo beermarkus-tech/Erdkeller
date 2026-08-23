@@ -1,16 +1,27 @@
-import { db } from './firebase-init.js?v=28';
-import { PALETTE } from './year-colors.js?v=28';
+import { db } from './firebase-init.js?v=29';
+import { PALETTE } from './year-colors.js?v=29';
 import {
-  doc, getDoc, collection, getDocs, deleteDoc, setDoc,
+  doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc, query, orderBy, limit,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const stockHomeEl = document.getElementById('stock-home');
 const stockFlowEl = document.getElementById('stock-flow-checkout');
 const startCheckoutBtn = document.getElementById('start-checkout-btn');
 const backHomeBtn = document.getElementById('checkout-back-home-btn');
+const flowBackBtn = document.getElementById('checkout-back-btn');
+const recentLogEl = document.getElementById('checkout-recent-log');
 
 const breadcrumbEl = document.getElementById('checkout-breadcrumb');
 const flowSteps = document.querySelectorAll('#stock-flow-checkout .flow-step');
+
+const RECENT_LOG_LIMIT = 15;
+const PREV_STEP = {
+  type: null,
+  category: 'type',
+  subcategory: 'category',
+  batch: 'subcategory',
+  remove: 'batch',
+};
 
 const globalSearchInput = document.getElementById('checkout-global-search');
 const globalSearchResults = document.getElementById('checkout-global-search-results');
@@ -48,6 +59,7 @@ let selection = { type: null, category: null, subcategory: null, batch: null, re
 
 let lastCheckoutId = null;
 let lastCheckoutOriginal = null;
+let lastLogId = null;
 let undoTimer = null;
 
 // --- Data loading -----------------------------------------------------
@@ -97,6 +109,21 @@ function batchMetaLine(batch) {
   return parts.join(' · ');
 }
 
+function subcategoryHasStock(subId) {
+  return allBatches.some((b) => {
+    const p = productIndex.get(b.productId);
+    return p && p.subcategoryId === subId;
+  });
+}
+
+function categoryHasStock(cat) {
+  return (cat.subcategories || []).some((sub) => subcategoryHasStock(sub.id));
+}
+
+function typeHasStock(type) {
+  return (type.categories || []).some((cat) => categoryHasStock(cat));
+}
+
 // --- Navigation ---------------------------------------------------------
 
 function setActiveStep(stepName) {
@@ -105,7 +132,23 @@ function setActiveStep(stepName) {
   });
 }
 
+function currentStepName() {
+  const active = Array.from(flowSteps).find((el) => el.classList.contains('active'));
+  return active ? active.dataset.checkoutStep : null;
+}
+
+function goBack() {
+  const current = currentStepName();
+  if (!current || current === 'success') return;
+  const prev = PREV_STEP[current];
+  if (prev) goToStep(prev);
+  else returnHome();
+}
+
+flowBackBtn.addEventListener('click', goBack);
+
 function goToStep(stepName) {
+  flowBackBtn.classList.toggle('hidden', stepName === 'success');
   if (stepName === 'type') {
     selection.category = null;
     selection.subcategory = null;
@@ -164,10 +207,10 @@ function renderBreadcrumb(currentStep) {
 
 // --- Tile / list rendering ------------------------------------------
 
-function makeTile(sym, name, onClick, extraClass) {
+function makeTile(sym, name, onClick, extraClass, disabled) {
   const tile = document.createElement('button');
   tile.type = 'button';
-  tile.className = 'tile' + (extraClass ? ' ' + extraClass : '');
+  tile.className = 'tile' + (extraClass ? ' ' + extraClass : '') + (disabled ? ' tile-empty' : '');
   const symEl = document.createElement('span');
   symEl.className = 'sym';
   symEl.textContent = sym || '';
@@ -175,7 +218,11 @@ function makeTile(sym, name, onClick, extraClass) {
   nameEl.textContent = name;
   tile.appendChild(symEl);
   tile.appendChild(nameEl);
-  tile.addEventListener('click', onClick);
+  if (disabled) {
+    tile.disabled = true;
+  } else {
+    tile.addEventListener('click', onClick);
+  }
   return tile;
 }
 
@@ -185,7 +232,7 @@ function renderTypeGrid() {
     typeGrid.appendChild(makeTile(type.sym, type.name, () => {
       selection.type = type;
       goToStep('category');
-    }, 'type-tile'));
+    }, 'type-tile', !typeHasStock(type)));
   });
 }
 
@@ -195,7 +242,7 @@ function renderCategoryGrid() {
     categoryGrid.appendChild(makeTile(cat.sym, cat.name, () => {
       selection.category = cat;
       goToStep('subcategory');
-    }));
+    }, null, !categoryHasStock(cat)));
   });
 }
 
@@ -205,7 +252,7 @@ function renderSubcategoryGrid() {
     subcategoryGrid.appendChild(makeTile(sub.sym, sub.name, () => {
       selection.subcategory = sub;
       goToStep('batch');
-    }));
+    }, null, !subcategoryHasStock(sub.id)));
   });
 }
 
@@ -217,6 +264,25 @@ function batchesForCurrentSubcategory() {
   });
 }
 
+function makeYearBadge(batch) {
+  const wrap = document.createElement('span');
+  wrap.className = 'year-badge';
+  const dot = document.createElement('span');
+  dot.className = 'year-dot';
+  const label = document.createElement('span');
+  label.className = 'year-label';
+  if (batch.bestBefore && batch.yearColor && batch.yearColor !== 'none' && COLOR_HEX[batch.yearColor]) {
+    dot.style.background = COLOR_HEX[batch.yearColor];
+    label.textContent = batch.bestBefore.split('/')[1] || '';
+  } else {
+    dot.style.background = 'var(--stone-dark)';
+    label.textContent = '–';
+  }
+  wrap.appendChild(dot);
+  wrap.appendChild(label);
+  return wrap;
+}
+
 function renderBatchRow(batch, container) {
   const row = document.createElement('div');
   row.className = 'stock-product-row';
@@ -225,12 +291,7 @@ function renderBatchRow(batch, container) {
   left.style.display = 'flex';
   left.style.alignItems = 'center';
 
-  if (batch.yearColor && batch.yearColor !== 'none' && COLOR_HEX[batch.yearColor]) {
-    const badge = document.createElement('span');
-    badge.className = 'stock-badge';
-    badge.style.background = COLOR_HEX[batch.yearColor];
-    left.appendChild(badge);
-  }
+  left.appendChild(makeYearBadge(batch));
 
   const textWrap = document.createElement('span');
   textWrap.style.display = 'flex';
@@ -305,6 +366,10 @@ function renderGlobalSearchResults(text) {
     const path = p ? subcategoryIndex.get(p.subcategoryId) : null;
     const row = document.createElement('div');
     row.className = 'stock-product-row';
+    const left = document.createElement('span');
+    left.style.display = 'flex';
+    left.style.alignItems = 'center';
+    left.appendChild(makeYearBadge(batch));
     const nameEl = document.createElement('span');
     nameEl.className = 'pname';
     nameEl.textContent = productName(batch.productId);
@@ -316,7 +381,8 @@ function renderGlobalSearchResults(text) {
     wrap.style.flexDirection = 'column';
     wrap.appendChild(nameEl);
     wrap.appendChild(metaEl);
-    row.appendChild(wrap);
+    left.appendChild(wrap);
+    row.appendChild(left);
     row.addEventListener('click', () => {
       if (!path) return;
       selection.type = path.type;
@@ -378,9 +444,21 @@ confirmBtn.addEventListener('click', async () => {
     lastCheckoutId = batch.id;
     lastCheckoutOriginal = originalData;
 
+    const logDoc = await addDoc(collection(db, 'stockLog'), {
+      action: 'out',
+      productName: productName(batch.productId),
+      quantity: selection.removeQty,
+      details: batch.details || '',
+      content: batch.content || '',
+      bestBefore: batch.bestBefore || '',
+      createdAt: new Date().toISOString(),
+    });
+    lastLogId = logDoc.id;
+
     successDetail.textContent = `${selection.removeQty}× ${productName(batch.productId)}`;
     goToStep('success');
     showUndoToast(`Entnommen: ${productName(batch.productId)}`);
+    renderRecentLog(recentLogEl);
   } catch (err) {
     alert('Fehler beim Entnehmen: ' + err.message);
     console.error(err);
@@ -399,6 +477,7 @@ function showUndoToast(text) {
     undoToast.classList.add('hidden');
     lastCheckoutId = null;
     lastCheckoutOriginal = null;
+    lastLogId = null;
   }, 5000);
 }
 
@@ -414,20 +493,65 @@ undoBtn.addEventListener('click', async () => {
   }
   const idToRestore = lastCheckoutId;
   const dataToRestore = lastCheckoutOriginal;
+  const logIdToDelete = lastLogId;
   lastCheckoutId = null;
   lastCheckoutOriginal = null;
+  lastLogId = null;
   hideUndoToast();
   try {
     await setDoc(doc(db, 'stockItems', idToRestore), dataToRestore);
     const idx = allBatches.findIndex((b) => b.id === idToRestore);
     if (idx >= 0) allBatches[idx] = { id: idToRestore, ...dataToRestore };
     else allBatches.push({ id: idToRestore, ...dataToRestore });
+    if (logIdToDelete) await deleteDoc(doc(db, 'stockLog', logIdToDelete));
   } catch (err) {
     alert('Rückgängig fehlgeschlagen: ' + err.message);
     console.error(err);
   }
   returnHome();
 });
+
+// --- Recent stock-change log (shown on the success screen) --------------
+
+function formatLogRow(entry) {
+  const icon = entry.action === 'in' ? '⬇' : '⬆';
+  const extra = [];
+  if (entry.details) extra.push(entry.details);
+  if (entry.content) extra.push(entry.content);
+  if (entry.bestBefore) extra.push(`MHD ${entry.bestBefore}`);
+  const text = `${entry.quantity}× ${entry.productName}` + (extra.length ? ' · ' + extra.join(' · ') : '');
+  return { icon, text };
+}
+
+async function renderRecentLog(container) {
+  container.innerHTML = '';
+  try {
+    const snap = await getDocs(query(collection(db, 'stockLog'), orderBy('createdAt', 'desc'), limit(RECENT_LOG_LIMIT)));
+    if (snap.empty) {
+      const empty = document.createElement('p');
+      empty.className = 'screen-placeholder';
+      empty.textContent = 'Noch keine Änderungen.';
+      container.appendChild(empty);
+      return;
+    }
+    snap.docs.forEach((d) => {
+      const { icon, text } = formatLogRow(d.data());
+      const row = document.createElement('div');
+      row.className = 'recent-log-row';
+      const iconEl = document.createElement('span');
+      iconEl.className = 'log-icon';
+      iconEl.textContent = icon;
+      const textEl = document.createElement('span');
+      textEl.className = 'log-text';
+      textEl.textContent = text;
+      row.appendChild(iconEl);
+      row.appendChild(textEl);
+      container.appendChild(row);
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
 
 function returnHome() {
   hideUndoToast();

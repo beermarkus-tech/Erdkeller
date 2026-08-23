@@ -1,15 +1,26 @@
-import { db } from './firebase-init.js?v=28';
+import { db } from './firebase-init.js?v=29';
 import {
-  doc, getDoc, collection, getDocs, addDoc, deleteDoc,
+  doc, getDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy, limit,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const stockHomeEl = document.getElementById('stock-home');
 const stockFlowEl = document.getElementById('stock-flow');
 const startCheckinBtn = document.getElementById('start-checkin-btn');
 const backHomeBtn = document.getElementById('back-home-btn');
+const flowBackBtn = document.getElementById('checkin-back-btn');
+const recentLogEl = document.getElementById('checkin-recent-log');
 
 const breadcrumbEl = document.getElementById('stock-breadcrumb');
 const flowSteps = document.querySelectorAll('#stock-flow .flow-step');
+
+const RECENT_LOG_LIMIT = 15;
+const PREV_STEP = {
+  type: null,
+  category: 'type',
+  subcategory: 'category',
+  product: 'subcategory',
+  'new-product': 'product',
+};
 
 const globalSearchInput = document.getElementById('global-product-search');
 const globalSearchResults = document.getElementById('global-search-results');
@@ -65,6 +76,7 @@ let selection = {
 };
 
 let lastCheckInId = null;
+let lastLogId = null;
 let undoTimer = null;
 let pendingMonthIndex = 0;
 let pendingYearIndex = 0;
@@ -116,7 +128,23 @@ function setActiveStep(stepName) {
   });
 }
 
+function currentStepName() {
+  const active = Array.from(flowSteps).find((el) => el.classList.contains('active'));
+  return active ? active.dataset.flowStep : null;
+}
+
+function goBack() {
+  const current = currentStepName();
+  if (!current || current === 'success') return;
+  const prev = current === 'detail' ? (selection.isNewProduct ? 'new-product' : 'product') : PREV_STEP[current];
+  if (prev) goToStep(prev);
+  else returnHome();
+}
+
+flowBackBtn.addEventListener('click', goBack);
+
 function goToStep(stepName) {
+  flowBackBtn.classList.toggle('hidden', stepName === 'success');
   if (stepName === 'type') {
     selection.category = null;
     selection.subcategory = null;
@@ -386,8 +414,18 @@ qtyPlusBtn.addEventListener('click', () => {
   selection.qty += 1;
   qtyNumEl.textContent = String(selection.qty);
 });
+function normalizeContent(raw) {
+  const trimmed = (raw || '').trim();
+  // A bare number (no unit letters typed) is assumed to be grams.
+  return /^\d+([.,]\d+)?$/.test(trimmed) ? trimmed + 'g' : trimmed;
+}
+
 detailsInput.addEventListener('input', () => { selection.details = detailsInput.value; });
 contentInput.addEventListener('input', () => { selection.content = contentInput.value; });
+contentInput.addEventListener('blur', () => {
+  selection.content = normalizeContent(contentInput.value);
+  contentInput.value = selection.content;
+});
 storageSelect.addEventListener('change', () => { selection.storage = storageSelect.value; });
 
 // --- Date picker modal ---------------------------------------------------
@@ -493,7 +531,7 @@ checkinConfirmBtn.addEventListener('click', async () => {
       productId,
       details: selection.details || '',
       quantity: selection.qty,
-      content: currentUnitType() === 'kg' ? selection.content : (selection.content || ''),
+      content: currentUnitType() === 'kg' ? normalizeContent(selection.content) : (selection.content || ''),
       bestBefore: selection.bestBefore || '',
       yearColor: yearColorFor(selection.bestBefore),
       storage: selection.storage || '',
@@ -504,12 +542,24 @@ checkinConfirmBtn.addEventListener('click', async () => {
     const stockDoc = await addDoc(collection(db, 'stockItems'), data);
     lastCheckInId = stockDoc.id;
 
+    const logDoc = await addDoc(collection(db, 'stockLog'), {
+      action: 'in',
+      productName: selection.product.name,
+      quantity: data.quantity,
+      details: data.details,
+      content: data.content,
+      bestBefore: data.bestBefore,
+      createdAt: nowIso,
+    });
+    lastLogId = logDoc.id;
+
     successDetail.textContent = `${selection.qty}× ${selection.product.name}`
       + (data.content ? ` · ${data.content}` : '')
       + (data.bestBefore ? ` · MHD ${data.bestBefore}` : '');
 
     goToStep('success');
     showUndoToast(`Eingelagert: ${selection.product.name}`);
+    renderRecentLog(recentLogEl);
   } catch (err) {
     alert('Fehler beim Einlagern: ' + err.message);
     console.error(err);
@@ -527,6 +577,7 @@ function showUndoToast(text) {
   undoTimer = setTimeout(() => {
     undoToast.classList.add('hidden');
     lastCheckInId = null;
+    lastLogId = null;
   }, 5000);
 }
 
@@ -541,16 +592,61 @@ undoBtn.addEventListener('click', async () => {
     return;
   }
   const idToDelete = lastCheckInId;
+  const logIdToDelete = lastLogId;
   lastCheckInId = null;
+  lastLogId = null;
   hideUndoToast();
   try {
     await deleteDoc(doc(db, 'stockItems', idToDelete));
+    if (logIdToDelete) await deleteDoc(doc(db, 'stockLog', logIdToDelete));
   } catch (err) {
     alert('Rückgängig fehlgeschlagen: ' + err.message);
     console.error(err);
   }
   returnHome();
 });
+
+// --- Recent stock-change log (shown on the success screen) --------------
+
+function formatLogRow(entry) {
+  const icon = entry.action === 'in' ? '⬇' : '⬆';
+  const extra = [];
+  if (entry.details) extra.push(entry.details);
+  if (entry.content) extra.push(entry.content);
+  if (entry.bestBefore) extra.push(`MHD ${entry.bestBefore}`);
+  const text = `${entry.quantity}× ${entry.productName}` + (extra.length ? ' · ' + extra.join(' · ') : '');
+  return { icon, text };
+}
+
+async function renderRecentLog(container) {
+  container.innerHTML = '';
+  try {
+    const snap = await getDocs(query(collection(db, 'stockLog'), orderBy('createdAt', 'desc'), limit(RECENT_LOG_LIMIT)));
+    if (snap.empty) {
+      const empty = document.createElement('p');
+      empty.className = 'screen-placeholder';
+      empty.textContent = 'Noch keine Änderungen.';
+      container.appendChild(empty);
+      return;
+    }
+    snap.docs.forEach((d) => {
+      const { icon, text } = formatLogRow(d.data());
+      const row = document.createElement('div');
+      row.className = 'recent-log-row';
+      const iconEl = document.createElement('span');
+      iconEl.className = 'log-icon';
+      iconEl.textContent = icon;
+      const textEl = document.createElement('span');
+      textEl.className = 'log-text';
+      textEl.textContent = text;
+      row.appendChild(iconEl);
+      row.appendChild(textEl);
+      container.appendChild(row);
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
 
 function returnHome() {
   hideUndoToast();

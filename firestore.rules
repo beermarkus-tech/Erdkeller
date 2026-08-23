@@ -64,6 +64,15 @@ service cloud.firestore {
       allow read, create, update, delete: if isSignedIn();
     }
 
+    // Step 8: /stockLog — a running feed of check-in/check-out actions,
+    // shown on the success screen after each guided-flow action. Entries
+    // are append-only from the app's perspective (no update rule) except
+    // for the undo toast, which deletes the just-created entry within its
+    // few-second window — same permission shape as /stockItems.
+    match /stockLog/{logId} {
+      allow read, create, delete: if isSignedIn();
+    }
+
     // Everything else stays locked down until its own build step wires up
     // real rules (checklists in Step 12, etc.).
     match /{document=**} {

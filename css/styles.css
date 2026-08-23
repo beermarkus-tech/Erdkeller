@@ -839,14 +839,6 @@ nav.bottomnav button .icon {
   border-style: dashed;
 }
 
-.stock-badge {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 6px;
-}
-
 .form-group {
   margin-bottom: 18px;
 }
@@ -1107,6 +1099,98 @@ nav.bottomnav button .icon {
   font-family: 'Inter', sans-serif;
 }
 
+/* Guided-flow back navigation */
+.flow-topbar {
+  margin-bottom: 10px;
+}
+
+.flow-back-btn {
+  border: none;
+  background: none;
+  color: var(--cellar);
+  font-weight: 700;
+  font-size: 15px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Checkout: grey out tiles with no stock underneath */
+.tile-empty {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tile-empty:active {
+  transform: none;
+}
+
+/* Consistent subcategory-tile height regardless of name length */
+#subcategory-grid .tile,
+#checkout-subcategory-grid .tile {
+  min-height: 128px;
+  justify-content: center;
+}
+
+/* Checkout: year color badge, dot + year label stacked */
+.year-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-right: 12px;
+  flex-shrink: 0;
+  width: 34px;
+}
+
+.year-badge .year-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--stone-dark);
+}
+
+.year-badge .year-label {
+  font-size: 11px;
+  color: #6b6a5f;
+  font-weight: 600;
+}
+
+/* Recent stock-change log on the success screen */
+.recent-log {
+  margin-top: 28px;
+  width: 100%;
+  text-align: left;
+}
+
+.recent-log-list {
+  max-height: 220px;
+  overflow-y: auto;
+  touch-action: pan-y;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recent-log-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 10px;
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.recent-log-row .log-icon {
+  flex-shrink: 0;
+}
+
+.recent-log-row .log-text {
+  color: #4a4940;
+}
+
 @media (min-width: 900px) {
   .tile-grid {
     grid-template-columns: repeat(4, 1fr);
@@ -1114,6 +1198,10 @@ nav.bottomnav button .icon {
 
   .home-buttons {
     flex-direction: row;
+  }
+
+  .big-btn {
+    flex: 1;
   }
 
   .undo-toast {
