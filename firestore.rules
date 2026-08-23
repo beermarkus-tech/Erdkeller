@@ -32,8 +32,18 @@ service cloud.firestore {
       );
     }
 
+    // Step 4: /config/taxonomy, plus the rest of /config that lands in
+    // later steps (storageLocations, yearColorMap in Step 5; targets in
+    // Step 11) — same access shape for all of them, so no rules churn
+    // needed when those land. Every signed-in family member can read
+    // (needed for the check-in/out flow), only admin can write.
+    match /config/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // Everything else stays locked down until its own build step wires up
-    // real rules (taxonomy/config in Step 4-5, stock in Step 7+, etc.).
+    // real rules (stock in Step 7+, checklists in Step 12, etc.).
     match /{document=**} {
       allow read, write: if false;
     }

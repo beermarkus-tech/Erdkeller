@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 7 · 23.08.2026</div>
+<div id="build-tag" class="build-tag">Build 8 · 23.08.2026</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -71,7 +71,61 @@
       <p class="screen-placeholder">Info — wird in Schritt 13 gebaut.</p>
     </div>
     <div class="screen admin-only hidden" data-screen="settings">
-      <p class="screen-placeholder">Einstellungen — wird ab Schritt 4 gebaut.</p>
+      <div id="settings-main">
+        <div class="settings-card" data-target="data">
+          <span class="sym">🗂️</span>
+          <div class="sc-text"><div class="sc-title">Daten</div><div class="sc-sub">Kategorien, Lagerorte, Farben, Produkte</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="settings-card" data-target="people">
+          <span class="sym">👥</span>
+          <div class="sc-text"><div class="sc-title">Personen</div><div class="sc-sub">Rollen verwalten — Schritt 14</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="settings-card" data-target="checklists">
+          <span class="sym">✅</span>
+          <div class="sc-text"><div class="sc-title">Checklisten</div><div class="sc-sub">Wartung &amp; Krise — Schritt 12</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="settings-card" data-target="targets">
+          <span class="sym">🎯</span>
+          <div class="sc-text"><div class="sc-title">Ziele</div><div class="sc-sub">Zielmengen — Schritt 11</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="settings-card" data-target="export">
+          <span class="sym">📤</span>
+          <div class="sc-text"><div class="sc-title">Export</div><div class="sc-sub">PDF &amp; CSV — Schritt 15/19</div></div>
+          <span class="chev">›</span>
+        </div>
+      </div>
+
+      <div class="settings-panel hidden" id="settings-panel-data">
+        <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Daten</span></div>
+        <div id="taxonomy-editor"></div>
+        <button class="add-row-btn" id="add-type-btn">+ Neuer Typ</button>
+        <p class="settings-note">Lagerorte, Jahresfarben und Produktkatalog folgen in Schritt 5–6.</p>
+        <p id="taxonomy-status" class="taxonomy-status"></p>
+      </div>
+
+      <div class="settings-panel hidden" id="settings-panel-people">
+        <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Personen</span></div>
+        <p class="screen-placeholder">Rollenverwaltung — wird in Schritt 14 gebaut.</p>
+      </div>
+
+      <div class="settings-panel hidden" id="settings-panel-checklists">
+        <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Checklisten</span></div>
+        <p class="screen-placeholder">Checklisten-Verwaltung — wird in Schritt 12 gebaut.</p>
+      </div>
+
+      <div class="settings-panel hidden" id="settings-panel-targets">
+        <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Ziele</span></div>
+        <p class="screen-placeholder">Zielverwaltung — wird in Schritt 11 gebaut.</p>
+      </div>
+
+      <div class="settings-panel hidden" id="settings-panel-export">
+        <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Export</span></div>
+        <p class="screen-placeholder">PDF- &amp; CSV-Export — wird in Schritt 15/19 gebaut.</p>
+      </div>
     </div>
   </main>
 
@@ -88,5 +142,7 @@
 <script src="js/app.js"></script>
 <script type="module" src="js/auth.js"></script>
 <script type="module" src="js/app-shell.js"></script>
+<script type="module" src="js/settings-nav.js"></script>
+<script type="module" src="js/taxonomy.js"></script>
 </body>
 </html>
