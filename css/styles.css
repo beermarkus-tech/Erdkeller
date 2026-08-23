@@ -31,6 +31,12 @@ body {
   color: var(--charcoal);
   font-family: 'Inter', sans-serif;
   -webkit-tap-highlight-color: transparent;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+body.app-ready {
+  opacity: 1;
 }
 
 .display {
