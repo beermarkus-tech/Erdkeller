@@ -17,6 +17,17 @@ function escapeAttr(str) {
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
+// Auto-focus + select a freshly created node's name input (post-render, so
+// the element actually exists in the DOM) — lets you just type over the
+// default "Neuer Typ"/"Neue Kategorie"/… placeholder name immediately.
+function focusNewName(id) {
+  const input = editorEl.querySelector(`[data-id="${id}"] .tax-name-input`);
+  if (input) {
+    input.focus();
+    input.select();
+  }
+}
+
 async function loadTaxonomy() {
   try {
     const snap = await getDoc(ref);
@@ -146,10 +157,12 @@ function renderType(type) {
   addCatBtn.textContent = '+ Kategorie hinzufügen';
   addCatBtn.addEventListener('click', () => {
     if (!type.categories) type.categories = [];
-    type.categories.push({ id: genId(), name: 'Neue Kategorie', sym: '', subcategories: [] });
+    const newCat = { id: genId(), name: 'Neue Kategorie', sym: '', subcategories: [] };
+    type.categories.push(newCat);
     openTypes.add(type.id);
     saveTaxonomy();
     render();
+    focusNewName(newCat.id);
   });
   body.appendChild(addCatBtn);
 
@@ -201,9 +214,11 @@ function renderCategory(type, cat) {
   addSubBtn.textContent = '+ Unterkategorie hinzufügen';
   addSubBtn.addEventListener('click', () => {
     if (!cat.subcategories) cat.subcategories = [];
-    cat.subcategories.push({ id: genId(), name: 'Neue Unterkategorie', sym: '' });
+    const newSub = { id: genId(), name: 'Neue Unterkategorie', sym: '' };
+    cat.subcategories.push(newSub);
     saveTaxonomy();
     render();
+    focusNewName(newSub.id);
   });
   wrap.appendChild(addSubBtn);
 
@@ -248,6 +263,7 @@ addTypeBtn.addEventListener('click', () => {
   openTypes.add(type.id);
   saveTaxonomy();
   render();
+  focusNewName(type.id);
 });
 
 // Wait for auth to actually resolve before reading /config/taxonomy — the
