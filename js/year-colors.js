@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=27';
+import { db } from './firebase-init.js?v=28';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const listEl = document.getElementById('year-color-list');
@@ -9,7 +9,7 @@ const ref = doc(db, 'config', 'yearColorMap');
 // Mirrors the physical colored stickers already used in the cellar
 // (SPEC.md Section 5) — a small fixed palette rather than a free color
 // picker, since the point is a handful of easily-told-apart marker colors.
-const PALETTE = [
+export const PALETTE = [
   { name: 'green', hex: '#3C9142', label: 'Grün' },
   { name: 'blue', hex: '#2F6FED', label: 'Blau' },
   { name: 'pink', hex: '#E85D9C', label: 'Pink' },

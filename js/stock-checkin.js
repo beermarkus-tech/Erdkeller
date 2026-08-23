@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=27';
+import { db } from './firebase-init.js?v=28';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -9,7 +9,7 @@ const startCheckinBtn = document.getElementById('start-checkin-btn');
 const backHomeBtn = document.getElementById('back-home-btn');
 
 const breadcrumbEl = document.getElementById('stock-breadcrumb');
-const flowSteps = document.querySelectorAll('.flow-step');
+const flowSteps = document.querySelectorAll('#stock-flow .flow-step');
 
 const globalSearchInput = document.getElementById('global-product-search');
 const globalSearchResults = document.getElementById('global-search-results');

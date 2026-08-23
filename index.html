@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=27">
+<link rel="manifest" href="manifest.json?v=28">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=27">
+<link rel="stylesheet" href="css/styles.css?v=28">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 27</div>
+<div id="build-tag" class="build-tag">Build 28</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -75,9 +75,8 @@
       <div id="stock-home">
         <div class="home-buttons">
           <button class="big-btn in" id="start-checkin-btn"><span class="icon">⬇</span> Einlagern</button>
-          <button class="big-btn out" id="start-checkout-btn" disabled><span class="icon">⬆</span> Entnehmen</button>
+          <button class="big-btn out" id="start-checkout-btn"><span class="icon">⬆</span> Entnehmen</button>
         </div>
-        <p class="screen-placeholder">Entnehmen — wird in Schritt 8 gebaut.</p>
       </div>
 
       <div id="stock-flow" class="hidden">
@@ -180,6 +179,61 @@
       <div class="undo-toast hidden" id="undo-toast">
         <span id="undo-toast-text"></span>
         <button id="undo-btn">Rückgängig</button>
+      </div>
+
+      <div id="stock-flow-checkout" class="hidden">
+        <div class="stock-breadcrumb" id="checkout-breadcrumb"></div>
+
+        <div class="flow-step active" data-checkout-step="type">
+          <div class="search-bar"><span>🔍</span><input placeholder="Bestand direkt suchen…" id="checkout-global-search"></div>
+          <div class="product-list hidden" id="checkout-global-search-results"></div>
+          <div class="section-label" id="checkout-type-grid-label">Typ wählen</div>
+          <div class="tile-grid" id="checkout-type-grid"></div>
+        </div>
+
+        <div class="flow-step" data-checkout-step="category">
+          <div class="section-label">Kategorie wählen</div>
+          <div class="tile-grid" id="checkout-category-grid"></div>
+        </div>
+
+        <div class="flow-step" data-checkout-step="subcategory">
+          <div class="section-label">Unterkategorie wählen</div>
+          <div class="tile-grid" id="checkout-subcategory-grid"></div>
+        </div>
+
+        <div class="flow-step" data-checkout-step="batch">
+          <div class="search-bar"><span>🔍</span><input placeholder="Bestand suchen…" id="checkout-batch-search"></div>
+          <div class="section-label">Bestand wählen</div>
+          <div class="product-list" id="checkout-batch-list"></div>
+        </div>
+
+        <div class="flow-step" data-checkout-step="remove">
+          <div class="section-label" id="checkout-batch-name"></div>
+          <p class="screen-placeholder" id="checkout-batch-meta"></p>
+          <div class="form-group">
+            <label>Menge entnehmen</label>
+            <div class="qty-stepper">
+              <button id="checkout-qty-minus" type="button">−</button>
+              <span class="qty-num" id="checkout-qty-num">1</span>
+              <button id="checkout-qty-plus" type="button">+</button>
+            </div>
+          </div>
+          <button class="confirm-btn" id="checkout-confirm-btn">Entnehmen bestätigen</button>
+        </div>
+
+        <div class="flow-step" data-checkout-step="success">
+          <div class="success-screen">
+            <div class="check">✓</div>
+            <h2 class="display">Entnommen</h2>
+            <p id="checkout-success-detail"></p>
+            <button class="back-home-btn" id="checkout-back-home-btn">Zurück zur Übersicht</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="undo-toast hidden" id="checkout-undo-toast">
+        <span id="checkout-undo-toast-text"></span>
+        <button id="checkout-undo-btn">Rückgängig</button>
       </div>
     </div>
     <div class="screen" data-screen="checklists">
@@ -293,16 +347,17 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=27"></script>
-<script type="module" src="js/auth.js?v=27"></script>
-<script type="module" src="js/app-shell.js?v=27"></script>
-<script type="module" src="js/account-menu.js?v=27"></script>
-<script type="module" src="js/refresh-button.js?v=27"></script>
-<script type="module" src="js/settings-nav.js?v=27"></script>
-<script type="module" src="js/data-tabs.js?v=27"></script>
-<script type="module" src="js/taxonomy.js?v=27"></script>
-<script type="module" src="js/storage-locations.js?v=27"></script>
-<script type="module" src="js/year-colors.js?v=27"></script>
-<script type="module" src="js/stock-checkin.js?v=27"></script>
+<script src="js/app.js?v=28"></script>
+<script type="module" src="js/auth.js?v=28"></script>
+<script type="module" src="js/app-shell.js?v=28"></script>
+<script type="module" src="js/account-menu.js?v=28"></script>
+<script type="module" src="js/refresh-button.js?v=28"></script>
+<script type="module" src="js/settings-nav.js?v=28"></script>
+<script type="module" src="js/data-tabs.js?v=28"></script>
+<script type="module" src="js/taxonomy.js?v=28"></script>
+<script type="module" src="js/storage-locations.js?v=28"></script>
+<script type="module" src="js/year-colors.js?v=28"></script>
+<script type="module" src="js/stock-checkin.js?v=28"></script>
+<script type="module" src="js/stock-checkout.js?v=28"></script>
 </body>
 </html>
