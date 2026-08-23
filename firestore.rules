@@ -42,6 +42,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Step 6: /products (master catalog). Unlike /config, any signed-in
+    // family member can create a new product — SPEC.md Section 14 has
+    // members adding one inline during check-in the first time something
+    // new is bought (Step 7), no admin step required. Editing/deleting an
+    // existing entry stays admin-only (Settings → Data → Produkte).
+    match /products/{productId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
     // Everything else stays locked down until its own build step wires up
     // real rules (stock in Step 7+, checklists in Step 12, etc.).
     match /{document=**} {

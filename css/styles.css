@@ -657,6 +657,54 @@ nav.bottomnav button .icon {
   box-shadow: 0 0 0 2px var(--charcoal);
 }
 
+/* Product catalog */
+.product-row {
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.product-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.product-subcat-select {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--stone-dark);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  margin-bottom: 8px;
+  touch-action: pan-y;
+}
+
+.product-row-conv {
+  display: flex;
+  gap: 8px;
+}
+
+.product-kg-input {
+  width: 70px;
+  flex-shrink: 0;
+  border: 1px solid var(--stone-dark);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  touch-action: pan-y;
+}
+
+.product-note-input {
+  flex: 1;
+}
+
 @media (min-width: 900px) {
   .shell {
     max-width: none;
