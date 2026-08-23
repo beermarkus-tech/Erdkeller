@@ -22,7 +22,15 @@ function setActiveTab(tab) {
 }
 
 navButtons.forEach((btn) => {
-  btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+  btn.addEventListener('click', () => {
+    setActiveTab(btn.dataset.tab);
+    // Fires on every click, including tapping the already-active icon —
+    // each screen listens and resets its own internal view back to its
+    // root (e.g. Bestand's two big buttons, Admin's card list), so the
+    // 5 main icons behave like a "home" button for their section no
+    // matter how deep you'd navigated within it.
+    window.dispatchEvent(new CustomEvent('erdkeller:navreset', { detail: { tab: btn.dataset.tab } }));
+  });
 });
 
 // Settings is admin-only — not shown to members at all (SPEC.md Section 3).

@@ -1,5 +1,5 @@
-import { db } from './firebase-init.js?v=34';
-import { renderRecentLog } from './stock-log.js?v=34';
+import { db } from './firebase-init.js?v=35';
+import { renderRecentLog } from './stock-log.js?v=35';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -629,3 +629,11 @@ startCheckinBtn.addEventListener('click', () => {
 
 window.addEventListener('erdkeller:signedin', () => loadConfig());
 window.addEventListener('erdkeller:refresh', () => loadConfig());
+
+// Tapping the Bestand nav icon (even while already on it) always returns
+// to the two big buttons, regardless of how deep this flow was.
+window.addEventListener('erdkeller:navreset', (e) => {
+  if (e.detail.tab !== 'stock') return;
+  stockFlowEl.classList.add('hidden');
+  stockHomeEl.classList.remove('hidden');
+});
