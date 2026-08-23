@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=18';
+import { db } from './firebase-init.js?v=19';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -8,6 +8,7 @@ const ref = doc(db, 'config', 'taxonomy');
 
 let taxonomy = { types: [] };
 const openTypes = new Set(); // UI-only expand/collapse state, not persisted
+const openCats = new Set(); // same, one level down (category → subcategories)
 
 // Tracks whether the in-memory `taxonomy` object actually reflects what's
 // in Firestore. This is the fix for a real data-loss bug: a prior version
@@ -184,6 +185,7 @@ function renderType(type) {
     const newCat = { id: genId(), name: 'Neue Kategorie', sym: '', subcategories: [] };
     type.categories.push(newCat);
     openTypes.add(type.id);
+    openCats.add(newCat.id);
     saveTaxonomy();
     render();
     focusNewName(newCat.id);
@@ -210,8 +212,13 @@ function renderCategory(type, cat) {
     <input class="tax-sym-input" value="${escapeAttr(cat.sym || '')}" placeholder="•">
     <input class="tax-name-input" value="${escapeAttr(cat.name || '')}" placeholder="Kategoriename">
     <button class="tax-del" title="Kategorie löschen">✕</button>
+    <button class="tax-toggle">${openCats.has(cat.id) ? '▴' : '▾'}</button>
   `;
   wrap.appendChild(head);
+
+  const body = document.createElement('div');
+  body.className = 'tax-cat-body' + (openCats.has(cat.id) ? ' open' : '');
+  wrap.appendChild(body);
 
   head.querySelector('.tax-sym-input').addEventListener('change', (e) => {
     cat.sym = e.target.value.trim();
@@ -227,11 +234,16 @@ function renderCategory(type, cat) {
     saveTaxonomy();
     render();
   });
+  head.querySelector('.tax-toggle').addEventListener('click', () => {
+    if (openCats.has(cat.id)) openCats.delete(cat.id);
+    else openCats.add(cat.id);
+    render();
+  });
 
   const subList = document.createElement('div');
   subList.className = 'tax-sub-list';
   (cat.subcategories || []).forEach((sub) => subList.appendChild(renderSubcategory(cat, sub)));
-  wrap.appendChild(subList);
+  body.appendChild(subList);
 
   const addSubBtn = document.createElement('div');
   addSubBtn.className = 'add-sub-row';
@@ -240,11 +252,12 @@ function renderCategory(type, cat) {
     if (!cat.subcategories) cat.subcategories = [];
     const newSub = { id: genId(), name: 'Neue Unterkategorie', sym: '' };
     cat.subcategories.push(newSub);
+    openCats.add(cat.id);
     saveTaxonomy();
     render();
     focusNewName(newSub.id);
   });
-  wrap.appendChild(addSubBtn);
+  body.appendChild(addSubBtn);
 
   makeReorderable(subList, '.tax-sub-row', (orderedIds) => {
     cat.subcategories = orderedIds.map((id) => cat.subcategories.find((s) => s.id === id));

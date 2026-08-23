@@ -23,7 +23,6 @@
 
 html, body {
   overscroll-behavior: none;
-  height: 100%;
 }
 
 body {
@@ -434,6 +433,14 @@ nav.bottomnav button .icon {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.tax-cat-body {
+  display: none;
+}
+
+.tax-cat-body.open {
+  display: block;
 }
 
 .tax-sub-list {
