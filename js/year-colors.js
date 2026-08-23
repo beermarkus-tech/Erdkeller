@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=19';
+import { db } from './firebase-init.js?v=20';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const listEl = document.getElementById('year-color-list');
@@ -10,13 +10,14 @@ const ref = doc(db, 'config', 'yearColorMap');
 // (SPEC.md Section 5) — a small fixed palette rather than a free color
 // picker, since the point is a handful of easily-told-apart marker colors.
 const PALETTE = [
-  { name: 'green', hex: '#4A6B4F', label: 'Grün' },
-  { name: 'blue', hex: '#3E6B8A', label: 'Blau' },
-  { name: 'red', hex: '#9C3B2E', label: 'Rot' },
-  { name: 'orange', hex: '#B8632F', label: 'Orange' },
-  { name: 'yellow', hex: '#C9A227', label: 'Gelb' },
-  { name: 'purple', hex: '#6B4E8A', label: 'Lila' },
-  { name: 'gray', hex: '#9a9788', label: 'Grau' },
+  { name: 'green', hex: '#3C9142', label: 'Grün' },
+  { name: 'blue', hex: '#2F6FED', label: 'Blau' },
+  { name: 'pink', hex: '#E85D9C', label: 'Pink' },
+  { name: 'yellow', hex: '#F2C94C', label: 'Gelb' },
+  { name: 'red', hex: '#E23D3D', label: 'Rot' },
+  { name: 'orange', hex: '#F2994A', label: 'Orange' },
+  { name: 'black', hex: '#1A1A1A', label: 'Schwarz' },
+  { name: 'white', hex: '#FFFFFF', label: 'Weiß' },
 ];
 
 let yearColorMap = {};
@@ -24,14 +25,14 @@ let yearColorMap = {};
 let loadOk = false;
 
 function defaultMap() {
-  return { none: 'gray' };
+  return { none: 'white' };
 }
 
 async function loadYearColors() {
   try {
     const snap = await getDoc(ref);
     yearColorMap = snap.exists() && snap.data() ? snap.data() : defaultMap();
-    if (!('none' in yearColorMap)) yearColorMap.none = 'gray';
+    if (!('none' in yearColorMap)) yearColorMap.none = 'white';
     loadOk = true;
   } catch (err) {
     statusEl.textContent = 'Fehler beim Laden: ' + err.message + ' — Bearbeiten deaktiviert, bis der Ladevorgang erfolgreich war.';

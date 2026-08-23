@@ -616,16 +616,17 @@ nav.bottomnav button .icon {
 }
 
 .swatch-btn {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  border: 2px solid transparent;
+  border: 1px solid rgba(32, 36, 31, 0.15);
   cursor: pointer;
   padding: 0;
 }
 
 .swatch-btn.selected {
-  border-color: var(--charcoal);
+  border: 2px solid var(--paper);
+  box-shadow: 0 0 0 2px var(--charcoal);
 }
 
 @media (min-width: 900px) {
