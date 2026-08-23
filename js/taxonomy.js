@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=14';
+import { db } from './firebase-init.js?v=15';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -8,6 +8,19 @@ const ref = doc(db, 'config', 'taxonomy');
 
 let taxonomy = { types: [] };
 const openTypes = new Set(); // UI-only expand/collapse state, not persisted
+
+// Tracks whether the in-memory `taxonomy` object actually reflects what's
+// in Firestore. This is the fix for a real data-loss bug: a prior version
+// called loadTaxonomy() before Firebase Auth had resolved, the read got
+// rejected as permission-denied, and the catch block quietly reset
+// `taxonomy` to {types: []} — which then got written for real the next
+// time any add/rename/delete triggered saveTaxonomy() (a raw overwrite,
+// not a merge), wiping the real data in Firestore. That specific race is
+// fixed (loadTaxonomy now only runs after erdkeller:signedin), but this
+// flag is the general safeguard: saveTaxonomy() refuses to run at all
+// unless the last load actually succeeded, so no future bug in the load
+// path can silently overwrite real data with an empty/stale local state.
+let loadOk = false;
 
 function genId() {
   return crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
@@ -32,15 +45,26 @@ async function loadTaxonomy() {
   try {
     const snap = await getDoc(ref);
     taxonomy = snap.exists() && Array.isArray(snap.data().types) ? snap.data() : { types: [] };
+    loadOk = true;
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message;
+    statusEl.textContent = 'Fehler beim Laden: ' + err.message + ' — Bearbeiten deaktiviert, bis der Ladevorgang erfolgreich war.';
     console.error(err);
-    taxonomy = { types: [] };
+    // Only blank the tree if we never had real data to show. A failed
+    // *re*load (e.g. via the refresh button) keeps showing the last-known-
+    // good tree — frozen, edits blocked below — rather than making data
+    // that's still safely in Firestore look like it vanished.
+    if (!loadOk) taxonomy = { types: [] };
+    loadOk = false;
   }
+  addTypeBtn.disabled = !loadOk;
   render();
 }
 
 async function saveTaxonomy() {
+  if (!loadOk) {
+    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden, bevor du änderst.';
+    return;
+  }
   statusEl.textContent = 'Speichere…';
   try {
     await setDoc(ref, taxonomy);

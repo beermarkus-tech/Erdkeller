@@ -310,10 +310,6 @@ nav.bottomnav button .icon {
   display: none;
 }
 
-.tablet-header-row {
-  display: none;
-}
-
 .user-avatar {
   width: 32px;
   height: 32px;
@@ -530,6 +526,11 @@ nav.bottomnav button .icon {
   font-size: 12.5px;
 }
 
+.add-row-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .add-sub-row {
   padding: 8px 6px;
   font-size: 12.5px;
@@ -588,6 +589,9 @@ nav.bottomnav button .icon {
     margin-top: auto;
     padding-top: 16px;
     border-top: 1px solid rgba(244, 242, 234, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 
   nav.bottomnav {
@@ -604,23 +608,11 @@ nav.bottomnav button .icon {
     max-width: 900px;
   }
 
-  .tablet-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 24px;
-  }
-
   .tablet-header {
     display: block;
     font-family: 'Fraunces', serif;
     font-size: 26px;
     font-weight: 600;
-    margin-bottom: 0;
-  }
-
-  .tablet-header-row .refresh-btn {
-    background: var(--stone-dark);
-    color: var(--cellar);
+    margin-bottom: 24px;
   }
 }
