@@ -20,7 +20,10 @@ const authError = document.getElementById('auth-error');
 
 signinBtn.addEventListener('click', () => {
   authError.textContent = '';
-  signInWithRedirect(auth, provider);
+  signInWithRedirect(auth, provider).catch((err) => {
+    authError.textContent = 'Weiterleitung fehlgeschlagen: ' + err.message;
+    console.error(err);
+  });
 });
 
 signoutBtn.addEventListener('click', () => {
@@ -63,8 +66,13 @@ function renderSignedIn(user, userData) {
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
-    const userData = await ensureUserDoc(user);
-    renderSignedIn(user, userData);
+    try {
+      const userData = await ensureUserDoc(user);
+      renderSignedIn(user, userData);
+    } catch (err) {
+      authError.textContent = 'Nutzerprofil konnte nicht geladen werden: ' + err.message;
+      console.error(err);
+    }
   } else {
     renderSignedOut();
   }
