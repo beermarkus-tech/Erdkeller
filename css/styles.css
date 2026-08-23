@@ -416,7 +416,10 @@ nav.bottomnav button .icon {
   border: 1px solid var(--stone-dark);
   border-radius: 14px;
   margin-bottom: 10px;
-  overflow: hidden;
+  /* No overflow:hidden here (nothing actually bleeds past the rounded
+     corners) — it was blocking touch-scroll gesture propagation to the
+     scrolling <main> ancestor on Android Chrome, leaving only the thin
+     gaps between cards swipeable. */
 }
 
 .tax-type.dragging,
