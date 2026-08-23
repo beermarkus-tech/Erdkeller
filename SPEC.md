@@ -1,5 +1,5 @@
 # Erdkeller — Stock Management & Crisis Preparation App
-## Specification v14
+## Specification v15
 
 > **Note for implementation (e.g. Claude Code): follow the numbered build order in Section 17 ("Development Plan") — each step has its own test to pass before moving to the next. Section 18 lists the setup Markus needs to do on his side (GitHub repo, Firebase project, etc.) — some of it should happen before or during the early steps.**
 >
@@ -231,12 +231,8 @@ Canned/pickled/dried fruit and vegetables **stay fully in the taxonomy and stock
 - Check-in / check-out via device camera scan (phone or tablet), using a browser-based scanning library (e.g. ZXing or jsQR) — no dedicated scanner hardware
 - Label design: **flexible/printable HTML template** for now (printer/label size not yet decided) — generate a printable page with QR code + key details (product, content, best-before), refine layout once a printer is chosen
 
-### Barcode scanning (retail products)
-- A separate, unrelated capability that ships earlier in the build order (folded into Section 17 Step 7, not the later QR/Labels step) since it accelerates the check-in flow rather than depending on it.
-- Same underlying tech as QR scanning — a barcode format (EAN/UPC) is just another symbology the same browser-based scanning library reads, no new capability class.
-- On scan, look up the barcode via the [Open Food Facts](https://world.openfoodfacts.org) API — free, open, crowd-sourced, callable directly from the browser with no API key and no backend (fits the free Firebase Spark-plan constraint, Section 18 item 10). If found, prefill the product name (and a best-effort category guess where available) at the "+ Neues Produkt" step; admin/member reviews and confirms before saving.
-- Coverage isn't complete (smaller/regional brands, non-barcoded or home-repackaged goods) — manual entry always remains the fallback, this is purely an accelerant.
-- **Explicitly out of scope**: photographing the nutrition table for OCR extraction, and photographing the best-before date for OCR extraction. Neither is needed by the calorie system (Section 7 works at the category level, not per-product), and both have materially worse accuracy/cost tradeoffs than barcode lookup — nutrition-table OCR would need either an unreliable client-side approach or a paid cloud vision API (reintroducing the Blaze-plan cost problem); best-before date stamps are a notoriously hard real-world OCR case even for dedicated retail inventory tools.
+### Barcode scanning (retail products) — deferred, see Section 19
+Evaluated for Step 7 and **not built for now** — see Section 19 "Nice to have / Future ideas" for the full rationale and what it would take if revisited.
 
 ---
 
@@ -287,7 +283,7 @@ Targets themselves are defined and edited in **Settings → Targets** (admin-onl
 Two entry points, each a **guided step-by-step flow** rather than a single browse screen (validated via interactive mockup):
 
 **Einlagern (check-in):**
-1. Type → Category → Subcategory (large tappable tiles, as in the mockup), with a "häufig verwendet" (frequently used) shortcut row and a search bar available at every step to skip drilling. A **barcode-scan button** is also available at this stage (Section 11) — scanning a recognized retail barcode jumps straight past the drill-down to the product step, or to "+ Neues Produkt" pre-filled with the looked-up name if it's not yet in the catalog.
+1. Type → Category → Subcategory (large tappable tiles, as in the mockup), with a "häufig verwendet" (frequently used) shortcut row and a search bar available at every step to skip drilling.
 2. **Product step**: list of products **pulled from the master product catalog** (`/products`), filtered to the chosen subcategory — not hardcoded. Shows **product name only** (e.g. "Bohnen weiß") — no weight/content shown here, since that's entered next. Includes a **"+ Neues Produkt"** option at the end of the list for the first time a product is bought (adds it to the master catalog, incl. its `unitType` — see Section 5)
 3. **Detail screen**: quantity stepper, best-before, storage, plus one of:
    - **kg-tracked product**: a content field (weight/volume, e.g. "500g", "800ml") — parsed directly into kg, no conversion factor (Section 5)
@@ -349,7 +345,6 @@ Tablet: same guided-flow pattern, just with more tiles per row / more breathing 
 
 - Frontend: HTML/JS, hosted on GitHub Pages, deployed as installable PWA
 - Backend/DB: Firebase (Firestore for data, FCM for push, Firebase Auth — Google Sign-In — for the 3 users/roles)
-- External API: Open Food Facts (barcode → product lookup, Section 11) — free, no key, called directly client-side
 - Offline: local persistence with sync-on-reconnect (see Section 13)
 - Dev environment: Claude Code via Claude mobile app, vibe-coded, laptop available when needed
 
@@ -388,8 +383,9 @@ Admin-managed storage list; year → color config table with a "no badge" option
 *Test:* Folded into Step 7's test — a product created inline during check-in has the correct fields in Firestore.
 
 **Step 7 — Stock check-in (Einlagern) guided flow**
-Type → Category → Subcategory tiles → Product list (from catalog, filtered, with "+ Neues Produkt") → detail form (quantity, best-before via the two-column date-picker modal, storage, plus a content/weight field for kg-tracked products or nothing extra for Stück-tracked ones) → confirm → writes a new stock batch. Confirming shows the "Rückgängig" undo toast (see Section 15). Also: barcode-scan entry point (Section 11) — scan → Open Food Facts lookup → prefill name/category at "+ Neues Produkt" if found, otherwise falls through to manual entry.
-*Test:* Complete a full check-in end to end for both a kg-tracked and a Stück-tracked product; the resulting Firestore documents have all fields correct; a brand-new product typed at "+ Neues Produkt" gets added to the catalog with the right `unitType`; scanning a barcode found in Open Food Facts pre-fills the product name correctly; tapping "Rückgängig" on the toast deletes the just-created batch and returns to the two big buttons, while letting it time out keeps the batch.
+Type → Category → Subcategory tiles → Product list (from catalog, filtered, with "+ Neues Produkt") → detail form (quantity, details free text, best-before via the two-column date-picker modal, storage, plus a content/weight field for kg-tracked products or nothing extra for Stück-tracked ones) → confirm → writes a new stock batch. Confirming shows the "Rückgängig" undo toast (see Section 15). A global product-name search is also available at the Type step, jumping straight to the detail form for a match anywhere in the catalog. Barcode-scan entry point evaluated and deferred — see Section 19.
+*Test:* Complete a full check-in end to end for both a kg-tracked and a Stück-tracked product; the resulting Firestore documents have all fields correct; a brand-new product typed at "+ Neues Produkt" gets added to the catalog with the right `unitType`; tapping "Rückgängig" on the toast deletes the just-created batch and returns to the two big buttons, while letting it time out keeps the batch.
+**Status: built (Build 27), verified on device.**
 
 **Step 8 — Stock check-out (Entnehmen) guided flow**
 Same drill-down, but the product/batch step shows real existing batches with full inline detail and color badge; quantity stepper removes stock. Confirming shows the same undo toast.
@@ -432,7 +428,7 @@ Best-before alerts and checklist reminders, respecting per-checklist recipient c
 *Test:* Trigger a notification (e.g. by setting a near-term best-before date) and confirm it's received on an Android device even with the app closed.
 
 **Step 18 — QR / Labels**
-QR generation encoding product/batch reference IDs; printable flexible HTML label template; camera-based scan (secondary entry point within the guided Stock flow). Barcode scanning (Section 11) is already built in Step 7 — this step is specifically about Erdkeller's own generated QR labels, a separate capability.
+QR generation encoding product/batch reference IDs; printable flexible HTML label template; camera-based scan (secondary entry point within the guided Stock flow). Erdkeller's own generated QR labels only — retail barcode scanning is a separate, deferred idea (Section 19), not part of this step.
 *Test:* Generate a QR for a batch, print or display it, scan it with the device camera, and confirm it correctly opens that batch in the check-in/check-out flow.
 
 **Step 19 — Manual CSV export**
@@ -462,7 +458,7 @@ These need to happen outside Claude Code — mostly account/console setup that o
 7. **Generate a Web Push (VAPID) key** in Firebase (Project Settings → Cloud Messaging) — needed for Step 17 (push notifications), but fine to do later, right before that step.
 8. **Sign in once yourself** via the deployed app once Step 2 is built, then **manually set your own user document's `role` field to `"admin"` directly in the Firestore console** — this is a one-time bootstrap step, since the app has no admin yet on the very first run. After that, all further role management happens in-app (Settings → People).
 9. **Have Julia and Sophia sign in once** via the app (once Step 2 is built) so their user documents exist — you can then confirm their role is `"member"` in Settings → People (should be the default).
-10. **Firebase billing plan**: stay on the free **Spark plan** — nothing in this spec requires the paid Blaze plan (scheduled Cloud Functions were explicitly ruled out in favor of manual CSV export, and the Open Food Facts barcode lookup runs client-side with no backend). No action needed unless priorities change later.
+10. **Firebase billing plan**: stay on the free **Spark plan** — nothing in this spec requires the paid Blaze plan (scheduled Cloud Functions were explicitly ruled out in favor of manual CSV export). No action needed unless priorities change later.
 11. **Label printer**: no rush — pick one whenever convenient, and let me know so we can finalize the label template (still the one open item in Section 19).
 
 ---
@@ -471,3 +467,8 @@ These need to happen outside Claude Code — mostly account/console setup that o
 
 - Label printer/size — to decide once a printer is chosen (template stays flexible until then)
 - **Drag-to-reorder doesn't work on real devices yet** (taxonomy editor, Settings → Data, Step 4): implemented with the Pointer Events API to avoid native HTML5 drag-and-drop's lack of touch support, but on an actual test it still doesn't work — on mobile, a press-and-hold just selects text; on tablet, it opens the browser's context menu. Something about the current handling isn't actually suppressing the platform's default touch/long-press behavior on the drag handle. Deliberately deferred — revisit later.
+
+### Nice to have / Future ideas
+
+- **Barcode scanning (retail products), via Open Food Facts**: evaluated during Step 7 and deliberately not built. Same underlying tech as QR scanning (Section 11) — EAN/UPC is just another symbology the same browser-based scanning library reads — and lookup would hit the free, no-key [Open Food Facts](https://world.openfoodfacts.org) API directly from the browser. Shelved for two reasons: (1) narrower payoff than expected — OFF's category tree doesn't map to Erdkeller's custom taxonomy, so the Type→Category→Subcategory drill-down still has to happen manually either way, and there's no best-before data to pull (that's always batch-specific/manual); the only real win would be pre-filling the product name and a content/size string. (2) **the pre-filled name is the wrong name** — OFF returns full retail labels ("Barilla Top Ultra Fine Cooking Spaghetti") where Markus wants short generic stock names ("Spaghetti"), so auto-fill would need manual editing on every single scan anyway, undermining the "accelerant" premise. If revisited, it'd need either a stricter one-word-generic-name convention accepted at review time, or a mapping/alias step — neither trivial. Coverage also isn't complete (smaller/regional brands, home-repackaged goods).
+- **Nutrition-table / best-before-date photo OCR**: ruled out earlier for the same categories of reasons (Section 11 history) — not needed by the category-level calorie system (Section 7), and both have materially worse accuracy/cost tradeoffs than barcode lookup already was.
