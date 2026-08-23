@@ -1,0 +1,75 @@
+:root {
+  --stone: #E4E1D6;
+  --stone-dark: #D3CFC0;
+  --cellar: #2E4034;
+  --cellar-light: #3E5747;
+  --rust: #A15A2E;
+  --rust-light: #C97B4E;
+  --charcoal: #20241F;
+  --paper: #F4F2EA;
+  --ok: #4A6B4F;
+  --warn: #B8632F;
+  --danger: #9C3B2E;
+  --danger-bg: #F5E4DF;
+  --warn-bg: #F7E9DA;
+  --ok-bg: #E7EEE7;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+  overscroll-behavior: none;
+}
+
+html, body {
+  overscroll-behavior: none;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--stone);
+  color: var(--charcoal);
+  font-family: 'Inter', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.display {
+  font-family: 'Fraunces', serif;
+}
+
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+}
+
+.placeholder-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  padding: 40px 24px;
+}
+
+.placeholder-screen .mark {
+  font-size: 40px;
+}
+
+.placeholder-screen h1 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  margin: 0;
+}
+
+.placeholder-screen p {
+  color: #6b6a5f;
+  margin: 0;
+  font-size: 14px;
+}
