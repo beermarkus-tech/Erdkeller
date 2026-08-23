@@ -394,3 +394,4 @@ These need to happen outside Claude Code — mostly account/console setup that o
 ## 18. Remaining Open Items
 
 - Label printer/size — to decide once a printer is chosen (template stays flexible until then)
+- **Drag-to-reorder doesn't work on real devices yet** (taxonomy editor, Settings → Data, Step 4): implemented with the Pointer Events API to avoid native HTML5 drag-and-drop's lack of touch support, but on an actual test it still doesn't work — on mobile, a press-and-hold just selects text; on tablet, it opens the browser's context menu. Something about the current handling isn't actually suppressing the platform's default touch/long-press behavior on the drag handle. Deliberately deferred — revisit later.
