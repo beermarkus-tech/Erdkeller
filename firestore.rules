@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Step 1 connectivity check only (js/firebase-test.js). Open because
+    // auth doesn't exist yet — replaced by real role-based rules in Step 2.
+    match /diagnostics/{docId} {
+      allow read, write: if true;
+    }
+
+    // Everything else stays locked down until Step 2 adds auth-based rules.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
