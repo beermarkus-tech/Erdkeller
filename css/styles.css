@@ -728,9 +728,20 @@ nav.bottomnav button .icon {
 
   .tablet-header {
     display: block;
+    position: sticky;
+    top: 0;
+    background: var(--paper);
+    z-index: 6;
     font-family: 'Fraunces', serif;
     font-size: 26px;
     font-weight: 600;
     margin-bottom: 24px;
+  }
+
+  /* Stack below .tablet-header (which is sticky at top:0 here) rather than
+     both sticking to the same position and overlapping. The 56px fallback
+     only matters before app-shell.js's first measurement runs. */
+  .sticky-panel-header {
+    top: var(--tablet-header-stack, 56px);
   }
 }

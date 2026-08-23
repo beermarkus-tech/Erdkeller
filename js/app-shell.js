@@ -35,3 +35,20 @@ window.addEventListener('erdkeller:signedin', (e) => {
 });
 
 setActiveTab('dashboard');
+
+// Tablet-only: .tablet-header is itself sticky (top:0) inside <main>'s
+// scroll region, so a nested sticky header (e.g. Settings → Daten's back
+// row + tab bar) needs to stack *below* it rather than both sticking to
+// the same top:0 and overlapping. Measuring the actual rendered height
+// here (via a CSS variable) keeps the stacking correct even if the
+// title's font size/margins ever change, instead of guessing a fixed px
+// offset. offsetHeight is 0 on mobile (tablet-header is display:none
+// there), which is harmless — nothing on mobile reads this variable.
+function updateStickyOffset() {
+  const marginBottom = parseFloat(getComputedStyle(tabletHeader).marginBottom) || 0;
+  const height = tabletHeader.offsetHeight + marginBottom;
+  document.documentElement.style.setProperty('--tablet-header-stack', height + 'px');
+}
+
+window.addEventListener('resize', updateStickyOffset);
+updateStickyOffset();
