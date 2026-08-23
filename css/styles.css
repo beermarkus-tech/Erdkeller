@@ -224,6 +224,43 @@ nav.bottomnav button .icon {
   font-size: 19px;
 }
 
+.pull-refresh-indicator {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-40px);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--cellar);
+  color: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  z-index: 30;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  pointer-events: none;
+}
+
+.pull-refresh-indicator.visible {
+  opacity: 1;
+}
+
+.pull-refresh-indicator.ready {
+  background: var(--rust);
+}
+
+.pull-refresh-indicator.spinning {
+  animation: pull-refresh-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes pull-refresh-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
 .build-tag {
   position: fixed;
   bottom: 6px;

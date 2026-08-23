@@ -260,3 +260,7 @@ addTypeBtn.addEventListener('click', () => {
 window.addEventListener('erdkeller:signedin', () => {
   loadTaxonomy();
 });
+
+window.addEventListener('erdkeller:refresh', () => {
+  loadTaxonomy();
+});
