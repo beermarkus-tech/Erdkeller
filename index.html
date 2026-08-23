@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=32">
+<link rel="manifest" href="manifest.json?v=33">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=32">
+<link rel="stylesheet" href="css/styles.css?v=33">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 32</div>
+<div id="build-tag" class="build-tag">Build 33</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -73,9 +73,99 @@
     </div>
     <div class="screen" data-screen="stock">
       <div id="stock-home">
+        <div class="stock-home-header">
+          <button class="icon-btn admin-only hidden" id="open-stock-table-btn" type="button" title="Bestandsliste">📋</button>
+        </div>
         <div class="home-buttons">
           <button class="big-btn in" id="start-checkin-btn"><span class="icon">⬇</span> Einlagern</button>
           <button class="big-btn out" id="start-checkout-btn"><span class="icon">⬆</span> Entnehmen</button>
+        </div>
+      </div>
+
+      <div id="stock-table-view" class="hidden">
+        <div class="flow-topbar">
+          <button class="flow-back-btn" id="table-back-btn" type="button">‹ Zurück</button>
+        </div>
+        <div class="table-header-row">
+          <div class="section-label">Bestandsliste</div>
+          <button class="select-mode-btn" id="table-select-mode-btn" type="button">Auswählen</button>
+        </div>
+
+        <div class="search-bar"><span>🔍</span><input placeholder="Suchen…" id="table-search-input"></div>
+
+        <div class="filter-section">
+          <div class="filter-label">Typ</div>
+          <div class="filter-chip-row" id="table-type-filters"></div>
+        </div>
+        <div class="filter-section">
+          <div class="filter-label">Kategorie</div>
+          <div class="filter-chip-row" id="table-category-filters"></div>
+        </div>
+        <div class="filter-section">
+          <div class="filter-label">Lagerort</div>
+          <div class="filter-chip-row" id="table-storage-filters"></div>
+        </div>
+
+        <div class="sort-bar" id="table-sort-bar"></div>
+
+        <div class="product-list" id="table-row-list"></div>
+
+        <div class="bulk-bar hidden" id="table-bulk-bar">
+          <span id="table-bulk-count">0 ausgewählt</span>
+          <div class="bulk-bar-actions">
+            <button id="table-bulk-cancel-btn" type="button">Abbrechen</button>
+            <button id="table-bulk-delete-btn" class="danger-btn" type="button">Löschen</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="table-edit-modal">
+        <div class="modal-sheet">
+          <div class="modal-title" id="table-edit-title"></div>
+          <div class="form-group">
+            <label>Menge</label>
+            <div class="qty-stepper">
+              <button id="table-edit-qty-minus" type="button">−</button>
+              <span class="qty-num" id="table-edit-qty-num">1</span>
+              <button id="table-edit-qty-plus" type="button">+</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Details</label>
+            <input type="text" id="table-edit-details">
+          </div>
+          <div class="form-group" id="table-edit-content-group">
+            <label>Inhalt</label>
+            <input type="text" id="table-edit-content">
+          </div>
+          <div class="form-group">
+            <label>Mindesthaltbarkeit (MM/JJJJ)</label>
+            <div class="date-display" id="table-edit-bestbefore-display">
+              <input type="text" id="table-edit-bestbefore-input" placeholder="MM/JJJJ" readonly style="pointer-events:none;">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Lagerort</label>
+            <select id="table-edit-storage"></select>
+          </div>
+          <div class="modal-actions table-edit-actions">
+            <button class="confirm-btn" id="table-edit-save-btn">Speichern</button>
+            <button class="danger-btn" id="table-edit-delete-btn">Löschen</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="table-date-modal">
+        <div class="modal-sheet">
+          <div class="modal-title">Mindesthaltbarkeit wählen</div>
+          <div class="picker-row">
+            <div class="picker-highlight"></div>
+            <div class="picker-col" id="table-month-col"></div>
+            <div class="picker-col" id="table-year-col"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="modal-confirm" id="table-date-modal-confirm">Übernehmen</button>
+          </div>
         </div>
       </div>
 
@@ -361,17 +451,18 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=32"></script>
-<script type="module" src="js/auth.js?v=32"></script>
-<script type="module" src="js/app-shell.js?v=32"></script>
-<script type="module" src="js/account-menu.js?v=32"></script>
-<script type="module" src="js/refresh-button.js?v=32"></script>
-<script type="module" src="js/settings-nav.js?v=32"></script>
-<script type="module" src="js/data-tabs.js?v=32"></script>
-<script type="module" src="js/taxonomy.js?v=32"></script>
-<script type="module" src="js/storage-locations.js?v=32"></script>
-<script type="module" src="js/year-colors.js?v=32"></script>
-<script type="module" src="js/stock-checkin.js?v=32"></script>
-<script type="module" src="js/stock-checkout.js?v=32"></script>
+<script src="js/app.js?v=33"></script>
+<script type="module" src="js/auth.js?v=33"></script>
+<script type="module" src="js/app-shell.js?v=33"></script>
+<script type="module" src="js/account-menu.js?v=33"></script>
+<script type="module" src="js/refresh-button.js?v=33"></script>
+<script type="module" src="js/settings-nav.js?v=33"></script>
+<script type="module" src="js/data-tabs.js?v=33"></script>
+<script type="module" src="js/taxonomy.js?v=33"></script>
+<script type="module" src="js/storage-locations.js?v=33"></script>
+<script type="module" src="js/year-colors.js?v=33"></script>
+<script type="module" src="js/stock-checkin.js?v=33"></script>
+<script type="module" src="js/stock-checkout.js?v=33"></script>
+<script type="module" src="js/stock-table.js?v=33"></script>
 </body>
 </html>

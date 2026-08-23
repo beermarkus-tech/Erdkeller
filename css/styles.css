@@ -1214,6 +1214,204 @@ nav.bottomnav button .icon {
   color: #4a4940;
 }
 
+/* Step 9: admin stock table */
+.stock-home-header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.icon-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--stone-dark);
+  background: white;
+  font-size: 19px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.table-header-row .section-label {
+  margin: 0;
+}
+
+.select-mode-btn {
+  border: 1px solid var(--stone-dark);
+  background: white;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cellar);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+.select-mode-btn.active {
+  background: var(--cellar);
+  color: var(--paper);
+  border-color: var(--cellar);
+}
+
+.filter-section {
+  margin-bottom: 14px;
+}
+
+.filter-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b6a5f;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.filter-chip-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  background: white;
+  border: 1px solid var(--stone-dark);
+  color: var(--charcoal);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+.filter-chip.active {
+  background: var(--cellar);
+  color: var(--paper);
+  border-color: var(--cellar);
+}
+
+.sort-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  touch-action: pan-x;
+  margin-bottom: 14px;
+  padding-bottom: 4px;
+}
+
+.sort-btn {
+  flex-shrink: 0;
+  background: var(--stone-dark);
+  border: none;
+  color: var(--charcoal);
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+}
+
+.sort-btn.active {
+  background: var(--cellar);
+  color: var(--paper);
+}
+
+.table-row-sub {
+  font-size: 11px;
+  color: #9a9788;
+  margin-top: 2px;
+}
+
+.select-checkbox {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-right: 12px;
+  accent-color: var(--cellar);
+}
+
+.bulk-bar {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 440px;
+  width: calc(100% - 40px);
+  background: var(--charcoal);
+  color: var(--paper);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  z-index: 60;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+}
+
+.bulk-bar.hidden {
+  display: none;
+}
+
+.bulk-bar-actions {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.bulk-bar-actions button {
+  background: none;
+  border: none;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+#table-bulk-cancel-btn {
+  color: var(--paper);
+}
+
+.danger-btn {
+  color: var(--danger);
+}
+
+.table-edit-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.table-edit-actions .confirm-btn {
+  margin-top: 0;
+}
+
+.table-edit-actions .danger-btn {
+  flex-shrink: 0;
+  background: var(--danger-bg);
+  border: none;
+  border-radius: 14px;
+  padding: 16px 18px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+@media (min-width: 900px) {
+  .bulk-bar {
+    bottom: 24px;
+  }
+}
+
 @media (min-width: 900px) {
   .tile-grid {
     grid-template-columns: repeat(4, 1fr);
