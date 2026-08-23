@@ -92,3 +92,85 @@ body {
   max-width: 320px;
   word-break: break-word;
 }
+
+.hidden {
+  display: none !important;
+}
+
+.google-btn {
+  margin-top: 20px;
+  padding: 12px 22px;
+  border: 1px solid var(--stone-dark);
+  border-radius: 12px;
+  background: white;
+  color: var(--charcoal);
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.user-info {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: 14px;
+  padding: 12px 16px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--stone-dark);
+}
+
+.user-text {
+  text-align: left;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.user-role {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-top: 3px;
+}
+
+.user-role.role-admin {
+  background: var(--cellar);
+  color: var(--paper);
+}
+
+.user-role.role-member {
+  background: var(--stone);
+  color: #4a4940;
+}
+
+.signout-btn {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--rust);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+.auth-error {
+  color: var(--danger);
+  font-size: 13px;
+  max-width: 320px;
+}

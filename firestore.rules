@@ -2,13 +2,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Step 1 connectivity check only (js/firebase-test.js). Open because
-    // auth doesn't exist yet — replaced by real role-based rules in Step 2.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Step 1 connectivity check only (js/firebase-test.js). Harmless to
+    // leave open — no real data lives here.
     match /diagnostics/{docId} {
       allow read, write: if true;
     }
 
-    // Everything else stays locked down until Step 2 adds auth-based rules.
+    // Step 2: any of the three family members can read the user list
+    // (needed later for reminder-recipient pickers, Settings → People).
+    // Self-provisioning on first sign-in always starts as "member" — you
+    // cannot create or edit your own doc into "admin"; only an existing
+    // admin can promote someone (Settings → People, built in Step 14).
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && request.resource.data.role == 'member';
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId && request.resource.data.role == resource.data.role)
+        || isAdmin()
+      );
+    }
+
+    // Everything else stays locked down until its own build step wires up
+    // real rules (taxonomy/config in Step 4-5, stock in Step 7+, etc.).
     match /{document=**} {
       allow read, write: if false;
     }

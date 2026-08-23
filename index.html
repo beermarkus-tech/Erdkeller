@@ -20,9 +20,21 @@
     <p>Grundgerüst steht. App-Shell folgt in Schritt 3.</p>
     <button id="fb-test-btn" class="fb-test-btn">Firebase-Verbindung testen</button>
     <p id="fb-status" class="fb-status"></p>
+
+    <button id="google-signin-btn" class="google-btn">Mit Google anmelden</button>
+    <div id="user-info" class="user-info hidden">
+      <img id="user-avatar" class="user-avatar" alt="">
+      <div class="user-text">
+        <div id="user-name" class="user-name"></div>
+        <div id="user-role" class="user-role"></div>
+      </div>
+      <button id="signout-btn" class="signout-btn">Abmelden</button>
+    </div>
+    <p id="auth-error" class="auth-error"></p>
   </div>
 </div>
 <script src="js/app.js"></script>
 <script type="module" src="js/firebase-test.js"></script>
+<script type="module" src="js/auth.js"></script>
 </body>
 </html>
