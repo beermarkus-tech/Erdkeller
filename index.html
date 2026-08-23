@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=24">
+<link rel="manifest" href="manifest.json?v=25">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=24">
+<link rel="stylesheet" href="css/styles.css?v=25">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 24</div>
+<div id="build-tag" class="build-tag">Build 25</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -84,7 +84,7 @@
       <div id="settings-main">
         <div class="settings-card" data-target="data">
           <span class="sym">🗂️</span>
-          <div class="sc-text"><div class="sc-title">Daten</div><div class="sc-sub">Kategorien, Lagerorte, Farben, Produkte</div></div>
+          <div class="sc-text"><div class="sc-title">Daten</div><div class="sc-sub">Kategorien, Lagerorte, Farben</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="people">
@@ -116,7 +116,6 @@
             <button class="seg-btn active" data-data-tab="taxonomy">Taxonomie</button>
             <button class="seg-btn" data-data-tab="storage">Lagerorte</button>
             <button class="seg-btn" data-data-tab="colors">Jahresfarben</button>
-            <button class="seg-btn" data-data-tab="products">Produkte</button>
           </div>
         </div>
 
@@ -136,12 +135,6 @@
           <div id="year-color-list"></div>
           <button class="add-row-btn" id="add-year-btn">+ Jahr hinzufügen</button>
           <p id="year-color-status" class="taxonomy-status"></p>
-        </div>
-
-        <div class="data-tab hidden" data-data-tab-panel="products">
-          <div id="product-list"></div>
-          <button class="add-row-btn" id="add-product-btn">+ Neues Produkt</button>
-          <p id="product-status" class="taxonomy-status"></p>
         </div>
       </div>
 
@@ -192,16 +185,15 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=24"></script>
-<script type="module" src="js/auth.js?v=24"></script>
-<script type="module" src="js/app-shell.js?v=24"></script>
-<script type="module" src="js/account-menu.js?v=24"></script>
-<script type="module" src="js/refresh-button.js?v=24"></script>
-<script type="module" src="js/settings-nav.js?v=24"></script>
-<script type="module" src="js/data-tabs.js?v=24"></script>
-<script type="module" src="js/taxonomy.js?v=24"></script>
-<script type="module" src="js/storage-locations.js?v=24"></script>
-<script type="module" src="js/year-colors.js?v=24"></script>
-<script type="module" src="js/products.js?v=24"></script>
+<script src="js/app.js?v=25"></script>
+<script type="module" src="js/auth.js?v=25"></script>
+<script type="module" src="js/app-shell.js?v=25"></script>
+<script type="module" src="js/account-menu.js?v=25"></script>
+<script type="module" src="js/refresh-button.js?v=25"></script>
+<script type="module" src="js/settings-nav.js?v=25"></script>
+<script type="module" src="js/data-tabs.js?v=25"></script>
+<script type="module" src="js/taxonomy.js?v=25"></script>
+<script type="module" src="js/storage-locations.js?v=25"></script>
+<script type="module" src="js/year-colors.js?v=25"></script>
 </body>
 </html>
