@@ -88,15 +88,19 @@ body {
   max-width: 320px;
 }
 
-/* App shell */
+/* App shell — fixed to the viewport height with overflow hidden, so the
+   sidebar/topbar/bottomnav chrome never scrolls away. `<main>` below is the
+   one designated scrollable region. */
 .shell {
   max-width: 480px;
   margin: 0 auto;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   background: var(--paper);
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
   padding-bottom: 76px;
 }
 
@@ -231,6 +235,9 @@ header.topbar .subtitle {
 main {
   padding: 18px 20px 10px;
   flex: 1;
+  min-height: 0; /* let a flex child actually shrink so overflow-y can kick in */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .screen {
@@ -366,6 +373,16 @@ nav.bottomnav button .icon {
   margin-bottom: 18px;
 }
 
+/* Keeps a settings panel's title/back button (and, for Daten, the
+   Taxonomie/Lagerorte/Jahresfarben tab bar) pinned while only the panel's
+   actual list content scrolls beneath it, inside <main>'s scroll region. */
+.sticky-panel-header {
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+  z-index: 5;
+}
+
 .back-btn {
   background: none;
   border: none;
@@ -466,6 +483,12 @@ nav.bottomnav button .icon {
   flex-shrink: 0;
 }
 
+/* touch-action: pan-y — without this, a vertical swipe starting on top of
+   the input (which is most of each row's width) gets claimed for text
+   cursor/selection instead of scrolling the list, since that's the
+   browser's default touch behavior for text inputs. pan-y explicitly tells
+   it vertical panning takes priority; tapping to focus/place the cursor
+   still works fine. */
 .tax-sym-input {
   width: 40px;
   flex-shrink: 0;
@@ -475,6 +498,7 @@ nav.bottomnav button .icon {
   padding: 6px 4px;
   font-size: 14px;
   font-family: 'Inter', sans-serif;
+  touch-action: pan-y;
 }
 
 .tax-name-input {
@@ -485,6 +509,7 @@ nav.bottomnav button .icon {
   padding: 6px 10px;
   font-size: 14px;
   font-family: 'Inter', sans-serif;
+  touch-action: pan-y;
 }
 
 .tax-type-head .tax-name-input {

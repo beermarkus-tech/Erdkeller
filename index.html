@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=20">
+<link rel="manifest" href="manifest.json?v=21">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=20">
+<link rel="stylesheet" href="css/styles.css?v=21">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 20</div>
+<div id="build-tag" class="build-tag">Build 21</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -110,12 +110,13 @@
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-data">
-        <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Daten</span></div>
-
-        <div class="segmented">
-          <button class="seg-btn active" data-data-tab="taxonomy">Taxonomie</button>
-          <button class="seg-btn" data-data-tab="storage">Lagerorte</button>
-          <button class="seg-btn" data-data-tab="colors">Jahresfarben</button>
+        <div class="sticky-panel-header">
+          <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Daten</span></div>
+          <div class="segmented">
+            <button class="seg-btn active" data-data-tab="taxonomy">Taxonomie</button>
+            <button class="seg-btn" data-data-tab="storage">Lagerorte</button>
+            <button class="seg-btn" data-data-tab="colors">Jahresfarben</button>
+          </div>
         </div>
 
         <div class="data-tab" data-data-tab-panel="taxonomy">
@@ -140,22 +141,30 @@
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-people">
-        <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Personen</span></div>
+        <div class="sticky-panel-header">
+          <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Personen</span></div>
+        </div>
         <p class="screen-placeholder">Rollenverwaltung — wird in Schritt 14 gebaut.</p>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-checklists">
-        <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Checklisten</span></div>
+        <div class="sticky-panel-header">
+          <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Checklisten</span></div>
+        </div>
         <p class="screen-placeholder">Checklisten-Verwaltung — wird in Schritt 12 gebaut.</p>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-targets">
-        <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Ziele</span></div>
+        <div class="sticky-panel-header">
+          <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Ziele</span></div>
+        </div>
         <p class="screen-placeholder">Zielverwaltung — wird in Schritt 11 gebaut.</p>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-export">
-        <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Export</span></div>
+        <div class="sticky-panel-header">
+          <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Export</span></div>
+        </div>
         <p class="screen-placeholder">PDF- &amp; CSV-Export — wird in Schritt 15/19 gebaut.</p>
       </div>
     </div>
@@ -178,15 +187,15 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=20"></script>
-<script type="module" src="js/auth.js?v=20"></script>
-<script type="module" src="js/app-shell.js?v=20"></script>
-<script type="module" src="js/account-menu.js?v=20"></script>
-<script type="module" src="js/refresh-button.js?v=20"></script>
-<script type="module" src="js/settings-nav.js?v=20"></script>
-<script type="module" src="js/data-tabs.js?v=20"></script>
-<script type="module" src="js/taxonomy.js?v=20"></script>
-<script type="module" src="js/storage-locations.js?v=20"></script>
-<script type="module" src="js/year-colors.js?v=20"></script>
+<script src="js/app.js?v=21"></script>
+<script type="module" src="js/auth.js?v=21"></script>
+<script type="module" src="js/app-shell.js?v=21"></script>
+<script type="module" src="js/account-menu.js?v=21"></script>
+<script type="module" src="js/refresh-button.js?v=21"></script>
+<script type="module" src="js/settings-nav.js?v=21"></script>
+<script type="module" src="js/data-tabs.js?v=21"></script>
+<script type="module" src="js/taxonomy.js?v=21"></script>
+<script type="module" src="js/storage-locations.js?v=21"></script>
+<script type="module" src="js/year-colors.js?v=21"></script>
 </body>
 </html>
