@@ -231,7 +231,7 @@ nav.bottomnav button .icon {
 
 @media (min-width: 900px) {
   .shell {
-    max-width: 1100px;
+    max-width: none;
     flex-direction: row;
     padding-bottom: 0;
   }
