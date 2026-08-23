@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=26';
+import { db } from './firebase-init.js?v=27';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -29,6 +29,7 @@ const detailProductName = document.getElementById('detail-product-name');
 const qtyNumEl = document.getElementById('qty-num');
 const qtyMinusBtn = document.getElementById('qty-minus');
 const qtyPlusBtn = document.getElementById('qty-plus');
+const detailsInput = document.getElementById('details-input');
 const contentFieldGroup = document.getElementById('content-field-group');
 const contentInput = document.getElementById('content-input');
 const bestbeforeDisplay = document.getElementById('bestbefore-display');
@@ -60,7 +61,7 @@ let configLoadOk = false;
 let selection = {
   type: null, category: null, subcategory: null,
   product: null, isNewProduct: false, newProductUnit: 'kg',
-  qty: 1, content: '', bestBefore: '', storage: '',
+  qty: 1, details: '', content: '', bestBefore: '', storage: '',
 };
 
 let lastCheckInId = null;
@@ -358,6 +359,8 @@ function prepareDetailStep() {
   detailProductName.textContent = selection.product ? selection.product.name : '';
   selection.qty = 1;
   qtyNumEl.textContent = '1';
+  selection.details = '';
+  detailsInput.value = '';
   selection.content = '';
   contentInput.value = '';
   selection.bestBefore = '';
@@ -383,6 +386,7 @@ qtyPlusBtn.addEventListener('click', () => {
   selection.qty += 1;
   qtyNumEl.textContent = String(selection.qty);
 });
+detailsInput.addEventListener('input', () => { selection.details = detailsInput.value; });
 contentInput.addEventListener('input', () => { selection.content = contentInput.value; });
 storageSelect.addEventListener('change', () => { selection.storage = storageSelect.value; });
 
@@ -487,7 +491,7 @@ checkinConfirmBtn.addEventListener('click', async () => {
       subcategory: selection.subcategory.name,
       subcategorySymbol: selection.subcategory.sym || '',
       productId,
-      details: '',
+      details: selection.details || '',
       quantity: selection.qty,
       content: currentUnitType() === 'kg' ? selection.content : (selection.content || ''),
       bestBefore: selection.bestBefore || '',
@@ -562,7 +566,7 @@ startCheckinBtn.addEventListener('click', () => {
   selection = {
     type: null, category: null, subcategory: null,
     product: null, isNewProduct: false, newProductUnit: 'kg',
-    qty: 1, content: '', bestBefore: '', storage: '',
+    qty: 1, details: '', content: '', bestBefore: '', storage: '',
   };
   stockHomeEl.classList.add('hidden');
   stockFlowEl.classList.remove('hidden');
