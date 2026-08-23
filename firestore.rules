@@ -43,18 +43,29 @@ service cloud.firestore {
     }
 
     // Step 6: /products (master catalog). Unlike /config, any signed-in
-    // family member can create a new product — SPEC.md Section 14 has
+    // family member can create a new product — SPEC.md Section 5 has
     // members adding one inline during check-in the first time something
-    // new is bought (Step 7), no admin step required. Editing/deleting an
-    // existing entry stays admin-only (Settings → Data → Produkte).
+    // new is bought (Step 7) — there's no standalone admin catalog screen
+    // any more. Editing/deleting an existing entry stays admin-only
+    // (reachable via a future admin stock table / targets flow).
     match /products/{productId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
 
+    // Step 7: /stockItems (one doc per purchase batch). Check-in/check-out
+    // is a member action, not admin-only (SPEC.md Section 3), so all CRUD
+    // is open to any signed-in family member — including delete, needed
+    // both for the check-in undo toast and for a check-out that empties a
+    // batch. The admin stock table's bulk-delete (Step 9) is a UI
+    // convenience on top of this, not a separate permission tier.
+    match /stockItems/{itemId} {
+      allow read, create, update, delete: if isSignedIn();
+    }
+
     // Everything else stays locked down until its own build step wires up
-    // real rules (stock in Step 7+, checklists in Step 12, etc.).
+    // real rules (checklists in Step 12, etc.).
     match /{document=**} {
       allow read, write: if false;
     }
