@@ -250,4 +250,13 @@ addTypeBtn.addEventListener('click', () => {
   render();
 });
 
-loadTaxonomy();
+// Wait for auth to actually resolve before reading /config/taxonomy — the
+// same reason app-shell.js gates admin-only UI on this event rather than
+// checking role at module-load time. Firebase Auth's session restore is
+// async, so calling loadTaxonomy() unconditionally here would race it: on
+// a fresh page load, request.auth is still null at the moment this module
+// evaluates, and Firestore rejects the read with permission-denied even
+// though the user is about to be (or already is) signed in a moment later.
+window.addEventListener('erdkeller:signedin', () => {
+  loadTaxonomy();
+});

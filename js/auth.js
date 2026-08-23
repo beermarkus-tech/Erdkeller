@@ -24,8 +24,14 @@ const avatarEls = [
   document.getElementById('user-avatar-sidebar'),
   document.getElementById('user-avatar-topbar'),
 ];
-const nameEls = [document.getElementById('user-name-sidebar')];
-const roleEls = [document.getElementById('user-role-sidebar')];
+const nameEls = [
+  document.getElementById('user-name-sidebar'),
+  document.getElementById('user-name-topbar'),
+];
+const roleEls = [
+  document.getElementById('user-role-sidebar'),
+  document.getElementById('user-role-topbar'),
+];
 
 const NO_MESSAGE_CODES = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
 const FALLBACK_TO_REDIRECT_CODES = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'];
