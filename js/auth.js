@@ -11,13 +11,21 @@ import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/
 
 const provider = new GoogleAuthProvider();
 
+const authGate = document.getElementById('auth-gate');
+const appShell = document.getElementById('app');
 const signinBtn = document.getElementById('google-signin-btn');
-const signoutBtn = document.getElementById('signout-btn');
-const userInfo = document.getElementById('user-info');
-const userAvatar = document.getElementById('user-avatar');
-const userName = document.getElementById('user-name');
-const userRole = document.getElementById('user-role');
 const authError = document.getElementById('auth-error');
+
+const signoutButtons = [
+  document.getElementById('signout-btn-sidebar'),
+  document.getElementById('signout-btn-topbar'),
+];
+const avatarEls = [
+  document.getElementById('user-avatar-sidebar'),
+  document.getElementById('user-avatar-topbar'),
+];
+const nameEls = [document.getElementById('user-name-sidebar')];
+const roleEls = [document.getElementById('user-role-sidebar')];
 
 const NO_MESSAGE_CODES = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
 const FALLBACK_TO_REDIRECT_CODES = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'];
@@ -47,9 +55,7 @@ signinBtn.addEventListener('click', async () => {
   }
 });
 
-signoutBtn.addEventListener('click', () => {
-  signOut(auth);
-});
+signoutButtons.forEach((btn) => btn.addEventListener('click', () => signOut(auth)));
 
 getRedirectResult(auth).catch((err) => {
   authError.textContent = 'Anmeldung fehlgeschlagen: ' + err.message;
@@ -72,17 +78,22 @@ async function ensureUserDoc(user) {
 }
 
 function renderSignedOut() {
-  signinBtn.classList.remove('hidden');
-  userInfo.classList.add('hidden');
+  authGate.classList.remove('hidden');
+  appShell.classList.add('hidden');
+  window.dispatchEvent(new CustomEvent('erdkeller:signedout'));
 }
 
 function renderSignedIn(user, userData) {
-  signinBtn.classList.add('hidden');
-  userInfo.classList.remove('hidden');
-  userAvatar.src = user.photoURL || '';
-  userName.textContent = userData.name || user.displayName || '';
-  userRole.textContent = userData.role === 'admin' ? 'Admin' : 'Mitglied';
-  userRole.className = 'user-role ' + (userData.role === 'admin' ? 'role-admin' : 'role-member');
+  authGate.classList.add('hidden');
+  appShell.classList.remove('hidden');
+
+  avatarEls.forEach((el) => { el.src = user.photoURL || ''; });
+  nameEls.forEach((el) => { el.textContent = userData.name || user.displayName || ''; });
+  roleEls.forEach((el) => {
+    el.textContent = userData.role === 'admin' ? 'Admin' : 'Mitglied';
+  });
+
+  window.dispatchEvent(new CustomEvent('erdkeller:signedin', { detail: { role: userData.role } }));
 }
 
 onAuthStateChanged(auth, async (user) => {

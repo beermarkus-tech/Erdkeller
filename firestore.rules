@@ -11,8 +11,8 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Step 1 connectivity check only (js/firebase-test.js). Harmless to
-    // leave open — no real data lives here.
+    // Was the Step 1 connectivity check (now retired). Left open since no
+    // real data lives here — tighten this if/when it bothers you.
     match /diagnostics/{docId} {
       allow read, write: if true;
     }

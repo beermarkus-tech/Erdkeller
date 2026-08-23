@@ -38,17 +38,13 @@ body {
   font-family: 'Fraunces', serif;
 }
 
-#app {
-  max-width: 480px;
-  margin: 0 auto;
-  min-height: 100vh;
-  background: var(--paper);
-  display: flex;
-  flex-direction: column;
+.hidden {
+  display: none !important;
 }
 
-.placeholder-screen {
-  flex: 1;
+/* Auth gate (signed-out screen) */
+.auth-gate {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -56,45 +52,22 @@ body {
   text-align: center;
   gap: 12px;
   padding: 40px 24px;
+  background: var(--paper);
 }
 
-.placeholder-screen .mark {
+.auth-gate .mark {
   font-size: 40px;
 }
 
-.placeholder-screen h1 {
-  font-family: 'Fraunces', serif;
+.auth-gate h1 {
   font-weight: 600;
   margin: 0;
 }
 
-.placeholder-screen p {
+.auth-gate p {
   color: #6b6a5f;
   margin: 0;
   font-size: 14px;
-}
-
-.fb-test-btn {
-  margin-top: 20px;
-  padding: 12px 22px;
-  border: none;
-  border-radius: 12px;
-  background: var(--cellar);
-  color: var(--paper);
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.fb-status {
-  min-height: 18px;
-  max-width: 320px;
-  word-break: break-word;
-}
-
-.hidden {
-  display: none !important;
 }
 
 .google-btn {
@@ -110,69 +83,125 @@ body {
   cursor: pointer;
 }
 
-.user-info {
-  margin-top: 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: white;
-  border: 1px solid var(--stone-dark);
-  border-radius: 14px;
-  padding: 12px 16px;
-}
-
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--stone-dark);
-}
-
-.user-text {
-  text-align: left;
-}
-
-.user-name {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.user-role {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 6px;
-  display: inline-block;
-  margin-top: 3px;
-}
-
-.user-role.role-admin {
-  background: var(--cellar);
-  color: var(--paper);
-}
-
-.user-role.role-member {
-  background: var(--stone);
-  color: #4a4940;
-}
-
-.signout-btn {
-  margin-left: auto;
-  border: none;
-  background: none;
-  color: var(--rust);
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  font-family: 'Inter', sans-serif;
-}
-
 .auth-error {
   color: var(--danger);
   font-size: 13px;
   max-width: 320px;
+}
+
+/* App shell */
+.shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding-bottom: 76px;
+}
+
+header.topbar {
+  background: var(--cellar);
+  color: var(--paper);
+  padding: 18px 20px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+header.topbar .title {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 20px;
+}
+
+header.topbar .subtitle {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+.topbar-account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-account img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(244, 242, 234, 0.2);
+}
+
+.topbar-account button {
+  background: none;
+  border: none;
+  color: rgba(244, 242, 234, 0.85);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+main {
+  padding: 18px 20px 10px;
+  flex: 1;
+}
+
+.screen {
+  display: none;
+}
+
+.screen.active {
+  display: block;
+}
+
+.screen-placeholder {
+  text-align: center;
+  color: #6b6a5f;
+  font-size: 14px;
+  padding: 60px 20px;
+}
+
+nav.bottomnav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  background: var(--cellar);
+  display: flex;
+  padding: 10px 6px calc(10px + env(safe-area-inset-bottom));
+  z-index: 20;
+}
+
+nav.bottomnav button {
+  flex: 1;
+  background: none;
+  border: none;
+  color: rgba(244, 242, 234, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10.5px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+nav.bottomnav button.active {
+  color: var(--paper);
+}
+
+nav.bottomnav button .icon {
+  font-size: 19px;
 }
 
 .build-tag {
@@ -186,4 +215,126 @@ body {
   border-radius: 6px;
   z-index: 999;
   pointer-events: none;
+}
+
+/* Each shell component controls its own mobile/tablet visibility directly
+   (rather than through a shared "tablet-only" utility class) so there's no
+   cascade-order ambiguity between a generic toggle and the component's own
+   display value. */
+.sidebar {
+  display: none;
+}
+
+.tablet-header {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .shell {
+    max-width: 1100px;
+    flex-direction: row;
+    padding-bottom: 0;
+  }
+
+  .sidebar {
+    width: 220px;
+    background: var(--cellar);
+    color: var(--paper);
+    padding: 24px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .sidebar .brand {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 600;
+    padding: 0 10px 24px;
+  }
+
+  .sidebar button.nav-btn {
+    background: none;
+    border: none;
+    color: rgba(244, 242, 234, 0.65);
+    text-align: left;
+    padding: 12px 12px;
+    border-radius: 10px;
+    font-size: 14.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .sidebar button.nav-btn.active {
+    background: rgba(244, 242, 234, 0.12);
+    color: var(--paper);
+    font-weight: 600;
+  }
+
+  .sidebar-account {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(244, 242, 234, 0.15);
+  }
+
+  .sidebar-account img {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(244, 242, 234, 0.2);
+  }
+
+  .sidebar-account .account-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sidebar-account .account-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--paper);
+  }
+
+  .sidebar-account .account-role {
+    font-size: 10.5px;
+    color: rgba(244, 242, 234, 0.6);
+  }
+
+  .sidebar-account button {
+    background: none;
+    border: none;
+    color: rgba(244, 242, 234, 0.6);
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+
+  nav.bottomnav {
+    display: none;
+  }
+
+  header.topbar {
+    display: none;
+  }
+
+  main {
+    flex: 1;
+    padding: 32px 40px;
+    max-width: 900px;
+  }
+
+  .tablet-header {
+    display: block;
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    font-weight: 600;
+    margin-bottom: 24px;
+  }
 }

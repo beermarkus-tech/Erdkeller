@@ -13,29 +13,80 @@
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 5 · 23.08.2026</div>
-<div id="app">
-  <div class="placeholder-screen">
-    <div class="mark">🏔</div>
-    <h1 class="display">Erdkeller</h1>
-    <p>Grundgerüst steht. App-Shell folgt in Schritt 3.</p>
-    <button id="fb-test-btn" class="fb-test-btn">Firebase-Verbindung testen</button>
-    <p id="fb-status" class="fb-status"></p>
+<div id="build-tag" class="build-tag">Build 6 · 23.08.2026</div>
 
-    <button id="google-signin-btn" class="google-btn">Mit Google anmelden</button>
-    <div id="user-info" class="user-info hidden">
-      <img id="user-avatar" class="user-avatar" alt="">
-      <div class="user-text">
-        <div id="user-name" class="user-name"></div>
-        <div id="user-role" class="user-role"></div>
-      </div>
-      <button id="signout-btn" class="signout-btn">Abmelden</button>
-    </div>
-    <p id="auth-error" class="auth-error"></p>
-  </div>
+<!-- Signed-out screen -->
+<div id="auth-gate" class="auth-gate">
+  <div class="mark">🏔</div>
+  <h1 class="display">Erdkeller</h1>
+  <p>Vorratsverwaltung &amp; Krisenvorsorge</p>
+  <button id="google-signin-btn" class="google-btn">Mit Google anmelden</button>
+  <p id="auth-error" class="auth-error"></p>
 </div>
+
+<!-- App shell (shown once signed in) -->
+<div id="app" class="shell hidden">
+
+  <div class="sidebar">
+    <div class="brand">🏔 Erdkeller</div>
+    <button class="nav-btn active" data-tab="dashboard"><span>🏠</span> Übersicht</button>
+    <button class="nav-btn" data-tab="stock"><span>📦</span> Bestand</button>
+    <button class="nav-btn" data-tab="checklists"><span>✅</span> Checklisten</button>
+    <button class="nav-btn" data-tab="info"><span>📚</span> Info</button>
+    <button class="nav-btn admin-only hidden" data-tab="settings"><span>⚙️</span> Einstellungen</button>
+    <div class="sidebar-account">
+      <img id="user-avatar-sidebar" class="user-avatar" alt="">
+      <div class="account-text">
+        <div id="user-name-sidebar" class="account-name"></div>
+        <div id="user-role-sidebar" class="account-role"></div>
+      </div>
+      <button id="signout-btn-sidebar">Abmelden</button>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div>
+      <div class="title">Erdkeller</div>
+      <div class="subtitle" id="topbar-subtitle">Übersicht</div>
+    </div>
+    <div class="topbar-account">
+      <img id="user-avatar-topbar" class="user-avatar" alt="">
+      <button id="signout-btn-topbar">Abmelden</button>
+    </div>
+  </header>
+
+  <main>
+    <h1 class="tablet-header" id="tablet-header">Übersicht</h1>
+
+    <div class="screen active" data-screen="dashboard">
+      <p class="screen-placeholder">Übersicht — wird in Schritt 10 gebaut.</p>
+    </div>
+    <div class="screen" data-screen="stock">
+      <p class="screen-placeholder">Bestand — wird in Schritt 7–9 gebaut.</p>
+    </div>
+    <div class="screen" data-screen="checklists">
+      <p class="screen-placeholder">Checklisten — wird in Schritt 12 gebaut.</p>
+    </div>
+    <div class="screen" data-screen="info">
+      <p class="screen-placeholder">Info — wird in Schritt 13 gebaut.</p>
+    </div>
+    <div class="screen admin-only hidden" data-screen="settings">
+      <p class="screen-placeholder">Einstellungen — wird ab Schritt 4 gebaut.</p>
+    </div>
+  </main>
+
+  <nav class="bottomnav">
+    <button class="nav-btn active" data-tab="dashboard"><span class="icon">🏠</span>Übersicht</button>
+    <button class="nav-btn" data-tab="stock"><span class="icon">📦</span>Bestand</button>
+    <button class="nav-btn" data-tab="checklists"><span class="icon">✅</span>Checklisten</button>
+    <button class="nav-btn" data-tab="info"><span class="icon">📚</span>Info</button>
+    <button class="nav-btn admin-only hidden" data-tab="settings"><span class="icon">⚙️</span>Mehr</button>
+  </nav>
+
+</div>
+
 <script src="js/app.js"></script>
-<script type="module" src="js/firebase-test.js"></script>
 <script type="module" src="js/auth.js"></script>
+<script type="module" src="js/app-shell.js"></script>
 </body>
 </html>
