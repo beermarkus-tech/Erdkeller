@@ -1125,9 +1125,10 @@ nav.bottomnav button .icon {
   transform: none;
 }
 
-/* Consistent subcategory-tile height regardless of name length */
-#subcategory-grid .tile,
-#checkout-subcategory-grid .tile {
+/* Consistent tile height regardless of name length, at every drill-down
+   level — sized for a two-line name so no grid row grows to fit a longer
+   neighbor while its row-mates stay short. */
+.tile-grid .tile {
   min-height: 128px;
   justify-content: center;
 }
@@ -1150,7 +1151,7 @@ nav.bottomnav button .icon {
   border: 1px solid var(--stone-dark);
 }
 
-.year-badge .year-label {
+.year-badge .year-badge-label {
   font-size: 11px;
   color: #6b6a5f;
   font-weight: 600;

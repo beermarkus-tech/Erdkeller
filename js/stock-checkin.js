@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=29';
+import { db } from './firebase-init.js?v=30';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy, limit,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";

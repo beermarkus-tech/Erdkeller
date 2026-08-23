@@ -1,5 +1,5 @@
-import { db } from './firebase-init.js?v=29';
-import { PALETTE } from './year-colors.js?v=29';
+import { db } from './firebase-init.js?v=30';
+import { PALETTE } from './year-colors.js?v=30';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc, query, orderBy, limit,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -270,7 +270,7 @@ function makeYearBadge(batch) {
   const dot = document.createElement('span');
   dot.className = 'year-dot';
   const label = document.createElement('span');
-  label.className = 'year-label';
+  label.className = 'year-badge-label';
   if (batch.bestBefore && batch.yearColor && batch.yearColor !== 'none' && COLOR_HEX[batch.yearColor]) {
     dot.style.background = COLOR_HEX[batch.yearColor];
     label.textContent = batch.bestBefore.split('/')[1] || '';
