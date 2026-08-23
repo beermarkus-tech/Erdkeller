@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=16">
+<link rel="manifest" href="manifest.json?v=17">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=16">
+<link rel="stylesheet" href="css/styles.css?v=17">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 16</div>
+<div id="build-tag" class="build-tag">Build 17</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -35,7 +35,6 @@
     <button class="nav-btn" data-tab="info"><span>📚</span> Info</button>
     <button class="nav-btn admin-only hidden" data-tab="settings"><span>⚙️</span> Einstellungen</button>
     <div class="sidebar-account">
-      <button class="refresh-btn" id="refresh-btn-tablet" title="Aktualisieren"><span class="refresh-icon">↻</span></button>
       <div class="account-menu-wrap">
         <button class="avatar-btn" id="account-toggle-sidebar"><img id="user-avatar-sidebar" class="user-avatar" alt=""></button>
         <div class="account-popover popover-up hidden" id="account-popover-sidebar">
@@ -44,6 +43,7 @@
           <button id="signout-btn-sidebar" class="popover-signout">Abmelden</button>
         </div>
       </div>
+      <button class="refresh-btn" id="refresh-btn-tablet" title="Aktualisieren"><span class="refresh-icon">↻</span></button>
     </div>
   </div>
 
@@ -156,12 +156,12 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=16"></script>
-<script type="module" src="js/auth.js?v=16"></script>
-<script type="module" src="js/app-shell.js?v=16"></script>
-<script type="module" src="js/account-menu.js?v=16"></script>
-<script type="module" src="js/refresh-button.js?v=16"></script>
-<script type="module" src="js/settings-nav.js?v=16"></script>
-<script type="module" src="js/taxonomy.js?v=16"></script>
+<script src="js/app.js?v=17"></script>
+<script type="module" src="js/auth.js?v=17"></script>
+<script type="module" src="js/app-shell.js?v=17"></script>
+<script type="module" src="js/account-menu.js?v=17"></script>
+<script type="module" src="js/refresh-button.js?v=17"></script>
+<script type="module" src="js/settings-nav.js?v=17"></script>
+<script type="module" src="js/taxonomy.js?v=17"></script>
 </body>
 </html>
