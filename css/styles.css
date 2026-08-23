@@ -372,13 +372,6 @@ nav.bottomnav button .icon {
   display: none;
 }
 
-.back-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
 /* Keeps a settings panel's title/back button (and, for Daten, the
    Taxonomie/Lagerorte/Jahresfarben tab bar) pinned while only the panel's
    actual list content scrolls beneath it, inside <main>'s scroll region. */
@@ -389,19 +382,27 @@ nav.bottomnav button .icon {
   z-index: 5;
 }
 
-.back-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: var(--cellar);
-  padding: 2px;
+.panel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
-.fs-title {
+/* The whole "‹ Title" control is one big tap target, not just a tiny
+   chevron — same look/feel as the guided-flow .flow-back-btn, sized up
+   to double as the panel's own heading. */
+.panel-back-btn {
+  border: none;
+  background: none;
+  color: var(--cellar);
   font-family: 'Fraunces', serif;
   font-weight: 600;
   font-size: 19px;
+  padding: 4px 0;
+  cursor: pointer;
+  text-align: left;
 }
 
 .settings-note {
@@ -1215,35 +1216,6 @@ nav.bottomnav button .icon {
 }
 
 /* Step 9: admin stock table */
-.stock-home-header {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.icon-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  border: 1px solid var(--stone-dark);
-  background: white;
-  font-size: 19px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.table-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.table-header-row .section-label {
-  margin: 0;
-}
-
 .select-mode-btn {
   border: 1px solid var(--stone-dark);
   background: white;
@@ -1406,9 +1378,59 @@ nav.bottomnav button .icon {
   font-family: 'Inter', sans-serif;
 }
 
+.stock-product-row.selected {
+  border-color: var(--cellar);
+  background: #eef2ec;
+}
+
+/* Admin → Verlauf: same row styling as the success-screen log, just not
+   height-capped since this is the primary view, not an add-on. */
+#admin-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 @media (min-width: 900px) {
   .bulk-bar {
     bottom: 24px;
+  }
+
+  /* Bestandsliste: list on the left, edit detail inline on the right
+     instead of a bottom-sheet modal — there's real width to spare here
+     on tablet (SPEC.md Section 15's "two-pane list+detail layout"). */
+  .stocktable-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  .stocktable-list-col {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .stocktable-detail-col {
+    width: 380px;
+    flex-shrink: 0;
+    position: sticky;
+    top: var(--tablet-header-stack, 56px);
+  }
+
+  #table-edit-modal {
+    position: static;
+    display: block;
+    background: none;
+    inset: auto;
+    z-index: auto;
+  }
+
+  #table-edit-modal .modal-sheet {
+    width: 100%;
+    max-width: none;
+    border-radius: 16px;
+    border: 1px solid var(--stone-dark);
+    padding: 20px;
   }
 }
 
@@ -1496,7 +1518,7 @@ nav.bottomnav button .icon {
   main {
     flex: 1;
     padding: 32px 40px;
-    max-width: 900px;
+    max-width: 1200px;
   }
 
   .tablet-header {

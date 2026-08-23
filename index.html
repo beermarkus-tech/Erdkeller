@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=33">
+<link rel="manifest" href="manifest.json?v=34">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=33">
+<link rel="stylesheet" href="css/styles.css?v=34">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 33</div>
+<div id="build-tag" class="build-tag">Build 34</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -33,7 +33,7 @@
     <button class="nav-btn" data-tab="stock"><span>📦</span> Bestand</button>
     <button class="nav-btn" data-tab="checklists"><span>✅</span> Checklisten</button>
     <button class="nav-btn" data-tab="info"><span>📚</span> Info</button>
-    <button class="nav-btn admin-only hidden" data-tab="settings"><span>⚙️</span> Einstellungen</button>
+    <button class="nav-btn admin-only hidden" data-tab="settings"><span>⚙️</span> Admin</button>
     <div class="sidebar-account">
       <div class="account-menu-wrap">
         <button class="avatar-btn" id="account-toggle-sidebar"><img id="user-avatar-sidebar" class="user-avatar" alt=""></button>
@@ -73,99 +73,9 @@
     </div>
     <div class="screen" data-screen="stock">
       <div id="stock-home">
-        <div class="stock-home-header">
-          <button class="icon-btn admin-only hidden" id="open-stock-table-btn" type="button" title="Bestandsliste">📋</button>
-        </div>
         <div class="home-buttons">
           <button class="big-btn in" id="start-checkin-btn"><span class="icon">⬇</span> Einlagern</button>
           <button class="big-btn out" id="start-checkout-btn"><span class="icon">⬆</span> Entnehmen</button>
-        </div>
-      </div>
-
-      <div id="stock-table-view" class="hidden">
-        <div class="flow-topbar">
-          <button class="flow-back-btn" id="table-back-btn" type="button">‹ Zurück</button>
-        </div>
-        <div class="table-header-row">
-          <div class="section-label">Bestandsliste</div>
-          <button class="select-mode-btn" id="table-select-mode-btn" type="button">Auswählen</button>
-        </div>
-
-        <div class="search-bar"><span>🔍</span><input placeholder="Suchen…" id="table-search-input"></div>
-
-        <div class="filter-section">
-          <div class="filter-label">Typ</div>
-          <div class="filter-chip-row" id="table-type-filters"></div>
-        </div>
-        <div class="filter-section">
-          <div class="filter-label">Kategorie</div>
-          <div class="filter-chip-row" id="table-category-filters"></div>
-        </div>
-        <div class="filter-section">
-          <div class="filter-label">Lagerort</div>
-          <div class="filter-chip-row" id="table-storage-filters"></div>
-        </div>
-
-        <div class="sort-bar" id="table-sort-bar"></div>
-
-        <div class="product-list" id="table-row-list"></div>
-
-        <div class="bulk-bar hidden" id="table-bulk-bar">
-          <span id="table-bulk-count">0 ausgewählt</span>
-          <div class="bulk-bar-actions">
-            <button id="table-bulk-cancel-btn" type="button">Abbrechen</button>
-            <button id="table-bulk-delete-btn" class="danger-btn" type="button">Löschen</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-overlay" id="table-edit-modal">
-        <div class="modal-sheet">
-          <div class="modal-title" id="table-edit-title"></div>
-          <div class="form-group">
-            <label>Menge</label>
-            <div class="qty-stepper">
-              <button id="table-edit-qty-minus" type="button">−</button>
-              <span class="qty-num" id="table-edit-qty-num">1</span>
-              <button id="table-edit-qty-plus" type="button">+</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Details</label>
-            <input type="text" id="table-edit-details">
-          </div>
-          <div class="form-group" id="table-edit-content-group">
-            <label>Inhalt</label>
-            <input type="text" id="table-edit-content">
-          </div>
-          <div class="form-group">
-            <label>Mindesthaltbarkeit (MM/JJJJ)</label>
-            <div class="date-display" id="table-edit-bestbefore-display">
-              <input type="text" id="table-edit-bestbefore-input" placeholder="MM/JJJJ" readonly style="pointer-events:none;">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Lagerort</label>
-            <select id="table-edit-storage"></select>
-          </div>
-          <div class="modal-actions table-edit-actions">
-            <button class="confirm-btn" id="table-edit-save-btn">Speichern</button>
-            <button class="danger-btn" id="table-edit-delete-btn">Löschen</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-overlay" id="table-date-modal">
-        <div class="modal-sheet">
-          <div class="modal-title">Mindesthaltbarkeit wählen</div>
-          <div class="picker-row">
-            <div class="picker-highlight"></div>
-            <div class="picker-col" id="table-month-col"></div>
-            <div class="picker-col" id="table-year-col"></div>
-          </div>
-          <div class="modal-actions">
-            <button class="modal-confirm" id="table-date-modal-confirm">Übernehmen</button>
-          </div>
         </div>
       </div>
 
@@ -353,6 +263,16 @@
           <div class="sc-text"><div class="sc-title">Daten</div><div class="sc-sub">Kategorien, Lagerorte, Farben</div></div>
           <span class="chev">›</span>
         </div>
+        <div class="settings-card" data-target="stocktable">
+          <span class="sym">📋</span>
+          <div class="sc-text"><div class="sc-title">Bestandsliste</div><div class="sc-sub">Alle Chargen, Filter, Bearbeiten</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="settings-card" data-target="log">
+          <span class="sym">🕒</span>
+          <div class="sc-text"><div class="sc-title">Verlauf</div><div class="sc-sub">Letzte Ein-/Auslagerungen</div></div>
+          <span class="chev">›</span>
+        </div>
         <div class="settings-card" data-target="people">
           <span class="sym">👥</span>
           <div class="sc-text"><div class="sc-title">Personen</div><div class="sc-sub">Rollen verwalten — Schritt 14</div></div>
@@ -377,7 +297,9 @@
 
       <div class="settings-panel hidden" id="settings-panel-data">
         <div class="sticky-panel-header">
-          <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Daten</span></div>
+          <div class="panel-header-row">
+            <button class="panel-back-btn" data-back type="button">‹ Daten</button>
+          </div>
           <div class="segmented">
             <button class="seg-btn active" data-data-tab="taxonomy">Taxonomie</button>
             <button class="seg-btn" data-data-tab="storage">Lagerorte</button>
@@ -404,30 +326,147 @@
         </div>
       </div>
 
+      <div class="settings-panel hidden" id="settings-panel-stocktable">
+        <div class="sticky-panel-header">
+          <div class="panel-header-row">
+            <button class="panel-back-btn" data-back type="button">‹ Bestandsliste</button>
+            <button class="select-mode-btn" id="table-select-mode-btn" type="button">Auswählen</button>
+          </div>
+        </div>
+
+        <div class="stocktable-layout">
+          <div class="stocktable-list-col">
+            <div class="search-bar"><span>🔍</span><input placeholder="Suchen…" id="table-search-input"></div>
+
+            <div class="filter-section">
+              <div class="filter-label">Typ</div>
+              <div class="filter-chip-row" id="table-type-filters"></div>
+            </div>
+            <div class="filter-section">
+              <div class="filter-label">Kategorie</div>
+              <div class="filter-chip-row" id="table-category-filters"></div>
+            </div>
+            <div class="filter-section">
+              <div class="filter-label">Lagerort</div>
+              <div class="filter-chip-row" id="table-storage-filters"></div>
+            </div>
+
+            <div class="sort-bar" id="table-sort-bar"></div>
+
+            <div class="product-list" id="table-row-list"></div>
+
+            <div class="bulk-bar hidden" id="table-bulk-bar">
+              <span id="table-bulk-count">0 ausgewählt</span>
+              <div class="bulk-bar-actions">
+                <button id="table-bulk-cancel-btn" type="button">Abbrechen</button>
+                <button id="table-bulk-delete-btn" class="danger-btn" type="button">Löschen</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="stocktable-detail-col">
+            <div class="modal-overlay" id="table-edit-modal">
+              <div class="modal-sheet">
+                <p class="screen-placeholder" id="table-edit-empty">Eintrag auswählen, um Details zu bearbeiten.</p>
+                <div id="table-edit-form" class="hidden">
+                  <div class="modal-title">Bestand bearbeiten</div>
+                  <div class="form-group">
+                    <label>Produktname</label>
+                    <input type="text" id="table-edit-name">
+                    <p class="settings-note">Gilt für alle Chargen dieses Produkts.</p>
+                  </div>
+                  <div class="form-group">
+                    <label>Menge</label>
+                    <div class="qty-stepper">
+                      <button id="table-edit-qty-minus" type="button">−</button>
+                      <span class="qty-num" id="table-edit-qty-num">1</span>
+                      <button id="table-edit-qty-plus" type="button">+</button>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Details</label>
+                    <input type="text" id="table-edit-details">
+                  </div>
+                  <div class="form-group" id="table-edit-content-group">
+                    <label>Inhalt</label>
+                    <input type="text" id="table-edit-content">
+                  </div>
+                  <div class="form-group">
+                    <label>Mindesthaltbarkeit (MM/JJJJ)</label>
+                    <div class="date-display" id="table-edit-bestbefore-display">
+                      <input type="text" id="table-edit-bestbefore-input" placeholder="MM/JJJJ" readonly style="pointer-events:none;">
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Lagerort</label>
+                    <select id="table-edit-storage"></select>
+                  </div>
+                  <div class="modal-actions table-edit-actions">
+                    <button class="confirm-btn" id="table-edit-save-btn">Speichern</button>
+                    <button class="danger-btn" id="table-edit-delete-btn">Löschen</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-overlay" id="table-date-modal">
+          <div class="modal-sheet">
+            <div class="modal-title">Mindesthaltbarkeit wählen</div>
+            <div class="picker-row">
+              <div class="picker-highlight"></div>
+              <div class="picker-col" id="table-month-col"></div>
+              <div class="picker-col" id="table-year-col"></div>
+            </div>
+            <div class="modal-actions">
+              <button class="modal-confirm" id="table-date-modal-confirm">Übernehmen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-panel hidden" id="settings-panel-log">
+        <div class="sticky-panel-header">
+          <div class="panel-header-row">
+            <button class="panel-back-btn" data-back type="button">‹ Verlauf</button>
+          </div>
+        </div>
+        <div id="admin-log-list"></div>
+      </div>
+
       <div class="settings-panel hidden" id="settings-panel-people">
         <div class="sticky-panel-header">
-          <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Personen</span></div>
+          <div class="panel-header-row">
+            <button class="panel-back-btn" data-back type="button">‹ Personen</button>
+          </div>
         </div>
         <p class="screen-placeholder">Rollenverwaltung — wird in Schritt 14 gebaut.</p>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-checklists">
         <div class="sticky-panel-header">
-          <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Checklisten</span></div>
+          <div class="panel-header-row">
+            <button class="panel-back-btn" data-back type="button">‹ Checklisten</button>
+          </div>
         </div>
         <p class="screen-placeholder">Checklisten-Verwaltung — wird in Schritt 12 gebaut.</p>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-targets">
         <div class="sticky-panel-header">
-          <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Ziele</span></div>
+          <div class="panel-header-row">
+            <button class="panel-back-btn" data-back type="button">‹ Ziele</button>
+          </div>
         </div>
         <p class="screen-placeholder">Zielverwaltung — wird in Schritt 11 gebaut.</p>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-export">
         <div class="sticky-panel-header">
-          <div class="back-row"><button class="back-btn" data-back>‹</button><span class="fs-title">Export</span></div>
+          <div class="panel-header-row">
+            <button class="panel-back-btn" data-back type="button">‹ Export</button>
+          </div>
         </div>
         <p class="screen-placeholder">PDF- &amp; CSV-Export — wird in Schritt 15/19 gebaut.</p>
       </div>
@@ -451,18 +490,19 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=33"></script>
-<script type="module" src="js/auth.js?v=33"></script>
-<script type="module" src="js/app-shell.js?v=33"></script>
-<script type="module" src="js/account-menu.js?v=33"></script>
-<script type="module" src="js/refresh-button.js?v=33"></script>
-<script type="module" src="js/settings-nav.js?v=33"></script>
-<script type="module" src="js/data-tabs.js?v=33"></script>
-<script type="module" src="js/taxonomy.js?v=33"></script>
-<script type="module" src="js/storage-locations.js?v=33"></script>
-<script type="module" src="js/year-colors.js?v=33"></script>
-<script type="module" src="js/stock-checkin.js?v=33"></script>
-<script type="module" src="js/stock-checkout.js?v=33"></script>
-<script type="module" src="js/stock-table.js?v=33"></script>
+<script src="js/app.js?v=34"></script>
+<script type="module" src="js/auth.js?v=34"></script>
+<script type="module" src="js/app-shell.js?v=34"></script>
+<script type="module" src="js/account-menu.js?v=34"></script>
+<script type="module" src="js/refresh-button.js?v=34"></script>
+<script type="module" src="js/settings-nav.js?v=34"></script>
+<script type="module" src="js/data-tabs.js?v=34"></script>
+<script type="module" src="js/taxonomy.js?v=34"></script>
+<script type="module" src="js/storage-locations.js?v=34"></script>
+<script type="module" src="js/year-colors.js?v=34"></script>
+<script type="module" src="js/stock-checkin.js?v=34"></script>
+<script type="module" src="js/stock-checkout.js?v=34"></script>
+<script type="module" src="js/stock-table.js?v=34"></script>
+<script type="module" src="js/admin-log.js?v=34"></script>
 </body>
 </html>

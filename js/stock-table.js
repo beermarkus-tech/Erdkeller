@@ -1,13 +1,10 @@
-import { db } from './firebase-init.js?v=33';
-import { PALETTE } from './year-colors.js?v=33';
+import { db } from './firebase-init.js?v=34';
+import { PALETTE } from './year-colors.js?v=34';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
-const openBtn = document.getElementById('open-stock-table-btn');
-const backBtn = document.getElementById('table-back-btn');
-const stockHomeEl = document.getElementById('stock-home');
-const tableViewEl = document.getElementById('stock-table-view');
+const stocktableCard = document.querySelector('.settings-card[data-target="stocktable"]');
 
 const selectModeBtn = document.getElementById('table-select-mode-btn');
 const searchInput = document.getElementById('table-search-input');
@@ -23,7 +20,9 @@ const bulkCancelBtn = document.getElementById('table-bulk-cancel-btn');
 const bulkDeleteBtn = document.getElementById('table-bulk-delete-btn');
 
 const editModal = document.getElementById('table-edit-modal');
-const editTitle = document.getElementById('table-edit-title');
+const editEmptyEl = document.getElementById('table-edit-empty');
+const editFormEl = document.getElementById('table-edit-form');
+const editNameInput = document.getElementById('table-edit-name');
 const editQtyNumEl = document.getElementById('table-edit-qty-num');
 const editQtyMinusBtn = document.getElementById('table-edit-qty-minus');
 const editQtyPlusBtn = document.getElementById('table-edit-qty-plus');
@@ -257,7 +256,7 @@ function makeYearBadge(batch) {
 
 function renderRow(batch) {
   const row = document.createElement('div');
-  row.className = 'stock-product-row';
+  row.className = 'stock-product-row' + (editingBatch && editingBatch.id === batch.id ? ' selected' : '');
 
   if (selectMode) {
     const cb = document.createElement('input');
@@ -371,14 +370,15 @@ bulkDeleteBtn.addEventListener('click', async () => {
   }
 });
 
-// --- Edit modal ------------------------------------------------------------
+// --- Edit panel (bottom-sheet on mobile, inline on tablet — see CSS) -----
 
 let editQty = 1;
 
 function openEditModal(batch) {
   editingBatch = batch;
   const product = productIndex.get(batch.productId);
-  editTitle.textContent = productName(batch.productId);
+
+  editNameInput.value = productName(batch.productId);
 
   editQty = batch.quantity;
   editQtyNumEl.textContent = String(editQty);
@@ -400,7 +400,18 @@ function openEditModal(batch) {
   });
   editStorageSelect.value = batch.storage || '';
 
+  editEmptyEl.classList.add('hidden');
+  editFormEl.classList.remove('hidden');
   editModal.classList.add('show');
+  renderRows();
+}
+
+function closeEdit() {
+  editModal.classList.remove('show');
+  editingBatch = null;
+  editFormEl.classList.add('hidden');
+  editEmptyEl.classList.remove('hidden');
+  renderRows();
 }
 
 editQtyMinusBtn.addEventListener('click', () => {
@@ -416,12 +427,13 @@ editContentInput.addEventListener('blur', () => {
 });
 
 editModal.addEventListener('click', (e) => {
-  if (e.target === editModal) editModal.classList.remove('show');
+  if (e.target === editModal) closeEdit();
 });
 
 editSaveBtn.addEventListener('click', async () => {
   if (!editingBatch) return;
   const isKg = !editContentGroup.classList.contains('hidden');
+  const newName = editNameInput.value.trim();
   const updated = {
     quantity: editQty,
     details: editDetailsInput.value.trim(),
@@ -436,9 +448,16 @@ editSaveBtn.addEventListener('click', async () => {
     await updateDoc(doc(db, 'stockItems', editingBatch.id), updated);
     const idx = allBatches.findIndex((b) => b.id === editingBatch.id);
     if (idx >= 0) allBatches[idx] = { ...allBatches[idx], ...updated };
-    editModal.classList.remove('show');
-    editingBatch = null;
-    renderRows();
+
+    // Product name lives on /products, not the batch — a rename here is a
+    // catalog-wide rename, applying to every batch of this product.
+    if (newName && newName !== productName(editingBatch.productId)) {
+      await updateDoc(doc(db, 'products', editingBatch.productId), { name: newName });
+      const product = productIndex.get(editingBatch.productId);
+      if (product) product.name = newName;
+    }
+
+    closeEdit();
   } catch (err) {
     alert('Speichern fehlgeschlagen: ' + err.message);
     console.error(err);
@@ -453,9 +472,7 @@ editDeleteBtn.addEventListener('click', async () => {
   try {
     await deleteDoc(doc(db, 'stockItems', editingBatch.id));
     allBatches = allBatches.filter((b) => b.id !== editingBatch.id);
-    editModal.classList.remove('show');
-    editingBatch = null;
-    renderRows();
+    closeEdit();
   } catch (err) {
     alert('Löschen fehlgeschlagen: ' + err.message);
     console.error(err);
@@ -531,23 +548,20 @@ dateModal.addEventListener('click', (e) => {
   if (e.target === dateModal) dateModal.classList.remove('show');
 });
 
-// --- Entry point ---------------------------------------------------------
+// --- Entry point -----------------------------------------------------------
+// Settings-nav.js already handles showing/hiding this panel generically
+// (data-target/data-back); this just resets and (re)renders its contents
+// each time the Bestandsliste card is opened.
 
-openBtn.addEventListener('click', () => {
-  stockHomeEl.classList.add('hidden');
-  tableViewEl.classList.remove('hidden');
+stocktableCard.addEventListener('click', () => {
   selectMode = false;
   selectedIds.clear();
   selectModeBtn.classList.remove('active');
   selectModeBtn.textContent = 'Auswählen';
+  closeEdit();
   renderFilters();
   renderSortBar();
   renderRows();
-});
-
-backBtn.addEventListener('click', () => {
-  tableViewEl.classList.add('hidden');
-  stockHomeEl.classList.remove('hidden');
 });
 
 window.addEventListener('erdkeller:signedin', () => loadConfig());

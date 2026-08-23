@@ -3,7 +3,7 @@ const TAB_LABELS = {
   stock: 'Bestand',
   checklists: 'Checklisten',
   info: 'Info',
-  settings: 'Einstellungen',
+  settings: 'Admin',
 };
 
 const navButtons = document.querySelectorAll('.nav-btn[data-tab]');

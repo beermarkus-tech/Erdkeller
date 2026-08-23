@@ -1,6 +1,7 @@
-import { db } from './firebase-init.js?v=33';
+import { db } from './firebase-init.js?v=34';
+import { renderRecentLog } from './stock-log.js?v=34';
 import {
-  doc, getDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy, limit,
+  doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const stockHomeEl = document.getElementById('stock-home');
@@ -13,7 +14,6 @@ const recentLogEl = document.getElementById('checkin-recent-log');
 const breadcrumbEl = document.getElementById('stock-breadcrumb');
 const flowSteps = document.querySelectorAll('#stock-flow .flow-step');
 
-const RECENT_LOG_LIMIT = 15;
 const PREV_STEP = {
   type: null,
   category: 'type',
@@ -605,49 +605,6 @@ undoBtn.addEventListener('click', async () => {
   }
   returnHome();
 });
-
-// --- Recent stock-change log (shown on the success screen) --------------
-
-function formatLogRow(entry) {
-  const icon = entry.action === 'in' ? '⬇' : '⬆';
-  const extra = [];
-  if (entry.details) extra.push(entry.details);
-  if (entry.content) extra.push(entry.content);
-  if (entry.bestBefore) extra.push(`MHD ${entry.bestBefore}`);
-  const text = `${entry.quantity}× ${entry.productName}` + (extra.length ? ' · ' + extra.join(' · ') : '');
-  return { icon, text };
-}
-
-async function renderRecentLog(container) {
-  container.innerHTML = '';
-  try {
-    const snap = await getDocs(query(collection(db, 'stockLog'), orderBy('createdAt', 'desc'), limit(RECENT_LOG_LIMIT)));
-    if (snap.empty) {
-      const empty = document.createElement('p');
-      empty.className = 'screen-placeholder';
-      empty.textContent = 'Noch keine Änderungen.';
-      container.appendChild(empty);
-      return;
-    }
-    snap.docs.forEach((d) => {
-      const entry = d.data();
-      const { icon, text } = formatLogRow(entry);
-      const row = document.createElement('div');
-      row.className = 'recent-log-row';
-      const iconEl = document.createElement('span');
-      iconEl.className = 'log-icon ' + (entry.action === 'in' ? 'log-in' : 'log-out');
-      iconEl.textContent = icon;
-      const textEl = document.createElement('span');
-      textEl.className = 'log-text';
-      textEl.textContent = text;
-      row.appendChild(iconEl);
-      row.appendChild(textEl);
-      container.appendChild(row);
-    });
-  } catch (err) {
-    console.error(err);
-  }
-}
 
 function returnHome() {
   hideUndoToast();
