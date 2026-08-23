@@ -128,42 +128,103 @@ header.topbar .subtitle {
 .topbar-account {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
-.account-text {
-  min-width: 0;
-  text-align: left;
-}
-
-.account-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--paper);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 110px;
-}
-
-.account-role {
-  font-size: 10px;
-  color: rgba(244, 242, 234, 0.65);
-}
-
-.topbar-account img {
-  width: 30px;
-  height: 30px;
+.refresh-btn {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: rgba(244, 242, 234, 0.2);
+  border: none;
+  background: rgba(244, 242, 234, 0.12);
+  color: var(--paper);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.topbar-account button {
+.refresh-btn .refresh-icon {
+  display: inline-block;
+  line-height: 1;
+}
+
+.refresh-btn.spinning .refresh-icon {
+  animation: refresh-spin 0.7s linear infinite;
+}
+
+@keyframes refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.account-menu-wrap {
+  position: relative;
+}
+
+.avatar-btn {
   background: none;
   border: none;
-  color: rgba(244, 242, 234, 0.85);
-  font-size: 11px;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  display: block;
+}
+
+.account-popover {
+  position: absolute;
+  right: 0;
+  min-width: 170px;
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 28px rgba(32, 36, 31, 0.18);
+  z-index: 40;
+}
+
+.account-popover.hidden {
+  display: none;
+}
+
+.account-popover.popover-down {
+  top: calc(100% + 10px);
+}
+
+.account-popover.popover-up {
+  bottom: calc(100% + 10px);
+  left: 0;
+  right: auto;
+}
+
+.popover-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--charcoal);
+}
+
+.popover-role {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: #6b6a5f;
+  margin-top: 2px;
+}
+
+.popover-signout {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--stone-dark);
+  margin-top: 10px;
+  padding: 10px 0 0;
+  color: var(--rust);
   font-weight: 600;
+  font-size: 13px;
   cursor: pointer;
   font-family: 'Inter', sans-serif;
 }
@@ -224,43 +285,6 @@ nav.bottomnav button .icon {
   font-size: 19px;
 }
 
-.pull-refresh-indicator {
-  position: fixed;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-40px);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--cellar);
-  color: var(--paper);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 15px;
-  z-index: 30;
-  opacity: 0;
-  transition: opacity 0.15s ease, background 0.15s ease;
-  pointer-events: none;
-}
-
-.pull-refresh-indicator.visible {
-  opacity: 1;
-}
-
-.pull-refresh-indicator.ready {
-  background: var(--rust);
-}
-
-.pull-refresh-indicator.spinning {
-  animation: pull-refresh-pulse 0.8s ease-in-out infinite;
-}
-
-@keyframes pull-refresh-pulse {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
-}
-
 .build-tag {
   position: fixed;
   bottom: 6px;
@@ -284,6 +308,18 @@ nav.bottomnav button .icon {
 
 .tablet-header {
   display: none;
+}
+
+.tablet-header-row {
+  display: none;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--stone-dark);
+  object-fit: cover;
 }
 
 /* Settings: sub-section menu */
@@ -550,32 +586,8 @@ nav.bottomnav button .icon {
 
   .sidebar-account {
     margin-top: auto;
-    display: flex;
-    align-items: center;
-    gap: 10px;
     padding-top: 16px;
     border-top: 1px solid rgba(244, 242, 234, 0.15);
-  }
-
-  .sidebar-account img {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: rgba(244, 242, 234, 0.2);
-  }
-
-  .sidebar-account .account-text {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .sidebar-account button {
-    background: none;
-    border: none;
-    color: rgba(244, 242, 234, 0.6);
-    font-size: 11px;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
   }
 
   nav.bottomnav {
@@ -592,11 +604,23 @@ nav.bottomnav button .icon {
     max-width: 900px;
   }
 
+  .tablet-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
   .tablet-header {
     display: block;
     font-family: 'Fraunces', serif;
     font-size: 26px;
     font-weight: 600;
-    margin-bottom: 24px;
+    margin-bottom: 0;
+  }
+
+  .tablet-header-row .refresh-btn {
+    background: var(--stone-dark);
+    color: var(--cellar);
   }
 }
