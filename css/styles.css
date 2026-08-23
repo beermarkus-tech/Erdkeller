@@ -539,6 +539,88 @@ nav.bottomnav button .icon {
   cursor: pointer;
 }
 
+/* Settings → Data: sub-tabs (Taxonomie / Lagerorte / Jahresfarben) */
+.segmented {
+  display: flex;
+  background: var(--stone-dark);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 20px;
+}
+
+.seg-btn {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 10px;
+  border-radius: 9px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  color: #5c5a4e;
+}
+
+.seg-btn.active {
+  background: var(--cellar);
+  color: var(--paper);
+}
+
+.data-tab.hidden {
+  display: none;
+}
+
+/* Storage locations */
+.storage-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--stone-dark);
+}
+
+/* Year → color map */
+.year-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--stone-dark);
+}
+
+.year-label {
+  font-weight: 600;
+  font-size: 14px;
+  width: 90px;
+  flex-shrink: 0;
+  color: #6b6a5f;
+}
+
+.year-input {
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.swatch-row {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.swatch-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch-btn.selected {
+  border-color: var(--charcoal);
+}
+
 @media (min-width: 900px) {
   .shell {
     max-width: none;
