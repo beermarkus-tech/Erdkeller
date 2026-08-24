@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=43';
+import { db } from './firebase-init.js?v=44';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -9,7 +9,19 @@ const ref = doc(db, 'config', 'taxonomy');
 let taxonomy = { types: [] };
 const openTypes = new Set(); // UI-only expand/collapse state, not persisted
 const openCats = new Set(); // same, one level down (category → subcategories)
-const planningEnabled = new Set(); // category IDs with the Planung checkbox on — UI-only, not persisted
+
+// Whether the Planung checkbox is on for a category. Persisted as its own
+// field (cat.planningEnabled) rather than derived from whether kcal/macro/
+// diversity data happens to be present — unchecking the box must not
+// delete that data, only stop the calculator from using it, so re-checking
+// later brings the same numbers straight back. Categories saved before
+// this field existed have no planningEnabled key at all; for those we
+// fall back to "any data present" so pre-existing entries don't silently
+// look unchecked/hidden the first time they're rendered under this code.
+function categoryPlanningEnabled(cat) {
+  if (cat.planningEnabled != null) return !!cat.planningEnabled;
+  return cat.kcalPerKg != null || !!cat.macroType || cat.diversityFloorGramsPerPersonDay != null;
+}
 
 // Tracks whether the in-memory `taxonomy` object actually reflects what's
 // in Firestore. This is the fix for a real data-loss bug: a prior version
@@ -241,44 +253,29 @@ function renderCategory(type, cat) {
     render();
   });
 
-  // Optional Planung fields (SPEC.md Section 7) — kcal/kg + macro type
-  // feed the calorie calculator, diversity floor is a separate per-person
+  // Optional Planung fields (SPEC.md Section 7) — kcal/kg + macro type feed
+  // the calorie calculator, diversity floor is a separate per-person
   // minimum stock guarantee. Gated behind one checkbox rather than shown
   // unconditionally: most categories (Werkzeug, Medizin, ...) have no
   // sensible kcal/kg at all, so the default is fields hidden entirely, not
-  // just empty. Checking the box only reveals the fields — the two groups
-  // (kcal/macro vs. diversity floor) stay independently optional within
-  // it, matching produce categories that only ever set the diversity
-  // floor. `planningEnabled` is UI-only state (like openTypes/openCats
-  // above it), not persisted — re-derived from whether any of the three
-  // fields already has data whenever a category is first rendered.
-  if (cat.kcalPerKg != null || cat.macroType || cat.diversityFloorGramsPerPersonDay != null) {
-    planningEnabled.add(cat.id);
-  }
-
+  // just empty. Unchecking the box only stops the calculator from using
+  // the data — it does NOT clear kcalPerKg/macroType/diversityFloor, so
+  // re-checking it brings the same numbers straight back.
   const planningToggle = document.createElement('label');
   planningToggle.className = 'tax-planning-toggle';
   planningToggle.innerHTML = `
-    <input type="checkbox" class="tax-planning-checkbox"${planningEnabled.has(cat.id) ? ' checked' : ''}>
+    <input type="checkbox" class="tax-planning-checkbox"${categoryPlanningEnabled(cat) ? ' checked' : ''}>
     Für Vorratsplanung berücksichtigen
   `;
   body.appendChild(planningToggle);
 
   planningToggle.querySelector('.tax-planning-checkbox').addEventListener('change', (e) => {
-    if (e.target.checked) {
-      planningEnabled.add(cat.id);
-      render();
-    } else {
-      planningEnabled.delete(cat.id);
-      delete cat.kcalPerKg;
-      delete cat.macroType;
-      delete cat.diversityFloorGramsPerPersonDay;
-      saveTaxonomy();
-      render();
-    }
+    cat.planningEnabled = e.target.checked;
+    saveTaxonomy();
+    render();
   });
 
-  if (planningEnabled.has(cat.id)) {
+  if (categoryPlanningEnabled(cat)) {
     const planningRow = document.createElement('div');
     planningRow.className = 'tax-planning-row';
     planningRow.innerHTML = `
