@@ -15,7 +15,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=50';
+import { db } from './firebase-init.js?v=51';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -146,7 +146,8 @@ async function saveTargets() {
 
 // --- Same 3-way mode as js/taxonomy.js ---------------------------------
 
-function categoryPlanningMode(cat) {
+function categoryPlanningMode(type, cat) {
+  if (!type.isFoodType) return 'off';
   if (cat.planningMode) return cat.planningMode;
   if (cat.kcalPerKg != null || !!cat.macroType) return 'calorie';
   if (cat.diversityFloorGramsPerPersonDay != null) return 'diversity';
@@ -165,7 +166,7 @@ function findCategoryById(id) {
 function computeMacroGroups() {
   macroGroupIds = { kohlenhydrat: [], protein: [], fett: [] };
   taxonomy.types.forEach((type) => (type.categories || []).forEach((cat) => {
-    if (categoryPlanningMode(cat) === 'calorie' && cat.macroType && cat.kcalPerKg != null && macroGroupIds[cat.macroType]) {
+    if (categoryPlanningMode(type, cat) === 'calorie' && cat.macroType && cat.kcalPerKg != null && macroGroupIds[cat.macroType]) {
       macroGroupIds[cat.macroType].push(cat.id);
     }
   }));
@@ -355,11 +356,11 @@ function renderManualSubRow(sub) {
 
 // --- Computed category (Kalorien / Diversität / Wasser) ------------------
 
-function categoryTargetSource(cat) {
+function categoryTargetSource(type, cat) {
   if (planning.waterCategoryId && cat.id === planning.waterCategoryId) {
     return { kind: 'water', kg: waterGlobalKg() };
   }
-  const mode = categoryPlanningMode(cat);
+  const mode = categoryPlanningMode(type, cat);
   if (mode === 'calorie') {
     if (!cat.macroType || cat.kcalPerKg == null || cat.kcalPerKg <= 0) return { kind: 'calorie', kg: null };
     const group = macroGroupIds[cat.macroType] || [cat.id];
@@ -479,7 +480,7 @@ function renderMacroSplitSections() {
 function renderDiversitySection() {
   const cats = [];
   taxonomy.types.forEach((type) => (type.categories || []).forEach((cat) => {
-    if (categoryPlanningMode(cat) === 'diversity') cats.push(cat);
+    if (categoryPlanningMode(type, cat) === 'diversity') cats.push(cat);
   }));
   if (cats.length === 0) return null;
 
@@ -522,7 +523,7 @@ function renderManualCategoriesGroup() {
   const frag = document.createDocumentFragment();
   let any = false;
   taxonomy.types.forEach((type) => {
-    const manualCats = (type.categories || []).filter((cat) => categoryTargetSource(cat).kind === 'off');
+    const manualCats = (type.categories || []).filter((cat) => categoryTargetSource(type, cat).kind === 'off');
     if (manualCats.length === 0) return;
     any = true;
     const header = document.createElement('div');
@@ -562,10 +563,10 @@ function renderCategoriesSection() {
 
 // --- Unterkategorien section ------------------------------------------------
 
-function renderSubcategoryGroupFor(cat) {
+function renderSubcategoryGroupFor(type, cat) {
   const subs = cat.subcategories || [];
   if (subs.length === 0) return null;
-  const source = categoryTargetSource(cat);
+  const source = categoryTargetSource(type, cat);
 
   const frag = document.createDocumentFragment();
   const header = document.createElement('div');
@@ -585,7 +586,7 @@ function renderSubcategoriesSection() {
   subcategoriesListEl.innerHTML = '';
   let any = false;
   taxonomy.types.forEach((type) => (type.categories || []).forEach((cat) => {
-    const group = renderSubcategoryGroupFor(cat);
+    const group = renderSubcategoryGroupFor(type, cat);
     if (group) {
       any = true;
       subcategoriesListEl.appendChild(group);

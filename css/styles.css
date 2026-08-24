@@ -435,6 +435,14 @@ nav.bottomnav button .icon {
   opacity: 0.4;
 }
 
+/* A type tagged as a food type (participates in the Kalorien/Diversität
+   calculator, Section 7) gets a light tint derived from --cellar so it
+   reads as a distinct group from Ausrüstung/Tiernahrung/etc. at a glance. */
+.tax-type.food-type {
+  background: #eaf1e9;
+  border-color: #bfd6bc;
+}
+
 .tax-type-head {
   display: flex;
   align-items: center;
@@ -522,6 +530,23 @@ nav.bottomnav button .icon {
 
 .tax-mode-toggle {
   margin: 10px 0 0;
+}
+
+.tax-planning-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 0;
+  font-size: 13px;
+  color: #4a4940;
+  cursor: pointer;
+}
+
+.tax-planning-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cellar);
+  flex-shrink: 0;
 }
 
 .tax-planning-row {

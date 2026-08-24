@@ -4,7 +4,7 @@
 // per-category/subcategory split lives in Ziele (js/targets.js), which
 // reads /config/household and /config/planning directly and recomputes
 // live — there is deliberately no "apply" step here.
-import { db } from './firebase-init.js?v=50';
+import { db } from './firebase-init.js?v=51';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const planningCard = document.querySelector('.settings-card[data-target="planning"]');
@@ -33,9 +33,14 @@ function genId() {
   return crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
 }
 
-function flatCategories() {
+// Only categories under a food-tagged type (Taxonomie's Lebensmittel-Typ
+// checkbox, SPEC.md Section 7) are eligible as the water category — the
+// water calculator is part of the same human-consumption pipeline as
+// Kalorien/Diversität, so a Werkzeug category shouldn't be assignable here.
+function foodCategories() {
   const list = [];
   taxonomy.types.forEach((type) => {
+    if (!type.isFoodType) return;
     (type.categories || []).forEach((cat) => list.push({ id: cat.id, name: cat.name, cat }));
   });
   return list;
@@ -182,7 +187,7 @@ function renderWaterCategoryOptions() {
   emptyOpt.value = '';
   emptyOpt.textContent = '– Kategorie wählen –';
   waterCategorySelect.appendChild(emptyOpt);
-  flatCategories().forEach((c) => {
+  foodCategories().forEach((c) => {
     const opt = document.createElement('option');
     opt.value = c.id;
     opt.textContent = c.name;

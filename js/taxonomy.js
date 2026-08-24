@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=50';
+import { db } from './firebase-init.js?v=51';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -13,16 +13,25 @@ const openTypes = new Set(); // UI-only expand/collapse state, not persisted
 const openCats = new Set(); // same, one level down (category → subcategories)
 
 // Which Planung path a category is on: 'off' | 'calorie' | 'diversity'.
-// Persisted as its own field (cat.planningMode) rather than derived from
-// whether kcal/macro/diversity data happens to be present — switching
-// modes must not delete the other mode's data, only stop it from being
-// used, so switching back brings the same numbers straight back.
-// Categories saved before this field existed (or before Kalorien/
-// Diversität were split into an exclusive choice) have no planningMode key
-// at all; for those we infer from whatever data is present, preferring
-// Kalorien if a category somehow has both (pre-existing edge case from the
-// old single-checkbox model).
-function categoryPlanningMode(cat) {
+// Gated first by the parent TYPE's isFoodType flag — a type not tagged as
+// a food type (Ausrüstung, Tiernahrung, …) never offers Kalorien/
+// Diversität at all, its categories are always 'off', full stop. This is
+// deliberately a boolean tag on the type rather than a name match ("is
+// this literally called Lebensmittel"), since a taxonomy can have more
+// than one food type, and Tiernahrung is food but not *human* food, so it
+// stays untagged even though it's food in the everyday sense.
+// Below that gate, mode is persisted as its own field (cat.planningMode)
+// rather than derived from whether kcal/macro/diversity data happens to be
+// present — switching modes (or toggling the type's food tag) must not
+// delete the other mode's data, only stop it from being used, so
+// switching back brings the same numbers straight back. Categories saved
+// before this field existed (or before Kalorien/Diversität were split
+// into an exclusive choice) have no planningMode key at all; for those we
+// infer from whatever data is present, preferring Kalorien if a category
+// somehow has both (pre-existing edge case from the old single-checkbox
+// model).
+function categoryPlanningMode(type, cat) {
+  if (!type.isFoodType) return 'off';
   if (cat.planningMode) return cat.planningMode;
   if (cat.kcalPerKg != null || !!cat.macroType) return 'calorie';
   if (cat.diversityFloorGramsPerPersonDay != null) return 'diversity';
@@ -153,7 +162,7 @@ function render() {
 
 function renderType(type) {
   const wrap = document.createElement('div');
-  wrap.className = 'tax-type';
+  wrap.className = 'tax-type' + (type.isFoodType ? ' food-type' : '');
   wrap.dataset.id = type.id;
 
   const head = document.createElement('div');
@@ -188,6 +197,25 @@ function renderType(type) {
   head.querySelector('.tax-toggle').addEventListener('click', () => {
     if (openTypes.has(type.id)) openTypes.delete(type.id);
     else openTypes.add(type.id);
+    render();
+  });
+
+  // Gates whether ANY category under this type can offer Kalorien/
+  // Diversität at all (see categoryPlanningMode) — a Werkzeug or
+  // Tiernahrung type has no business showing a calorie toggle on its
+  // categories. Unchecking never deletes a category's kcal/macro/
+  // diversity data, only stops the calculator from using it.
+  const foodToggle = document.createElement('label');
+  foodToggle.className = 'tax-planning-toggle';
+  foodToggle.innerHTML = `
+    <input type="checkbox" class="tax-food-checkbox"${type.isFoodType ? ' checked' : ''}>
+    Lebensmittel-Typ (ermöglicht Kalorien-/Diversitätsplanung für seine Kategorien)
+  `;
+  body.appendChild(foodToggle);
+
+  foodToggle.querySelector('.tax-food-checkbox').addEventListener('change', (e) => {
+    type.isFoodType = e.target.checked;
+    saveTaxonomy();
     render();
   });
 
@@ -266,71 +294,76 @@ function renderCategory(type, cat) {
   // in practice a category is either a macro staple or a diversity
   // safeguard, not both at once. Switching modes never clears the other
   // mode's stored data, only stops it from being used — flipping back
-  // brings the same numbers straight back.
-  const modeToggle = document.createElement('div');
-  modeToggle.className = 'tax-expand-row tax-mode-toggle';
-  const mode = categoryPlanningMode(cat);
-  modeToggle.innerHTML = `
-    <button type="button" class="select-mode-btn${mode === 'off' ? ' active' : ''}" data-mode="off">Nicht genutzt</button>
-    <button type="button" class="select-mode-btn${mode === 'calorie' ? ' active' : ''}" data-mode="calorie">Kalorien</button>
-    <button type="button" class="select-mode-btn${mode === 'diversity' ? ' active' : ''}" data-mode="diversity">Diversität</button>
-  `;
-  body.appendChild(modeToggle);
-
-  modeToggle.querySelectorAll('.select-mode-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      cat.planningMode = btn.dataset.mode;
-      saveTaxonomy();
-      render();
-    });
-  });
-
-  if (mode === 'calorie') {
-    const planningRow = document.createElement('div');
-    planningRow.className = 'tax-planning-row';
-    planningRow.innerHTML = `
-      <div class="tax-planning-field">
-        <label>kcal/kg</label>
-        <input type="number" class="tax-kcal-input" value="${cat.kcalPerKg ?? ''}" placeholder="z.B. 7000">
-      </div>
-      <div class="tax-planning-field">
-        <label>Makro</label>
-        <select class="tax-macro-select">
-          <option value=""${!cat.macroType ? ' selected' : ''}>–</option>
-          <option value="kohlenhydrat"${cat.macroType === 'kohlenhydrat' ? ' selected' : ''}>Kohlenhydrat</option>
-          <option value="protein"${cat.macroType === 'protein' ? ' selected' : ''}>Protein</option>
-          <option value="fett"${cat.macroType === 'fett' ? ' selected' : ''}>Fett</option>
-        </select>
-      </div>
+  // brings the same numbers straight back. Only shown at all when the
+  // parent type is tagged as a food type (see the Lebensmittel-Typ
+  // checkbox in renderType) — a Werkzeug category has no business offering
+  // Kalorien/Diversität.
+  if (type.isFoodType) {
+    const modeToggle = document.createElement('div');
+    modeToggle.className = 'tax-expand-row tax-mode-toggle';
+    const mode = categoryPlanningMode(type, cat);
+    modeToggle.innerHTML = `
+      <button type="button" class="select-mode-btn${mode === 'off' ? ' active' : ''}" data-mode="off">Nicht genutzt</button>
+      <button type="button" class="select-mode-btn${mode === 'calorie' ? ' active' : ''}" data-mode="calorie">Kalorien</button>
+      <button type="button" class="select-mode-btn${mode === 'diversity' ? ' active' : ''}" data-mode="diversity">Diversität</button>
     `;
-    body.appendChild(planningRow);
+    body.appendChild(modeToggle);
 
-    planningRow.querySelector('.tax-kcal-input').addEventListener('change', (e) => {
-      if (e.target.value === '') delete cat.kcalPerKg;
-      else cat.kcalPerKg = Number(e.target.value);
-      saveTaxonomy();
+    modeToggle.querySelectorAll('.select-mode-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        cat.planningMode = btn.dataset.mode;
+        saveTaxonomy();
+        render();
+      });
     });
-    planningRow.querySelector('.tax-macro-select').addEventListener('change', (e) => {
-      if (e.target.value === '') delete cat.macroType;
-      else cat.macroType = e.target.value;
-      saveTaxonomy();
-    });
-  } else if (mode === 'diversity') {
-    const planningRow = document.createElement('div');
-    planningRow.className = 'tax-planning-row';
-    planningRow.innerHTML = `
-      <div class="tax-planning-field">
-        <label>Diversität (g/Pers./Tag)</label>
-        <input type="number" class="tax-diversity-input" value="${cat.diversityFloorGramsPerPersonDay ?? ''}" placeholder="z.B. 50">
-      </div>
-    `;
-    body.appendChild(planningRow);
 
-    planningRow.querySelector('.tax-diversity-input').addEventListener('change', (e) => {
-      if (e.target.value === '') delete cat.diversityFloorGramsPerPersonDay;
-      else cat.diversityFloorGramsPerPersonDay = Number(e.target.value);
-      saveTaxonomy();
-    });
+    if (mode === 'calorie') {
+      const planningRow = document.createElement('div');
+      planningRow.className = 'tax-planning-row';
+      planningRow.innerHTML = `
+        <div class="tax-planning-field">
+          <label>kcal/kg</label>
+          <input type="number" class="tax-kcal-input" value="${cat.kcalPerKg ?? ''}" placeholder="z.B. 7000">
+        </div>
+        <div class="tax-planning-field">
+          <label>Makro</label>
+          <select class="tax-macro-select">
+            <option value=""${!cat.macroType ? ' selected' : ''}>–</option>
+            <option value="kohlenhydrat"${cat.macroType === 'kohlenhydrat' ? ' selected' : ''}>Kohlenhydrat</option>
+            <option value="protein"${cat.macroType === 'protein' ? ' selected' : ''}>Protein</option>
+            <option value="fett"${cat.macroType === 'fett' ? ' selected' : ''}>Fett</option>
+          </select>
+        </div>
+      `;
+      body.appendChild(planningRow);
+
+      planningRow.querySelector('.tax-kcal-input').addEventListener('change', (e) => {
+        if (e.target.value === '') delete cat.kcalPerKg;
+        else cat.kcalPerKg = Number(e.target.value);
+        saveTaxonomy();
+      });
+      planningRow.querySelector('.tax-macro-select').addEventListener('change', (e) => {
+        if (e.target.value === '') delete cat.macroType;
+        else cat.macroType = e.target.value;
+        saveTaxonomy();
+      });
+    } else if (mode === 'diversity') {
+      const planningRow = document.createElement('div');
+      planningRow.className = 'tax-planning-row';
+      planningRow.innerHTML = `
+        <div class="tax-planning-field">
+          <label>Diversität (g/Pers./Tag)</label>
+          <input type="number" class="tax-diversity-input" value="${cat.diversityFloorGramsPerPersonDay ?? ''}" placeholder="z.B. 50">
+        </div>
+      `;
+      body.appendChild(planningRow);
+
+      planningRow.querySelector('.tax-diversity-input').addEventListener('change', (e) => {
+        if (e.target.value === '') delete cat.diversityFloorGramsPerPersonDay;
+        else cat.diversityFloorGramsPerPersonDay = Number(e.target.value);
+        saveTaxonomy();
+      });
+    }
   }
 
   const subList = document.createElement('div');
