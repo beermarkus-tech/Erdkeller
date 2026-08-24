@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=52">
+<link rel="manifest" href="manifest.json?v=53">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=52">
+<link rel="stylesheet" href="css/styles.css?v=53">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 52</div>
+<div id="build-tag" class="build-tag">Build 53</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -467,43 +467,82 @@
           <div class="panel-header-row">
             <button class="panel-back-btn" data-back type="button">‹ Ziele</button>
           </div>
-        </div>
-
-        <div class="tax-expand-row" id="targets-unit-toggle">
-          <button class="select-mode-btn active" data-unit="kg" type="button">kg</button>
-          <button class="select-mode-btn" data-unit="kgpd" type="button">kg/P/T</button>
-          <button class="select-mode-btn" data-unit="kcal" type="button">kcal</button>
-          <button class="select-mode-btn" data-unit="kcalpd" type="button">kcal/P/T</button>
-        </div>
-
-        <div class="targets-section">
-          <button class="targets-section-header" data-section-toggle="categories" type="button">
-            <span>Kategorien</span>
-            <span class="tax-toggle">▴</span>
-          </button>
-          <div class="targets-section-body" id="targets-categories-body">
-            <div id="targets-categories-list"></div>
+          <div class="segmented">
+            <button class="seg-btn active" data-ziele-tab="food">Lebensmittel</button>
+            <button class="seg-btn" data-ziele-tab="nonfood">Sonstiges</button>
           </div>
         </div>
 
-        <div class="targets-section">
-          <button class="targets-section-header" data-section-toggle="subcategories" type="button">
-            <span>Unterkategorien</span>
-            <span class="tax-toggle">▴</span>
-          </button>
-          <div class="targets-section-body" id="targets-subcategories-body">
-            <div id="targets-subcategories-list"></div>
+        <div class="ziele-tab" data-ziele-tab-panel="food">
+          <div class="tax-expand-row" id="targets-unit-toggle">
+            <button class="select-mode-btn active" data-unit="kg" type="button">kg</button>
+            <button class="select-mode-btn" data-unit="kgpd" type="button">kg/P/T</button>
+            <button class="select-mode-btn" data-unit="kcal" type="button">kcal</button>
+            <button class="select-mode-btn" data-unit="kcalpd" type="button">kcal/P/T</button>
+          </div>
+
+          <div class="targets-section">
+            <button class="targets-section-header" data-section-toggle="categories" type="button">
+              <span>Kategorien</span>
+              <span class="tax-toggle">▴</span>
+            </button>
+            <div class="targets-section-body" id="targets-categories-body">
+              <div id="targets-categories-list"></div>
+            </div>
+          </div>
+
+          <div class="targets-section">
+            <button class="targets-section-header" data-section-toggle="subcategories" type="button">
+              <span>Unterkategorien</span>
+              <span class="tax-toggle">▴</span>
+            </button>
+            <div class="targets-section-body" id="targets-subcategories-body">
+              <div id="targets-subcategories-list"></div>
+            </div>
+          </div>
+
+          <div class="targets-section">
+            <button class="targets-section-header" data-section-toggle="products" type="button">
+              <span>Produktziele</span>
+              <span class="tax-toggle">▴</span>
+            </button>
+            <div class="targets-section-body" id="targets-products-body">
+              <div id="product-targets-list"></div>
+              <button class="add-row-btn" id="add-product-target-btn">+ Produktziel hinzufügen</button>
+            </div>
           </div>
         </div>
 
-        <div class="targets-section">
-          <button class="targets-section-header" data-section-toggle="products" type="button">
-            <span>Produktziele</span>
-            <span class="tax-toggle">▴</span>
-          </button>
-          <div class="targets-section-body" id="targets-products-body">
-            <div id="product-targets-list"></div>
-            <button class="add-row-btn" id="add-product-target-btn">+ Produktziel hinzufügen</button>
+        <div class="ziele-tab hidden" data-ziele-tab-panel="nonfood">
+          <div class="targets-section">
+            <button class="targets-section-header" data-section-toggle="nonfood-categories" type="button">
+              <span>Kategorien</span>
+              <span class="tax-toggle">▴</span>
+            </button>
+            <div class="targets-section-body" id="targets-nonfood-categories-body">
+              <div id="targets-nonfood-categories-list"></div>
+            </div>
+          </div>
+
+          <div class="targets-section">
+            <button class="targets-section-header" data-section-toggle="nonfood-subcategories" type="button">
+              <span>Unterkategorien</span>
+              <span class="tax-toggle">▴</span>
+            </button>
+            <div class="targets-section-body" id="targets-nonfood-subcategories-body">
+              <div id="targets-nonfood-subcategories-list"></div>
+            </div>
+          </div>
+
+          <div class="targets-section">
+            <button class="targets-section-header" data-section-toggle="nonfood-products" type="button">
+              <span>Produktziele</span>
+              <span class="tax-toggle">▴</span>
+            </button>
+            <div class="targets-section-body" id="targets-nonfood-products-body">
+              <div id="product-targets-list-nonfood"></div>
+              <button class="add-row-btn" id="add-product-target-nonfood-btn">+ Produktziel hinzufügen</button>
+            </div>
           </div>
         </div>
 
@@ -656,21 +695,21 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=52"></script>
-<script type="module" src="js/auth.js?v=52"></script>
-<script type="module" src="js/app-shell.js?v=52"></script>
-<script type="module" src="js/account-menu.js?v=52"></script>
-<script type="module" src="js/refresh-button.js?v=52"></script>
-<script type="module" src="js/settings-nav.js?v=52"></script>
-<script type="module" src="js/data-tabs.js?v=52"></script>
-<script type="module" src="js/taxonomy.js?v=52"></script>
-<script type="module" src="js/storage-locations.js?v=52"></script>
-<script type="module" src="js/year-colors.js?v=52"></script>
-<script type="module" src="js/stock-checkin.js?v=52"></script>
-<script type="module" src="js/stock-checkout.js?v=52"></script>
-<script type="module" src="js/stock-table.js?v=52"></script>
-<script type="module" src="js/targets.js?v=52"></script>
-<script type="module" src="js/planning.js?v=52"></script>
-<script type="module" src="js/admin-log.js?v=52"></script>
+<script src="js/app.js?v=53"></script>
+<script type="module" src="js/auth.js?v=53"></script>
+<script type="module" src="js/app-shell.js?v=53"></script>
+<script type="module" src="js/account-menu.js?v=53"></script>
+<script type="module" src="js/refresh-button.js?v=53"></script>
+<script type="module" src="js/settings-nav.js?v=53"></script>
+<script type="module" src="js/data-tabs.js?v=53"></script>
+<script type="module" src="js/taxonomy.js?v=53"></script>
+<script type="module" src="js/storage-locations.js?v=53"></script>
+<script type="module" src="js/year-colors.js?v=53"></script>
+<script type="module" src="js/stock-checkin.js?v=53"></script>
+<script type="module" src="js/stock-checkout.js?v=53"></script>
+<script type="module" src="js/stock-table.js?v=53"></script>
+<script type="module" src="js/targets.js?v=53"></script>
+<script type="module" src="js/planning.js?v=53"></script>
+<script type="module" src="js/admin-log.js?v=53"></script>
 </body>
 </html>

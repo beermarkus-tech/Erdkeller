@@ -15,7 +15,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=52';
+import { db } from './firebase-init.js?v=53';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -25,9 +25,13 @@ const panelEl = document.getElementById('settings-panel-targets');
 const unitToggleButtons = document.querySelectorAll('#targets-unit-toggle .select-mode-btn');
 const categoriesListEl = document.getElementById('targets-categories-list');
 const subcategoriesListEl = document.getElementById('targets-subcategories-list');
+const nonfoodCategoriesListEl = document.getElementById('targets-nonfood-categories-list');
+const nonfoodSubcategoriesListEl = document.getElementById('targets-nonfood-subcategories-list');
 const statusEl = document.getElementById('targets-status');
 const productTargetsList = document.getElementById('product-targets-list');
 const addProductTargetBtn = document.getElementById('add-product-target-btn');
+const nonfoodProductTargetsList = document.getElementById('product-targets-list-nonfood');
+const addProductTargetNonfoodBtn = document.getElementById('add-product-target-nonfood-btn');
 
 document.querySelectorAll('.targets-section-header').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -37,9 +41,25 @@ document.querySelectorAll('.targets-section-header').forEach((btn) => {
   });
 });
 
+// Lebensmittel/Sonstiges tabs — same pattern as js/data-tabs.js's
+// Taxonomie/Lagerorte/Jahresfarben segmented control.
+const zieleTabBtns = document.querySelectorAll('.seg-btn[data-ziele-tab]');
+const zieleTabPanels = document.querySelectorAll('.ziele-tab[data-ziele-tab-panel]');
+zieleTabBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    zieleTabBtns.forEach((b) => b.classList.toggle('active', b === btn));
+    zieleTabPanels.forEach((p) => p.classList.toggle('hidden', p.dataset.zieleTabPanel !== btn.dataset.zieleTab));
+  });
+});
+
 const pickerModal = document.getElementById('target-picker-modal');
+const pickerModalTitle = pickerModal.querySelector('.modal-title');
 const pickerSearch = document.getElementById('target-picker-search');
 const pickerList = document.getElementById('target-picker-list');
+// Which tab's "+ Produktziel hinzufügen" opened the shared picker —
+// determines which products the search matches and which subcategories
+// the inline "+ Neues Produkt anlegen" form offers.
+let pickerFoodClass = 'food';
 
 const newProductForm = document.getElementById('target-new-product-form');
 const newProductNameInput = document.getElementById('target-new-product-name');
@@ -161,6 +181,26 @@ function findCategoryById(id) {
     }
   }
   return null;
+}
+
+function findSubcategoryContext(subcategoryId) {
+  for (const type of taxonomy.types) {
+    for (const cat of (type.categories || [])) {
+      for (const sub of (cat.subcategories || [])) {
+        if (sub.id === subcategoryId) return { type, cat, sub };
+      }
+    }
+  }
+  return null;
+}
+
+// A product's food-class comes from its subcategory's parent type — if that
+// subcategory no longer exists (e.g. deleted from Taxonomie while a target
+// still references it), default to the Lebensmittel tab rather than
+// silently dropping the target from both lists.
+function productIsFood(product) {
+  const ctx = findSubcategoryContext(product.subcategoryId);
+  return ctx ? !!ctx.type.isFoodType : true;
 }
 
 function computeMacroGroups() {
@@ -508,10 +548,16 @@ function renderDiversitySection() {
   return frag;
 }
 
-function renderManualCategoriesGroup() {
+// includeFoodTypes selects which side of the Lebensmittel-Typ gate to
+// render — every category here is always 'off' on the Sonstiges side
+// (non-food types never reach 'calorie'/'diversity', see
+// categoryPlanningMode), so this is the entire Sonstiges Kategorien
+// content, not just a fallback group.
+function renderManualCategoriesGroup(includeFoodTypes) {
   const frag = document.createDocumentFragment();
   let any = false;
   taxonomy.types.forEach((type) => {
+    if (!!type.isFoodType !== includeFoodTypes) return;
     const manualCats = (type.categories || []).filter((cat) => categoryTargetSource(type, cat).kind === 'off');
     if (manualCats.length === 0) return;
     any = true;
@@ -538,13 +584,24 @@ function renderCategoriesSection() {
     p.textContent = 'Haushalt und Autonomiedauer in Planung eingeben, um berechnete Ziele zu sehen — manuelle Kategorien stehen unten.';
     categoriesListEl.appendChild(p);
   }
-  const manualGroup = renderManualCategoriesGroup();
+  const manualGroup = renderManualCategoriesGroup(true);
   if (manualGroup) categoriesListEl.appendChild(manualGroup);
   if (!categoriesListEl.children.length) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
     empty.textContent = 'Keine Kategorien vorhanden.';
     categoriesListEl.appendChild(empty);
+  }
+
+  nonfoodCategoriesListEl.innerHTML = '';
+  const nonfoodGroup = renderManualCategoriesGroup(false);
+  if (nonfoodGroup) {
+    nonfoodCategoriesListEl.appendChild(nonfoodGroup);
+  } else {
+    const empty = document.createElement('p');
+    empty.className = 'screen-placeholder';
+    empty.textContent = 'Keine Kategorien vorhanden.';
+    nonfoodCategoriesListEl.appendChild(empty);
   }
 }
 
@@ -569,34 +626,36 @@ function renderSubcategoryGroupFor(type, cat) {
   return frag;
 }
 
-function renderSubcategoriesSection() {
-  subcategoriesListEl.innerHTML = '';
+function renderSubcategoriesSection(listEl, includeFoodTypes) {
+  listEl.innerHTML = '';
   let any = false;
-  taxonomy.types.forEach((type) => (type.categories || []).forEach((cat) => {
-    const group = renderSubcategoryGroupFor(type, cat);
-    if (group) {
-      any = true;
-      subcategoriesListEl.appendChild(group);
-    }
-  }));
+  taxonomy.types.forEach((type) => {
+    if (!!type.isFoodType !== includeFoodTypes) return;
+    (type.categories || []).forEach((cat) => {
+      const group = renderSubcategoryGroupFor(type, cat);
+      if (group) {
+        any = true;
+        listEl.appendChild(group);
+      }
+    });
+  });
   if (!any) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
     empty.textContent = 'Keine Unterkategorien vorhanden.';
-    subcategoriesListEl.appendChild(empty);
+    listEl.appendChild(empty);
   }
 }
 
 // --- Produktziele section ----------------------------------------------
 
-function renderProductTargets() {
-  productTargetsList.innerHTML = '';
-  const ids = Object.keys(targets.products || {});
+function renderProductTargetList(listEl, ids) {
+  listEl.innerHTML = '';
   if (ids.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
     empty.textContent = 'Keine Produktziele.';
-    productTargetsList.appendChild(empty);
+    listEl.appendChild(empty);
     return;
   }
   ids.forEach((productId) => {
@@ -615,8 +674,23 @@ function renderProductTargets() {
     badge.addEventListener('click', () => openEdit('products', productId, name, unit));
     row.appendChild(nameEl);
     row.appendChild(badge);
-    productTargetsList.appendChild(row);
+    listEl.appendChild(row);
   });
+}
+
+// Every product target is unambiguously Lebensmittel or Sonstiges via its
+// own subcategory's parent type, so — unlike Kategorien/Unterkategorien,
+// which read the taxonomy tree directly — this splits the flat
+// targets.products map by looking each product up.
+function renderProductTargets() {
+  const foodIds = [];
+  const nonfoodIds = [];
+  Object.keys(targets.products || {}).forEach((id) => {
+    const product = productIndex.get(id);
+    (product && !productIsFood(product) ? nonfoodIds : foodIds).push(id);
+  });
+  renderProductTargetList(productTargetsList, foodIds);
+  renderProductTargetList(nonfoodProductTargetsList, nonfoodIds);
 }
 
 function syncUnitToggle() {
@@ -634,7 +708,8 @@ function render() {
   computeMacroGroups();
   syncUnitToggle();
   renderCategoriesSection();
-  renderSubcategoriesSection();
+  renderSubcategoriesSection(subcategoriesListEl, true);
+  renderSubcategoriesSection(nonfoodSubcategoriesListEl, false);
   renderProductTargets();
 }
 
@@ -643,25 +718,30 @@ function render() {
 function flatSubcategories() {
   const list = [];
   taxonomy.types.forEach((type) => (type.categories || []).forEach((cat) => (cat.subcategories || []).forEach((sub) => {
-    list.push({ id: sub.id, label: `${type.name} › ${cat.name} › ${sub.name}` });
+    list.push({
+      id: sub.id, label: `${type.name} › ${cat.name} › ${sub.name}`, isFood: !!type.isFoodType,
+    });
   })));
   return list;
 }
 
 function renderNewProductSubcategoryOptions() {
   newProductSubcategorySelect.innerHTML = '';
-  flatSubcategories().forEach((s) => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.textContent = s.label;
-    newProductSubcategorySelect.appendChild(opt);
-  });
+  flatSubcategories()
+    .filter((s) => s.isFood === (pickerFoodClass === 'food'))
+    .forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.label;
+      newProductSubcategorySelect.appendChild(opt);
+    });
 }
 
 function renderPickerList(filterText) {
   pickerList.innerHTML = '';
   const q = filterText.trim().toLowerCase();
   const matches = allProducts
+    .filter((p) => productIsFood(p) === (pickerFoodClass === 'food'))
     .filter((p) => !q || p.name.toLowerCase().includes(q))
     .sort((a, b) => a.name.localeCompare(b.name, 'de'))
     .slice(0, 50);
@@ -700,12 +780,17 @@ function renderPickerList(filterText) {
   pickerList.appendChild(addRow);
 }
 
-addProductTargetBtn.addEventListener('click', () => {
+function openPicker(foodClass) {
+  pickerFoodClass = foodClass;
+  pickerModalTitle.textContent = foodClass === 'food' ? 'Produkt wählen (Lebensmittel)' : 'Produkt wählen (Sonstiges)';
   pickerSearch.value = '';
   newProductForm.classList.add('hidden');
   renderPickerList('');
   pickerModal.classList.add('show');
-});
+}
+
+addProductTargetBtn.addEventListener('click', () => openPicker('food'));
+addProductTargetNonfoodBtn.addEventListener('click', () => openPicker('nonfood'));
 
 pickerSearch.addEventListener('input', () => {
   newProductForm.classList.add('hidden');
