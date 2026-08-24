@@ -15,7 +15,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=51';
+import { db } from './firebase-init.js?v=52';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -381,7 +381,9 @@ function categoryTargetSource(type, cat) {
 // split.
 function renderSplitGroup(items, splitMap, groupIds, onStep, showStepper) {
   const container = document.createElement('div');
-  items.forEach(({ id, name, formatted }) => {
+  items.forEach(({
+    id, name, sym, formatted,
+  }) => {
     const row = document.createElement('div');
     row.className = 'split-row';
 
@@ -389,7 +391,7 @@ function renderSplitGroup(items, splitMap, groupIds, onStep, showStepper) {
     info.className = 'split-info';
     const titleEl = document.createElement('div');
     titleEl.className = 'split-title';
-    titleEl.textContent = name;
+    titleEl.textContent = sym ? `${sym} ${name}` : name;
     const amountEl = document.createElement('div');
     amountEl.className = 'split-amount';
     amountEl.textContent = formatted;
@@ -461,7 +463,11 @@ function renderMacroSplitSections() {
       const cat = findCategoryById(id);
       const kg = cat && cat.kcalPerKg > 0 ? (macroGlobalKcal(macro) * (split[id] || 0)) / 100 / cat.kcalPerKg : null;
       return {
-        id, name: cat ? cat.name : '?', kg: kg || 0, formatted: kg != null ? formatComputedAmount(kg, cat) : '– Daten unvollständig',
+        id,
+        name: cat ? cat.name : '?',
+        sym: cat ? cat.sym : '',
+        kg: kg || 0,
+        formatted: kg != null ? formatComputedAmount(kg, cat) : '– Daten unvollständig',
       };
     });
     const header = document.createElement('div');
@@ -495,27 +501,10 @@ function renderDiversitySection() {
       ? (cat.diversityFloorGramsPerPersonDay / 1000) * peopleCount() * autonomyDaysVal()
       : null;
     return {
-      id: cat.id, name: cat.name, formatted: kg != null ? formatComputedAmount(kg, cat) : '– Diversitäts-Wert fehlt',
+      id: cat.id, name: cat.name, sym: cat.sym, formatted: kg != null ? formatComputedAmount(kg, cat) : '– Diversitäts-Wert fehlt',
     };
   });
   frag.appendChild(renderSplitGroup(items, {}, cats.map((c) => c.id), () => {}, false));
-  return frag;
-}
-
-function renderWaterCategoryRow() {
-  if (!planning.waterCategoryId) return null;
-  const cat = findCategoryById(planning.waterCategoryId);
-  if (!cat) return null;
-
-  const frag = document.createDocumentFragment();
-  const header = document.createElement('div');
-  header.className = 'targets-subgroup-label';
-  header.textContent = 'Wasser';
-  frag.appendChild(header);
-
-  const kg = waterGlobalKg();
-  const items = [{ id: cat.id, name: cat.name, formatted: formatComputedAmount(kg, cat) }];
-  frag.appendChild(renderSplitGroup(items, {}, [cat.id], () => {}, false));
   return frag;
 }
 
@@ -543,8 +532,6 @@ function renderCategoriesSection() {
     categoriesListEl.appendChild(renderMacroSplitSections());
     const diversitySection = renderDiversitySection();
     if (diversitySection) categoriesListEl.appendChild(diversitySection);
-    const waterRow = renderWaterCategoryRow();
-    if (waterRow) categoriesListEl.appendChild(waterRow);
   } else {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';

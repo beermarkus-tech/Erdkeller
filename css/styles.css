@@ -439,8 +439,8 @@ nav.bottomnav button .icon {
    calculator, Section 7) gets a light tint derived from --cellar so it
    reads as a distinct group from Ausrüstung/Tiernahrung/etc. at a glance. */
 .tax-type.food-type {
-  background: #eaf1e9;
-  border-color: #bfd6bc;
+  background: #d7e8d4;
+  border-color: #8faa8a;
 }
 
 .tax-type-head {
