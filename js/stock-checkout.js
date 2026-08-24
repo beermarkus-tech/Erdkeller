@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=35';
-import { PALETTE } from './year-colors.js?v=35';
-import { renderRecentLog } from './stock-log.js?v=35';
+import { db } from './firebase-init.js?v=36';
+import { PALETTE } from './year-colors.js?v=36';
+import { renderRecentLog } from './stock-log.js?v=36';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
