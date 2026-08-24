@@ -13,7 +13,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=48';
+import { db } from './firebase-init.js?v=49';
 import {
   doc, getDoc, setDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -170,12 +170,25 @@ function autonomyDaysVal() {
   return Number(planning.autonomyDays) || 0;
 }
 
+// Macro split and water rate have real defaults per SPEC.md Section 7
+// (50/20/30, 3 L/person/day) that js/planning.js already shows in its input
+// fields the moment the screen opens — but a field only gets WRITTEN to
+// /config/planning once the admin actually touches it (blur → 'change').
+// Reading only what's saved would silently compute 0 for any macro whose
+// field the admin never happened to touch, even though Planung is visibly
+// showing 20/30 for it. Fall back to the same defaults here so Ziele always
+// matches what Planung displays, saved or not.
+const DEFAULT_MACRO_SPLIT = { kohlenhydrat: 50, protein: 20, fett: 30 };
+const DEFAULT_WATER_RATE = 3;
+
 function macroGlobalKcal(macro) {
-  return totalDailyKcal() * autonomyDaysVal() * (Number(planning.macroSplit?.[macro]) || 0) / 100;
+  const pct = planning.macroSplit?.[macro] != null ? Number(planning.macroSplit[macro]) : DEFAULT_MACRO_SPLIT[macro];
+  return totalDailyKcal() * autonomyDaysVal() * (pct || 0) / 100;
 }
 
 function waterGlobalKg() {
-  return (Number(planning.waterLitersPerPersonDay) || 0) * peopleCount() * autonomyDaysVal();
+  const rate = planning.waterLitersPerPersonDay != null ? Number(planning.waterLitersPerPersonDay) : DEFAULT_WATER_RATE;
+  return rate * peopleCount() * autonomyDaysVal();
 }
 
 // --- Split percentages (macro→category, category→subcategory) ---------
