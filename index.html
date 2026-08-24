@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=36">
+<link rel="manifest" href="manifest.json?v=37">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=36">
+<link rel="stylesheet" href="css/styles.css?v=37">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 36</div>
+<div id="build-tag" class="build-tag">Build 37</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -159,7 +159,7 @@
           <div class="success-screen">
             <div class="check">✓</div>
             <h2 class="display">Eingelagert</h2>
-            <p id="success-detail"></p>
+            <div id="success-detail" class="result-lines"></div>
             <button class="back-home-btn" id="back-home-btn">Zurück zur Übersicht</button>
             <div class="recent-log">
               <div class="section-label">Letzte Änderungen</div>
@@ -219,7 +219,7 @@
 
         <div class="flow-step" data-checkout-step="remove">
           <div class="section-label" id="checkout-batch-name"></div>
-          <p class="screen-placeholder" id="checkout-batch-meta"></p>
+          <div id="checkout-batch-meta" class="result-lines"></div>
           <div class="form-group">
             <label>Menge entnehmen</label>
             <div class="qty-stepper">
@@ -235,7 +235,7 @@
           <div class="success-screen">
             <div class="check">✓</div>
             <h2 class="display">Entnommen</h2>
-            <p id="checkout-success-detail"></p>
+            <div id="checkout-success-detail" class="result-lines"></div>
             <button class="back-home-btn" id="checkout-back-home-btn">Zurück zur Übersicht</button>
             <div class="recent-log">
               <div class="section-label">Letzte Änderungen</div>
@@ -490,19 +490,19 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=36"></script>
-<script type="module" src="js/auth.js?v=36"></script>
-<script type="module" src="js/app-shell.js?v=36"></script>
-<script type="module" src="js/account-menu.js?v=36"></script>
-<script type="module" src="js/refresh-button.js?v=36"></script>
-<script type="module" src="js/settings-nav.js?v=36"></script>
-<script type="module" src="js/data-tabs.js?v=36"></script>
-<script type="module" src="js/taxonomy.js?v=36"></script>
-<script type="module" src="js/storage-locations.js?v=36"></script>
-<script type="module" src="js/year-colors.js?v=36"></script>
-<script type="module" src="js/stock-checkin.js?v=36"></script>
-<script type="module" src="js/stock-checkout.js?v=36"></script>
-<script type="module" src="js/stock-table.js?v=36"></script>
-<script type="module" src="js/admin-log.js?v=36"></script>
+<script src="js/app.js?v=37"></script>
+<script type="module" src="js/auth.js?v=37"></script>
+<script type="module" src="js/app-shell.js?v=37"></script>
+<script type="module" src="js/account-menu.js?v=37"></script>
+<script type="module" src="js/refresh-button.js?v=37"></script>
+<script type="module" src="js/settings-nav.js?v=37"></script>
+<script type="module" src="js/data-tabs.js?v=37"></script>
+<script type="module" src="js/taxonomy.js?v=37"></script>
+<script type="module" src="js/storage-locations.js?v=37"></script>
+<script type="module" src="js/year-colors.js?v=37"></script>
+<script type="module" src="js/stock-checkin.js?v=37"></script>
+<script type="module" src="js/stock-checkout.js?v=37"></script>
+<script type="module" src="js/stock-table.js?v=37"></script>
+<script type="module" src="js/admin-log.js?v=37"></script>
 </body>
 </html>

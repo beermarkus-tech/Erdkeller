@@ -1,5 +1,6 @@
-import { db } from './firebase-init.js?v=36';
-import { renderRecentLog } from './stock-log.js?v=36';
+import { db } from './firebase-init.js?v=37';
+import { renderRecentLog } from './stock-log.js?v=37';
+import { renderResultLines } from './format-batch.js?v=37';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -553,9 +554,13 @@ checkinConfirmBtn.addEventListener('click', async () => {
     });
     lastLogId = logDoc.id;
 
-    successDetail.textContent = `${selection.qty}× ${selection.product.name}`
-      + (data.content ? ` · ${data.content}` : '')
-      + (data.bestBefore ? ` · MHD ${data.bestBefore}` : '');
+    renderResultLines(successDetail, {
+      qty: selection.qty,
+      productName: selection.product.name,
+      content: data.content,
+      bestBefore: data.bestBefore,
+      storage: data.storage,
+    });
 
     goToStep('success');
     showUndoToast(`Eingelagert: ${selection.product.name}`);

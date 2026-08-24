@@ -969,11 +969,15 @@ nav.bottomnav button .icon {
   margin: 0;
 }
 
-.success-screen p {
+.result-lines {
+  margin: 12px 0;
+}
+
+.result-line {
   color: var(--charcoal);
   font-size: 20px;
   font-weight: 600;
-  margin: 0;
+  line-height: 1.4;
 }
 
 .back-home-btn {

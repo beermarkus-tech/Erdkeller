@@ -1,6 +1,7 @@
-import { db } from './firebase-init.js?v=36';
-import { PALETTE } from './year-colors.js?v=36';
-import { renderRecentLog } from './stock-log.js?v=36';
+import { db } from './firebase-init.js?v=37';
+import { PALETTE } from './year-colors.js?v=37';
+import { renderRecentLog } from './stock-log.js?v=37';
+import { renderResultLines } from './format-batch.js?v=37';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -405,7 +406,17 @@ globalSearchInput.addEventListener('input', () => renderGlobalSearchResults(glob
 
 function prepareRemoveStep() {
   batchNameEl.textContent = selection.batch ? productName(selection.batch.productId) : '';
-  batchMetaEl.textContent = selection.batch ? batchMetaLine(selection.batch) : '';
+  if (selection.batch) {
+    renderResultLines(batchMetaEl, {
+      qty: selection.batch.quantity,
+      details: selection.batch.details,
+      content: selection.batch.content,
+      bestBefore: selection.batch.bestBefore,
+      storage: selection.batch.storage,
+    });
+  } else {
+    batchMetaEl.innerHTML = '';
+  }
   selection.removeQty = 1;
   qtyNumEl.textContent = '1';
 }
@@ -455,7 +466,14 @@ confirmBtn.addEventListener('click', async () => {
     });
     lastLogId = logDoc.id;
 
-    successDetail.textContent = `${selection.removeQty}× ${productName(batch.productId)}`;
+    renderResultLines(successDetail, {
+      qty: selection.removeQty,
+      productName: productName(batch.productId),
+      details: batch.details,
+      content: batch.content,
+      bestBefore: batch.bestBefore,
+      storage: batch.storage,
+    });
     goToStep('success');
     showUndoToast(`Entnommen: ${productName(batch.productId)}`);
     renderRecentLog(recentLogEl);
