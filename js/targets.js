@@ -1,39 +1,57 @@
-// Ziele — SPEC.md Section 7. Type-level targets were removed (the food/
-// non-food distinction that would give a type-level number real meaning is
-// a later feature); everything below the type level works as follows:
-//   - A category in Taxonomy mode "Aus" keeps a fully manual target (flat
-//     kg/Stk, or Personen×Tage), exactly like before — click the badge,
-//     edit, save. Its subcategories are independently manual the same way.
-//   - A category tagged Kalorien, Diversität, or assigned as the Wasser
-//     category in Planung gets a LIVE COMPUTED target instead: no click,
-//     no "apply" step. Kalorien categories that share a macro (Kohlenhydrate/
-//     Protein/Fett) split that macro's global kcal target between them via
-//     a ±5% stepper (see stepSplit below); any computed category's total
-//     then splits again across its own subcategories the same way.
+// Ziele — SPEC.md Section 7. Three flat, independently collapsible sections
+// (no more Type→Category→Subcategory tree — a category/subcategory now
+// appears in exactly one place, never duplicated across a summary area and
+// a tree row):
+//   - Kategorien: every category's target. "Aus" categories are fully
+//     manual (flat kg/Stk, or Personen×Tage) — click the badge, edit, save.
+//     Kalorien categories sharing a macro (Kohlenhydrate/Protein/Fett) split
+//     that macro's global kcal target between them via a ±5% stepper (see
+//     stepSplit below); Diversität categories and the Wasser category
+//     (assigned in Planung) compute independently, no stepper.
+//   - Unterkategorien: every subcategory's target, grouped by parent
+//     category. Manual under an "Aus" parent; split off the parent's
+//     computed total (same ±5% stepper) under a computed parent.
+//   - Produktziele: manual overrides, independent of everything above.
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=49';
+import { db } from './firebase-init.js?v=50';
 import {
-  doc, getDoc, setDoc, collection, getDocs,
+  doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const targetsCard = document.querySelector('.settings-card[data-target="targets"]');
 const panelEl = document.getElementById('settings-panel-targets');
-const unitToggleButtons = document.querySelectorAll('#targets-unit-toggle .unit-btn');
-const macroSummaryEl = document.getElementById('targets-macro-summary');
-const treeEl = document.getElementById('targets-tree');
+const unitToggleButtons = document.querySelectorAll('#targets-unit-toggle .select-mode-btn');
+const categoriesListEl = document.getElementById('targets-categories-list');
+const subcategoriesListEl = document.getElementById('targets-subcategories-list');
 const statusEl = document.getElementById('targets-status');
 const productTargetsList = document.getElementById('product-targets-list');
 const addProductTargetBtn = document.getElementById('add-product-target-btn');
+
+document.querySelectorAll('.targets-section-header').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const body = btn.nextElementSibling;
+    const collapsed = body.classList.toggle('collapsed');
+    btn.querySelector('.tax-toggle').textContent = collapsed ? '▾' : '▴';
+  });
+});
 
 const pickerModal = document.getElementById('target-picker-modal');
 const pickerSearch = document.getElementById('target-picker-search');
 const pickerList = document.getElementById('target-picker-list');
 
+const newProductForm = document.getElementById('target-new-product-form');
+const newProductNameInput = document.getElementById('target-new-product-name');
+const newProductUnitButtons = document.querySelectorAll('#target-new-product-unit-toggle .unit-btn');
+const newProductSubcategorySelect = document.getElementById('target-new-product-subcategory');
+const newProductCreateBtn = document.getElementById('target-new-product-create-btn');
+let newProductUnit = 'kg';
+
 const editModal = document.getElementById('target-edit-modal');
 const editTitle = document.getElementById('target-edit-title');
-const modeToggleButtons = editModal.querySelectorAll('#target-mode-toggle .unit-btn');
+const modeToggleEl = document.getElementById('target-mode-toggle');
+const modeToggleButtons = modeToggleEl.querySelectorAll('.unit-btn');
 const flatGroup = document.getElementById('target-flat-group');
 const flatLabel = document.getElementById('target-flat-label');
 const flatInput = document.getElementById('target-flat-input');
@@ -66,9 +84,6 @@ let loadOk = false;
 let macroGroupIds = { kohlenhydrat: [], protein: [], fett: [] };
 
 let displayUnit = 'kg';
-
-const openTypes = new Set();
-const openCats = new Set();
 
 let editingContext = null; // { level, id, label, unit }
 let pendingMode = 'flat';
@@ -269,18 +284,23 @@ function formatComputedAmount(kg, cat) {
   return `${round2(kg)} kg`;
 }
 
-function makeComputedRow(label, valueText) {
-  const row = document.createElement('div');
-  row.className = 'computed-row';
-  const labelEl = document.createElement('span');
-  labelEl.className = 'computed-label';
-  labelEl.textContent = label;
-  const valueEl = document.createElement('span');
-  valueEl.className = 'computed-value';
-  valueEl.textContent = valueText;
-  row.appendChild(labelEl);
-  row.appendChild(valueEl);
-  return row;
+// The macro group's header total, in whichever unit is toggled — kcal/
+// kcal-per-Person&Tag come straight from the macro's global kcal figure;
+// kg/kg-per-Person&Tag sum the group's current per-category kg amounts
+// (their sum always equals the macro total by construction, since the
+// split always sums to 100%).
+function formatMacroHeaderTotal(macro, items) {
+  const people = peopleCount();
+  const days = autonomyDaysVal();
+  if (displayUnit === 'kcal') return `${Math.round(macroGlobalKcal(macro)).toLocaleString('de-DE')} kcal`;
+  if (displayUnit === 'kcalpd') {
+    return people > 0 && days > 0 ? `${Math.round(macroGlobalKcal(macro) / people / days)} kcal/P/T` : `${round2(macroGlobalKcal(macro))} kcal`;
+  }
+  const sumKg = items.reduce((s, it) => s + (it.kg || 0), 0);
+  if (displayUnit === 'kgpd') {
+    return people > 0 && days > 0 ? `${Math.round((sumKg / people / days) * 1000) / 1000} kg/P/T` : `${round2(sumKg)} kg`;
+  }
+  return `${round2(sumKg)} kg`;
 }
 
 // --- Target formatting (manual / "Aus" categories, subcategories, products) --
@@ -303,9 +323,9 @@ function formatTargetLabel(target) {
   return `${target.people}×${target.days}T (${amt} ${u})`;
 }
 
-// --- Manual tree row (Aus categories/subcategories, products) -----------
+// --- Manual row (Aus categories/subcategories, products) ----------------
 
-function makeRow(sym, name, target, level, id, unit, hasToggle, isOpen, onToggle) {
+function makeRow(sym, name, target, level, id, unit) {
   const head = document.createElement('div');
   head.className = level === 'categories' ? 'tax-cat-head' : 'tax-sub-row';
 
@@ -326,21 +346,11 @@ function makeRow(sym, name, target, level, id, unit, hasToggle, isOpen, onToggle
   head.appendChild(symEl);
   head.appendChild(nameEl);
   head.appendChild(badge);
-
-  if (hasToggle) {
-    const toggleBtn = document.createElement('button');
-    toggleBtn.type = 'button';
-    toggleBtn.className = 'tax-toggle';
-    toggleBtn.textContent = isOpen ? '▴' : '▾';
-    toggleBtn.addEventListener('click', onToggle);
-    head.appendChild(toggleBtn);
-  }
-
   return head;
 }
 
 function renderManualSubRow(sub) {
-  return makeRow(sub.sym, sub.name, targets.subcategories[sub.id], 'subcategories', sub.id, 'kg', false, false, null);
+  return makeRow(sub.sym, sub.name, targets.subcategories[sub.id], 'subcategories', sub.id, 'kg');
 }
 
 // --- Computed category (Kalorien / Diversität / Wasser) ------------------
@@ -364,39 +374,10 @@ function categoryTargetSource(cat) {
   return { kind: 'off', kg: null };
 }
 
-function makeComputedCategoryHead(cat, source, isOpen, onToggle) {
-  const head = document.createElement('div');
-  head.className = 'tax-cat-head';
-
-  const symEl = document.createElement('span');
-  symEl.className = 'sym';
-  symEl.textContent = cat.sym || '';
-
-  const nameEl = document.createElement('span');
-  nameEl.className = 'tax-name-display';
-  nameEl.textContent = cat.name;
-
-  const badge = document.createElement('span');
-  badge.className = 'target-badge computed';
-  badge.textContent = source.kg != null ? formatComputedAmount(source.kg, cat) : '– Daten unvollständig';
-
-  const toggleBtn = document.createElement('button');
-  toggleBtn.type = 'button';
-  toggleBtn.className = 'tax-toggle';
-  toggleBtn.textContent = isOpen ? '▴' : '▾';
-  toggleBtn.addEventListener('click', onToggle);
-
-  head.appendChild(symEl);
-  head.appendChild(nameEl);
-  head.appendChild(badge);
-  head.appendChild(toggleBtn);
-  return head;
-}
-
 // Generic ±5%-stepper list, reused for the macro-split sections, the
-// diversity section (showStepper=false — those totals aren't pooled, each
-// category's floor is independent), and a computed category's own
-// subcategory split.
+// diversity/water rows (showStepper=false — those totals aren't pooled,
+// each computes independently), and a computed category's own subcategory
+// split.
 function renderSplitGroup(items, splitMap, groupIds, onStep, showStepper) {
   const container = document.createElement('div');
   items.forEach(({ id, name, formatted }) => {
@@ -449,15 +430,12 @@ function renderSplitGroup(items, splitMap, groupIds, onStep, showStepper) {
   return container;
 }
 
-function renderSubSplitSection(cat, source) {
+function renderSubSplitGroup(cat, source) {
   const subIds = (cat.subcategories || []).map((s) => s.id);
-  if (subIds.length === 0) return document.createDocumentFragment();
-
   if (source.kg == null) {
     const items = cat.subcategories.map((sub) => ({ id: sub.id, name: sub.name, formatted: '– Daten unvollständig' }));
     return renderSplitGroup(items, {}, subIds, () => {}, false);
   }
-
   const split = getSubSplit(cat.id, subIds);
   const items = cat.subcategories.map((sub) => {
     const kg = (source.kg * (split[sub.id] || 0)) / 100;
@@ -470,26 +448,24 @@ function renderSubSplitSection(cat, source) {
   }, true);
 }
 
-// --- Macro / Diversität sections (above the tree) ------------------------
+// --- Kategorien section ----------------------------------------------------
 
 function renderMacroSplitSections() {
   const frag = document.createDocumentFragment();
-  let any = false;
   ['kohlenhydrat', 'protein', 'fett'].forEach((macro) => {
     const ids = macroGroupIds[macro];
     if (ids.length === 0) return;
-    any = true;
     const split = getMacroSplit(macro, ids);
     const items = ids.map((id) => {
       const cat = findCategoryById(id);
       const kg = cat && cat.kcalPerKg > 0 ? (macroGlobalKcal(macro) * (split[id] || 0)) / 100 / cat.kcalPerKg : null;
       return {
-        id, name: cat ? cat.name : '?', formatted: kg != null ? formatComputedAmount(kg, cat) : '– Daten unvollständig',
+        id, name: cat ? cat.name : '?', kg: kg || 0, formatted: kg != null ? formatComputedAmount(kg, cat) : '– Daten unvollständig',
       };
     });
     const header = document.createElement('div');
-    header.className = 'section-label';
-    header.textContent = `${MACRO_LABELS[macro]} — ${Math.round(macroGlobalKcal(macro)).toLocaleString('de-DE')} kcal`;
+    header.className = 'targets-subgroup-label';
+    header.textContent = `${MACRO_LABELS[macro]} — ${formatMacroHeaderTotal(macro, items)}`;
     frag.appendChild(header);
     frag.appendChild(renderSplitGroup(items, split, ids, (id, delta) => {
       targets.macroSplits[macro] = stepSplit({ ...split }, ids, id, delta);
@@ -497,12 +473,6 @@ function renderMacroSplitSections() {
       render();
     }, true));
   });
-  if (!any) {
-    const p = document.createElement('p');
-    p.className = 'screen-placeholder';
-    p.textContent = 'Keine Kategorien im Kalorien-Modus (in der Taxonomie einstellen).';
-    frag.appendChild(p);
-  }
   return frag;
 }
 
@@ -515,7 +485,7 @@ function renderDiversitySection() {
 
   const frag = document.createDocumentFragment();
   const header = document.createElement('div');
-  header.className = 'section-label';
+  header.className = 'targets-subgroup-label';
   header.textContent = 'Diversität';
   frag.appendChild(header);
 
@@ -531,93 +501,105 @@ function renderDiversitySection() {
   return frag;
 }
 
-function renderTargetsSummary() {
-  macroSummaryEl.innerHTML = '';
-  if (peopleCount() === 0 || autonomyDaysVal() <= 0) {
+function renderWaterCategoryRow() {
+  if (!planning.waterCategoryId) return null;
+  const cat = findCategoryById(planning.waterCategoryId);
+  if (!cat) return null;
+
+  const frag = document.createDocumentFragment();
+  const header = document.createElement('div');
+  header.className = 'targets-subgroup-label';
+  header.textContent = 'Wasser';
+  frag.appendChild(header);
+
+  const kg = waterGlobalKg();
+  const items = [{ id: cat.id, name: cat.name, formatted: formatComputedAmount(kg, cat) }];
+  frag.appendChild(renderSplitGroup(items, {}, [cat.id], () => {}, false));
+  return frag;
+}
+
+function renderManualCategoriesGroup() {
+  const frag = document.createDocumentFragment();
+  let any = false;
+  taxonomy.types.forEach((type) => {
+    const manualCats = (type.categories || []).filter((cat) => categoryTargetSource(cat).kind === 'off');
+    if (manualCats.length === 0) return;
+    any = true;
+    const header = document.createElement('div');
+    header.className = 'targets-subgroup-label';
+    header.textContent = type.name;
+    frag.appendChild(header);
+    manualCats.forEach((cat) => {
+      frag.appendChild(makeRow(cat.sym, cat.name, targets.categories[cat.id], 'categories', cat.id, 'kg'));
+    });
+  });
+  return any ? frag : null;
+}
+
+function renderCategoriesSection() {
+  categoriesListEl.innerHTML = '';
+  if (peopleCount() > 0 && autonomyDaysVal() > 0) {
+    categoriesListEl.appendChild(renderMacroSplitSections());
+    const diversitySection = renderDiversitySection();
+    if (diversitySection) categoriesListEl.appendChild(diversitySection);
+    const waterRow = renderWaterCategoryRow();
+    if (waterRow) categoriesListEl.appendChild(waterRow);
+  } else {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = 'Haushalt und Autonomiedauer in Planung eingeben, um Ziele automatisch zu berechnen.';
-    macroSummaryEl.appendChild(p);
-    return;
+    p.textContent = 'Haushalt und Autonomiedauer in Planung eingeben, um berechnete Ziele zu sehen — manuelle Kategorien stehen unten.';
+    categoriesListEl.appendChild(p);
   }
-
-  const waterCat = planning.waterCategoryId ? findCategoryById(planning.waterCategoryId) : null;
-  macroSummaryEl.appendChild(makeComputedRow(
-    waterCat ? `Wasser (${waterCat.name})` : 'Wasser (keine Kategorie zugewiesen)',
-    `${round2(waterGlobalKg())} kg`,
-  ));
-
-  macroSummaryEl.appendChild(renderMacroSplitSections());
-
-  const diversitySection = renderDiversitySection();
-  if (diversitySection) macroSummaryEl.appendChild(diversitySection);
+  const manualGroup = renderManualCategoriesGroup();
+  if (manualGroup) categoriesListEl.appendChild(manualGroup);
+  if (!categoriesListEl.children.length) {
+    const empty = document.createElement('p');
+    empty.className = 'screen-placeholder';
+    empty.textContent = 'Keine Kategorien vorhanden.';
+    categoriesListEl.appendChild(empty);
+  }
 }
 
-// --- Tree rendering (Typ → Kategorie → Unterkategorie) --------------------
+// --- Unterkategorien section ------------------------------------------------
 
-function renderTypeRow(type) {
-  const wrap = document.createElement('div');
-  wrap.className = 'tax-type';
-  const isOpen = openTypes.has(type.id);
-
-  const head = document.createElement('div');
-  head.className = 'tax-type-head';
-  const symEl = document.createElement('span');
-  symEl.className = 'sym';
-  symEl.textContent = type.sym || '';
-  const nameEl = document.createElement('span');
-  nameEl.className = 'tax-name-display';
-  nameEl.textContent = type.name;
-  const toggleBtn = document.createElement('button');
-  toggleBtn.type = 'button';
-  toggleBtn.className = 'tax-toggle';
-  toggleBtn.textContent = isOpen ? '▴' : '▾';
-  toggleBtn.addEventListener('click', () => {
-    if (openTypes.has(type.id)) openTypes.delete(type.id);
-    else openTypes.add(type.id);
-    render();
-  });
-  head.appendChild(symEl);
-  head.appendChild(nameEl);
-  head.appendChild(toggleBtn);
-  wrap.appendChild(head);
-
-  const body = document.createElement('div');
-  body.className = 'tax-body' + (isOpen ? ' open' : '');
-  (type.categories || []).forEach((cat) => body.appendChild(renderCategoryRow(cat)));
-  wrap.appendChild(body);
-  return wrap;
-}
-
-function renderCategoryRow(cat) {
-  const wrap = document.createElement('div');
-  wrap.className = 'tax-cat';
-  const isOpen = openCats.has(cat.id);
-  const onToggle = () => {
-    if (openCats.has(cat.id)) openCats.delete(cat.id);
-    else openCats.add(cat.id);
-    render();
-  };
-
+function renderSubcategoryGroupFor(cat) {
+  const subs = cat.subcategories || [];
+  if (subs.length === 0) return null;
   const source = categoryTargetSource(cat);
-  const head = source.kind === 'off'
-    ? makeRow(cat.sym, cat.name, targets.categories[cat.id], 'categories', cat.id, 'kg', true, isOpen, onToggle)
-    : makeComputedCategoryHead(cat, source, isOpen, onToggle);
-  wrap.appendChild(head);
 
-  const body = document.createElement('div');
-  body.className = 'tax-cat-body' + (isOpen ? ' open' : '');
+  const frag = document.createDocumentFragment();
+  const header = document.createElement('div');
+  header.className = 'targets-subgroup-label';
+  header.textContent = cat.name;
+  frag.appendChild(header);
+
   if (source.kind === 'off') {
-    const subList = document.createElement('div');
-    subList.className = 'tax-sub-list';
-    (cat.subcategories || []).forEach((sub) => subList.appendChild(renderManualSubRow(sub)));
-    body.appendChild(subList);
-  } else if ((cat.subcategories || []).length > 0) {
-    body.appendChild(renderSubSplitSection(cat, source));
+    subs.forEach((sub) => frag.appendChild(renderManualSubRow(sub)));
+  } else {
+    frag.appendChild(renderSubSplitGroup(cat, source));
   }
-  wrap.appendChild(body);
-  return wrap;
+  return frag;
 }
+
+function renderSubcategoriesSection() {
+  subcategoriesListEl.innerHTML = '';
+  let any = false;
+  taxonomy.types.forEach((type) => (type.categories || []).forEach((cat) => {
+    const group = renderSubcategoryGroupFor(cat);
+    if (group) {
+      any = true;
+      subcategoriesListEl.appendChild(group);
+    }
+  }));
+  if (!any) {
+    const empty = document.createElement('p');
+    empty.className = 'screen-placeholder';
+    empty.textContent = 'Keine Unterkategorien vorhanden.';
+    subcategoriesListEl.appendChild(empty);
+  }
+}
+
+// --- Produktziele section ----------------------------------------------
 
 function renderProductTargets() {
   productTargetsList.innerHTML = '';
@@ -663,13 +645,30 @@ unitToggleButtons.forEach((btn) => {
 function render() {
   computeMacroGroups();
   syncUnitToggle();
-  renderTargetsSummary();
-  treeEl.innerHTML = '';
-  taxonomy.types.forEach((type) => treeEl.appendChild(renderTypeRow(type)));
+  renderCategoriesSection();
+  renderSubcategoriesSection();
   renderProductTargets();
 }
 
 // --- Product picker (for adding a new product target) ---------------
+
+function flatSubcategories() {
+  const list = [];
+  taxonomy.types.forEach((type) => (type.categories || []).forEach((cat) => (cat.subcategories || []).forEach((sub) => {
+    list.push({ id: sub.id, label: `${type.name} › ${cat.name} › ${sub.name}` });
+  })));
+  return list;
+}
+
+function renderNewProductSubcategoryOptions() {
+  newProductSubcategorySelect.innerHTML = '';
+  flatSubcategories().forEach((s) => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.label;
+    newProductSubcategorySelect.appendChild(opt);
+  });
+}
 
 function renderPickerList(filterText) {
   pickerList.innerHTML = '';
@@ -684,7 +683,6 @@ function renderPickerList(filterText) {
     empty.className = 'screen-placeholder';
     empty.textContent = 'Keine Produkte gefunden.';
     pickerList.appendChild(empty);
-    return;
   }
 
   matches.forEach((p) => {
@@ -700,18 +698,69 @@ function renderPickerList(filterText) {
     });
     pickerList.appendChild(row);
   });
+
+  const addRow = document.createElement('div');
+  addRow.className = 'stock-product-row add-new';
+  addRow.textContent = '+ Neues Produkt anlegen';
+  addRow.addEventListener('click', () => {
+    newProductNameInput.value = filterText || '';
+    newProductUnit = 'kg';
+    newProductUnitButtons.forEach((b) => b.classList.toggle('active', b.dataset.unit === 'kg'));
+    renderNewProductSubcategoryOptions();
+    newProductForm.classList.remove('hidden');
+  });
+  pickerList.appendChild(addRow);
 }
 
 addProductTargetBtn.addEventListener('click', () => {
   pickerSearch.value = '';
+  newProductForm.classList.add('hidden');
   renderPickerList('');
   pickerModal.classList.add('show');
 });
 
-pickerSearch.addEventListener('input', () => renderPickerList(pickerSearch.value));
+pickerSearch.addEventListener('input', () => {
+  newProductForm.classList.add('hidden');
+  renderPickerList(pickerSearch.value);
+});
 
 pickerModal.addEventListener('click', (e) => {
   if (e.target === pickerModal) pickerModal.classList.remove('show');
+});
+
+newProductUnitButtons.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    newProductUnit = btn.dataset.unit;
+    newProductUnitButtons.forEach((b) => b.classList.toggle('active', b === btn));
+  });
+});
+
+newProductCreateBtn.addEventListener('click', async () => {
+  const name = newProductNameInput.value.trim();
+  const subcategoryId = newProductSubcategorySelect.value;
+  if (!name) {
+    alert('Bitte einen Produktnamen eingeben.');
+    return;
+  }
+  if (!subcategoryId) {
+    alert('Bitte eine Unterkategorie wählen.');
+    return;
+  }
+  newProductCreateBtn.disabled = true;
+  try {
+    const newDoc = await addDoc(collection(db, 'products'), { name, subcategoryId, unitType: newProductUnit });
+    const product = { id: newDoc.id, name, subcategoryId, unitType: newProductUnit };
+    allProducts.push(product);
+    productIndex.set(product.id, product);
+    newProductForm.classList.add('hidden');
+    pickerModal.classList.remove('show');
+    openEdit('products', product.id, product.name, product.unitType);
+  } catch (err) {
+    alert('Fehler beim Anlegen: ' + err.message);
+    console.error(err);
+  } finally {
+    newProductCreateBtn.disabled = false;
+  }
 });
 
 // --- Edit modal (manual targets only: Aus categories/subcategories, products) --
@@ -748,7 +797,12 @@ function openEdit(level, id, label, unit) {
   flatLabel.textContent = `Menge (${u})`;
   rateLabel.textContent = `Menge pro Person/Tag (${u})`;
 
-  setMode(target ? target.mode : 'flat');
+  // Product targets are flat-only — a single product doesn't have its own
+  // "Personen" to divide across, that's what the category/subcategory
+  // split already handles.
+  const isProduct = level === 'products';
+  modeToggleEl.classList.toggle('hidden', isProduct);
+  setMode(isProduct ? 'flat' : (target ? target.mode : 'flat'));
 
   flatInput.value = target && target.mode === 'flat' ? target.amount : '';
   rateInput.value = target && target.mode === 'peopleDuration' ? target.ratePerPersonDay : '';

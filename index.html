@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=49">
+<link rel="manifest" href="manifest.json?v=50">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=49">
+<link rel="stylesheet" href="css/styles.css?v=50">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 49</div>
+<div id="build-tag" class="build-tag">Build 50</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -283,14 +283,14 @@
           <div class="sc-text"><div class="sc-title">Checklisten</div><div class="sc-sub">Wartung &amp; Krise — Schritt 12</div></div>
           <span class="chev">›</span>
         </div>
-        <div class="settings-card" data-target="targets">
-          <span class="sym">🎯</span>
-          <div class="sc-text"><div class="sc-title">Ziele</div><div class="sc-sub">Zielmengen je Typ/Kategorie/Produkt</div></div>
-          <span class="chev">›</span>
-        </div>
         <div class="settings-card" data-target="planning">
           <span class="sym">🧮</span>
           <div class="sc-text"><div class="sc-title">Planung</div><div class="sc-sub">Haushalt, Autonomie &amp; Makros</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="settings-card" data-target="targets">
+          <span class="sym">🎯</span>
+          <div class="sc-text"><div class="sc-title">Ziele</div><div class="sc-sub">Zielmengen je Kategorie/Produkt</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="export">
@@ -469,33 +469,82 @@
           </div>
         </div>
 
-        <div class="unit-toggle" id="targets-unit-toggle">
-          <button class="unit-btn active" data-unit="kg" type="button">kg</button>
-          <button class="unit-btn" data-unit="kgpd" type="button">kg/P/T</button>
-          <button class="unit-btn" data-unit="kcal" type="button">kcal</button>
-          <button class="unit-btn" data-unit="kcalpd" type="button">kcal/P/T</button>
+        <div class="tax-expand-row" id="targets-unit-toggle">
+          <button class="select-mode-btn active" data-unit="kg" type="button">kg</button>
+          <button class="select-mode-btn" data-unit="kgpd" type="button">kg/P/T</button>
+          <button class="select-mode-btn" data-unit="kcal" type="button">kcal</button>
+          <button class="select-mode-btn" data-unit="kcalpd" type="button">kcal/P/T</button>
         </div>
-        <div id="targets-macro-summary"></div>
 
-        <div id="targets-tree"></div>
+        <div class="targets-section">
+          <button class="targets-section-header" data-section-toggle="categories" type="button">
+            <span>Kategorien</span>
+            <span class="tax-toggle">▴</span>
+          </button>
+          <div class="targets-section-body" id="targets-categories-body">
+            <div id="targets-categories-list"></div>
+          </div>
+        </div>
 
-        <div class="section-label" id="product-targets-label">Produktziele</div>
-        <div id="product-targets-list"></div>
-        <button class="add-row-btn" id="add-product-target-btn">+ Produktziel hinzufügen</button>
+        <div class="targets-section">
+          <button class="targets-section-header" data-section-toggle="subcategories" type="button">
+            <span>Unterkategorien</span>
+            <span class="tax-toggle">▴</span>
+          </button>
+          <div class="targets-section-body" id="targets-subcategories-body">
+            <div id="targets-subcategories-list"></div>
+          </div>
+        </div>
+
+        <div class="targets-section">
+          <button class="targets-section-header" data-section-toggle="products" type="button">
+            <span>Produktziele</span>
+            <span class="tax-toggle">▴</span>
+          </button>
+          <div class="targets-section-body" id="targets-products-body">
+            <div id="product-targets-list"></div>
+            <button class="add-row-btn" id="add-product-target-btn">+ Produktziel hinzufügen</button>
+          </div>
+        </div>
+
         <p id="targets-status" class="taxonomy-status"></p>
       </div>
 
       <div class="modal-overlay" id="target-picker-modal">
         <div class="modal-sheet">
           <div class="modal-title">Produkt wählen</div>
-          <div class="search-bar"><span>🔍</span><input placeholder="Produkt suchen…" id="target-picker-search"></div>
-          <div class="product-list" id="target-picker-list"></div>
+          <div class="modal-body-padded">
+            <div class="search-bar"><span>🔍</span><input placeholder="Produkt suchen…" id="target-picker-search"></div>
+            <div class="product-list" id="target-picker-list"></div>
+
+            <div id="target-new-product-form" class="hidden">
+              <div class="form-group">
+                <label>Produktname</label>
+                <input type="text" id="target-new-product-name" placeholder="z.B. Bohnen weiß">
+              </div>
+              <div class="form-group">
+                <label>Einheit</label>
+                <div class="unit-toggle" id="target-new-product-unit-toggle">
+                  <button class="unit-btn active" data-unit="kg" type="button">Kilogramm</button>
+                  <button class="unit-btn" data-unit="stueck" type="button">Stück</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Unterkategorie</label>
+                <select id="target-new-product-subcategory"></select>
+              </div>
+              <div class="modal-actions">
+                <button class="confirm-btn" id="target-new-product-create-btn" type="button">Anlegen</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="modal-overlay" id="target-edit-modal">
         <div class="modal-sheet">
           <div class="modal-title" id="target-edit-title"></div>
+          <div class="modal-body-padded">
           <div class="unit-toggle" id="target-mode-toggle">
             <button class="unit-btn active" data-mode="flat" type="button">Feste Menge</button>
             <button class="unit-btn" data-mode="peopleDuration" type="button">Personen × Tage</button>
@@ -520,6 +569,7 @@
               <input type="number" id="target-days-input" placeholder="z.B. 90">
             </div>
             <p class="settings-note" id="target-computed-note"></p>
+          </div>
           </div>
 
           <div class="modal-actions table-edit-actions">
@@ -606,21 +656,21 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=49"></script>
-<script type="module" src="js/auth.js?v=49"></script>
-<script type="module" src="js/app-shell.js?v=49"></script>
-<script type="module" src="js/account-menu.js?v=49"></script>
-<script type="module" src="js/refresh-button.js?v=49"></script>
-<script type="module" src="js/settings-nav.js?v=49"></script>
-<script type="module" src="js/data-tabs.js?v=49"></script>
-<script type="module" src="js/taxonomy.js?v=49"></script>
-<script type="module" src="js/storage-locations.js?v=49"></script>
-<script type="module" src="js/year-colors.js?v=49"></script>
-<script type="module" src="js/stock-checkin.js?v=49"></script>
-<script type="module" src="js/stock-checkout.js?v=49"></script>
-<script type="module" src="js/stock-table.js?v=49"></script>
-<script type="module" src="js/targets.js?v=49"></script>
-<script type="module" src="js/planning.js?v=49"></script>
-<script type="module" src="js/admin-log.js?v=49"></script>
+<script src="js/app.js?v=50"></script>
+<script type="module" src="js/auth.js?v=50"></script>
+<script type="module" src="js/app-shell.js?v=50"></script>
+<script type="module" src="js/account-menu.js?v=50"></script>
+<script type="module" src="js/refresh-button.js?v=50"></script>
+<script type="module" src="js/settings-nav.js?v=50"></script>
+<script type="module" src="js/data-tabs.js?v=50"></script>
+<script type="module" src="js/taxonomy.js?v=50"></script>
+<script type="module" src="js/storage-locations.js?v=50"></script>
+<script type="module" src="js/year-colors.js?v=50"></script>
+<script type="module" src="js/stock-checkin.js?v=50"></script>
+<script type="module" src="js/stock-checkout.js?v=50"></script>
+<script type="module" src="js/stock-table.js?v=50"></script>
+<script type="module" src="js/targets.js?v=50"></script>
+<script type="module" src="js/planning.js?v=50"></script>
+<script type="module" src="js/admin-log.js?v=50"></script>
 </body>
 </html>

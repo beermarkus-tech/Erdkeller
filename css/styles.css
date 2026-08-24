@@ -590,6 +590,68 @@ nav.bottomnav button .icon {
   font-weight: 600;
 }
 
+/* Ziele's three top-level collapsible sections (Kategorien / Unterkategorien
+   / Produktziele) — separated by a rule rather than nested inside one
+   another, so each level's targets live in exactly one place. */
+.targets-section + .targets-section {
+  border-top: 1px solid var(--stone-dark);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.targets-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--charcoal);
+  cursor: pointer;
+}
+
+.targets-section-body {
+  margin-top: 10px;
+}
+
+.targets-section-body.collapsed {
+  display: none;
+}
+
+.targets-subgroup-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b6a5f;
+  margin: 14px 0 6px;
+}
+
+.targets-subgroup-label:first-child {
+  margin-top: 0;
+}
+
+/* Manual (Aus) category/subcategory rows used to sit inside a bordered
+   .tax-cat/.tax-type wrapper that supplied the separator between rows;
+   flattened out of the tree, they need their own — scoped to these two
+   lists only, so js/taxonomy.js's own editor (which still uses .tax-cat as
+   a real wrapper) isn't affected. */
+#targets-categories-list .tax-cat-head,
+#targets-subcategories-list .tax-cat-head,
+#targets-subcategories-list .tax-sub-row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--stone-dark);
+  margin-bottom: 0;
+}
+
+#targets-categories-list .tax-cat-head:last-child,
+#targets-subcategories-list .tax-cat-head:last-child,
+#targets-subcategories-list .tax-sub-row:last-child {
+  border-bottom: none;
+}
+
 /* Ziele (Step 11) — live-computed category/subcategory rows. A computed
    badge looks like .target-badge but isn't clickable (the amount is
    derived, not directly editable); the split stepper lets the admin move
@@ -1042,6 +1104,24 @@ nav.bottomnav button .icon {
   color: #4a4940;
 }
 
+/* Number inputs (Autonomiedauer, Wasser-Liter, Produktziel-Menge, …) were
+   unstyled — .form-group's own rule only ever covered type="text"/select —
+   so they fell back to the bare browser default. Match .tax-planning-field
+   input's compact look instead of the larger type="text" style, per
+   explicit request to harmonize every number field with the Kohlenhydrate/
+   Protein/Fett boxes in Planung. */
+.form-group input[type="number"] {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--stone-dark);
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  background: white;
+  box-sizing: border-box;
+  touch-action: pan-y;
+}
+
 .form-group input[type="text"],
 .form-group select {
   width: 100%;
@@ -1200,6 +1280,14 @@ nav.bottomnav button .icon {
   width: 100%;
   border-radius: 20px 20px 0 0;
   padding: 20px 0 0;
+}
+
+/* Some modal-sheet content (search bar, product list, form fields) has no
+   padding of its own and was touching the sheet's — and so the screen's —
+   edges. Scoped to a wrapper rather than added to .modal-sheet itself so
+   it doesn't reflow the date-picker's edge-to-edge picker-row. */
+.modal-body-padded {
+  padding: 0 20px;
 }
 
 .modal-title {

@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=49';
+import { db } from './firebase-init.js?v=50';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -268,16 +268,16 @@ function renderCategory(type, cat) {
   // mode's stored data, only stops it from being used — flipping back
   // brings the same numbers straight back.
   const modeToggle = document.createElement('div');
-  modeToggle.className = 'unit-toggle tax-mode-toggle';
+  modeToggle.className = 'tax-expand-row tax-mode-toggle';
   const mode = categoryPlanningMode(cat);
   modeToggle.innerHTML = `
-    <button type="button" class="unit-btn${mode === 'off' ? ' active' : ''}" data-mode="off">Nicht genutzt</button>
-    <button type="button" class="unit-btn${mode === 'calorie' ? ' active' : ''}" data-mode="calorie">Kalorien</button>
-    <button type="button" class="unit-btn${mode === 'diversity' ? ' active' : ''}" data-mode="diversity">Diversität</button>
+    <button type="button" class="select-mode-btn${mode === 'off' ? ' active' : ''}" data-mode="off">Nicht genutzt</button>
+    <button type="button" class="select-mode-btn${mode === 'calorie' ? ' active' : ''}" data-mode="calorie">Kalorien</button>
+    <button type="button" class="select-mode-btn${mode === 'diversity' ? ' active' : ''}" data-mode="diversity">Diversität</button>
   `;
   body.appendChild(modeToggle);
 
-  modeToggle.querySelectorAll('.unit-btn').forEach((btn) => {
+  modeToggle.querySelectorAll('.select-mode-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       cat.planningMode = btn.dataset.mode;
       saveTaxonomy();
