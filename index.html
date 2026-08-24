@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=45">
+<link rel="manifest" href="manifest.json?v=46">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=45">
+<link rel="stylesheet" href="css/styles.css?v=46">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 45</div>
+<div id="build-tag" class="build-tag">Build 46</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -285,7 +285,7 @@
         </div>
         <div class="settings-card" data-target="targets">
           <span class="sym">🎯</span>
-          <div class="sc-text"><div class="sc-title">Ziele</div><div class="sc-sub">Zielmengen — Schritt 11</div></div>
+          <div class="sc-text"><div class="sc-title">Ziele</div><div class="sc-sub">Zielmengen je Typ/Kategorie/Produkt</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="export">
@@ -463,7 +463,57 @@
             <button class="panel-back-btn" data-back type="button">‹ Ziele</button>
           </div>
         </div>
-        <p class="screen-placeholder">Zielverwaltung — wird in Schritt 11 gebaut.</p>
+
+        <div id="targets-tree"></div>
+
+        <div class="section-label" id="product-targets-label">Produktziele</div>
+        <div id="product-targets-list"></div>
+        <button class="add-row-btn" id="add-product-target-btn">+ Produktziel hinzufügen</button>
+        <p id="targets-status" class="taxonomy-status"></p>
+      </div>
+
+      <div class="modal-overlay" id="target-picker-modal">
+        <div class="modal-sheet">
+          <div class="modal-title">Produkt wählen</div>
+          <div class="search-bar"><span>🔍</span><input placeholder="Produkt suchen…" id="target-picker-search"></div>
+          <div class="product-list" id="target-picker-list"></div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="target-edit-modal">
+        <div class="modal-sheet">
+          <div class="modal-title" id="target-edit-title"></div>
+          <div class="unit-toggle" id="target-mode-toggle">
+            <button class="unit-btn active" data-mode="flat" type="button">Feste Menge</button>
+            <button class="unit-btn" data-mode="peopleDuration" type="button">Personen × Tage</button>
+          </div>
+
+          <div class="form-group" id="target-flat-group">
+            <label id="target-flat-label">Menge (kg)</label>
+            <input type="number" step="0.01" id="target-flat-input" placeholder="z.B. 10">
+          </div>
+
+          <div id="target-pd-group" class="hidden">
+            <div class="form-group">
+              <label id="target-rate-label">Menge pro Person/Tag (kg)</label>
+              <input type="number" step="0.01" id="target-rate-input" placeholder="z.B. 0.5">
+            </div>
+            <div class="form-group">
+              <label>Personen</label>
+              <input type="number" id="target-people-input" placeholder="z.B. 4">
+            </div>
+            <div class="form-group">
+              <label>Tage</label>
+              <input type="number" id="target-days-input" placeholder="z.B. 90">
+            </div>
+            <p class="settings-note" id="target-computed-note"></p>
+          </div>
+
+          <div class="modal-actions table-edit-actions">
+            <button class="confirm-btn" id="target-save-btn">Speichern</button>
+            <button class="danger-btn" id="target-clear-btn">Ziel entfernen</button>
+          </div>
+        </div>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-export">
@@ -494,19 +544,20 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=45"></script>
-<script type="module" src="js/auth.js?v=45"></script>
-<script type="module" src="js/app-shell.js?v=45"></script>
-<script type="module" src="js/account-menu.js?v=45"></script>
-<script type="module" src="js/refresh-button.js?v=45"></script>
-<script type="module" src="js/settings-nav.js?v=45"></script>
-<script type="module" src="js/data-tabs.js?v=45"></script>
-<script type="module" src="js/taxonomy.js?v=45"></script>
-<script type="module" src="js/storage-locations.js?v=45"></script>
-<script type="module" src="js/year-colors.js?v=45"></script>
-<script type="module" src="js/stock-checkin.js?v=45"></script>
-<script type="module" src="js/stock-checkout.js?v=45"></script>
-<script type="module" src="js/stock-table.js?v=45"></script>
-<script type="module" src="js/admin-log.js?v=45"></script>
+<script src="js/app.js?v=46"></script>
+<script type="module" src="js/auth.js?v=46"></script>
+<script type="module" src="js/app-shell.js?v=46"></script>
+<script type="module" src="js/account-menu.js?v=46"></script>
+<script type="module" src="js/refresh-button.js?v=46"></script>
+<script type="module" src="js/settings-nav.js?v=46"></script>
+<script type="module" src="js/data-tabs.js?v=46"></script>
+<script type="module" src="js/taxonomy.js?v=46"></script>
+<script type="module" src="js/storage-locations.js?v=46"></script>
+<script type="module" src="js/year-colors.js?v=46"></script>
+<script type="module" src="js/stock-checkin.js?v=46"></script>
+<script type="module" src="js/stock-checkout.js?v=46"></script>
+<script type="module" src="js/stock-table.js?v=46"></script>
+<script type="module" src="js/targets.js?v=46"></script>
+<script type="module" src="js/admin-log.js?v=46"></script>
 </body>
 </html>

@@ -476,6 +476,41 @@ nav.bottomnav button .icon {
 }
 
 /* Optional Planung fields on a category (SPEC.md Section 7) */
+/* Ziele (Step 11b) — reuses .tax-type/.tax-cat/.tax-sub-row structure and
+   styling from the taxonomy editor, just read-only name display instead
+   of editable inputs, plus a target badge. */
+.tax-name-display {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tax-type-head .tax-name-display {
+  font-weight: 600;
+}
+
+.target-badge {
+  flex-shrink: 0;
+  background: var(--stone-dark);
+  border: none;
+  color: var(--charcoal);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+}
+
+.target-badge.has-target {
+  background: var(--cellar);
+  color: var(--paper);
+}
+
 .tax-planning-toggle {
   display: flex;
   align-items: center;
