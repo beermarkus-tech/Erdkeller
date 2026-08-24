@@ -974,6 +974,11 @@ nav.bottomnav button .icon {
   text-align: center;
 }
 
+.step-title {
+  text-align: center;
+  margin: 8px 0 20px;
+}
+
 .result-line {
   color: var(--charcoal);
   font-size: 20px;
