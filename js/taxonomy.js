@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=40';
+import { db } from './firebase-init.js?v=41';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -238,6 +238,50 @@ function renderCategory(type, cat) {
     if (openCats.has(cat.id)) openCats.delete(cat.id);
     else openCats.add(cat.id);
     render();
+  });
+
+  // Optional Planung fields (SPEC.md Section 7) — kcal/kg + macro type
+  // feed the calorie calculator, diversity floor is a separate per-person
+  // minimum stock guarantee. All three left unset = category doesn't
+  // participate in either, which is the normal case (Medizin, produce
+  // governed by the diversity floor instead, etc.).
+  const planningRow = document.createElement('div');
+  planningRow.className = 'tax-planning-row';
+  planningRow.innerHTML = `
+    <div class="tax-planning-field">
+      <label>kcal/kg</label>
+      <input type="number" class="tax-kcal-input" value="${cat.kcalPerKg ?? ''}" placeholder="z.B. 7000">
+    </div>
+    <div class="tax-planning-field">
+      <label>Makro</label>
+      <select class="tax-macro-select">
+        <option value=""${!cat.macroType ? ' selected' : ''}>–</option>
+        <option value="kohlenhydrat"${cat.macroType === 'kohlenhydrat' ? ' selected' : ''}>Kohlenhydrat</option>
+        <option value="protein"${cat.macroType === 'protein' ? ' selected' : ''}>Protein</option>
+        <option value="fett"${cat.macroType === 'fett' ? ' selected' : ''}>Fett</option>
+      </select>
+    </div>
+    <div class="tax-planning-field">
+      <label>Diversität (g/Pers./Tag)</label>
+      <input type="number" class="tax-diversity-input" value="${cat.diversityFloorGramsPerPersonDay ?? ''}" placeholder="z.B. 50">
+    </div>
+  `;
+  body.appendChild(planningRow);
+
+  planningRow.querySelector('.tax-kcal-input').addEventListener('change', (e) => {
+    if (e.target.value === '') delete cat.kcalPerKg;
+    else cat.kcalPerKg = Number(e.target.value);
+    saveTaxonomy();
+  });
+  planningRow.querySelector('.tax-macro-select').addEventListener('change', (e) => {
+    if (e.target.value === '') delete cat.macroType;
+    else cat.macroType = e.target.value;
+    saveTaxonomy();
+  });
+  planningRow.querySelector('.tax-diversity-input').addEventListener('change', (e) => {
+    if (e.target.value === '') delete cat.diversityFloorGramsPerPersonDay;
+    else cat.diversityFloorGramsPerPersonDay = Number(e.target.value);
+    saveTaxonomy();
   });
 
   const subList = document.createElement('div');

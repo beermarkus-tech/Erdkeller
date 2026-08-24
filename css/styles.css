@@ -475,6 +475,37 @@ nav.bottomnav button .icon {
   margin-top: 6px;
 }
 
+/* Optional Planung fields on a category (SPEC.md Section 7) */
+.tax-planning-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 0 4px;
+}
+
+.tax-planning-field {
+  flex: 1;
+  min-width: 110px;
+}
+
+.tax-planning-field label {
+  display: block;
+  font-size: 11px;
+  color: #6b6a5f;
+  margin-bottom: 4px;
+}
+
+.tax-planning-field input,
+.tax-planning-field select {
+  width: 100%;
+  border: 1px solid var(--stone-dark);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  box-sizing: border-box;
+}
+
 .tax-sub-row {
   display: flex;
   align-items: center;
