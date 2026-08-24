@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=42';
+import { db } from './firebase-init.js?v=43';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -260,7 +260,7 @@ function renderCategory(type, cat) {
   planningToggle.className = 'tax-planning-toggle';
   planningToggle.innerHTML = `
     <input type="checkbox" class="tax-planning-checkbox"${planningEnabled.has(cat.id) ? ' checked' : ''}>
-    Für Vorratsplanung berücksichtigen (Kalorien/Diversität)
+    Für Vorratsplanung berücksichtigen
   `;
   body.appendChild(planningToggle);
 
