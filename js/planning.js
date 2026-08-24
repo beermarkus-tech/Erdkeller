@@ -4,7 +4,7 @@
 // per-category/subcategory split lives in Ziele (js/targets.js), which
 // reads /config/household and /config/planning directly and recomputes
 // live — there is deliberately no "apply" step here.
-import { db } from './firebase-init.js?v=54';
+import { db } from './firebase-init.js?v=55';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const planningCard = document.querySelector('.settings-card[data-target="planning"]');

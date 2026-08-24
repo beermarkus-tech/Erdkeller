@@ -1,10 +1,11 @@
-import { db } from './firebase-init.js?v=54';
-import { PALETTE } from './year-colors.js?v=54';
+import { db } from './firebase-init.js?v=55';
+import { PALETTE } from './year-colors.js?v=55';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const stocktableCard = document.querySelector('.settings-card[data-target="stocktable"]');
+const settingsPanelStocktable = document.getElementById('settings-panel-stocktable');
 
 const selectModeBtn = document.getElementById('table-select-mode-btn');
 const searchInput = document.getElementById('table-search-input');
@@ -362,6 +363,10 @@ bulkDeleteBtn.addEventListener('click', async () => {
     allBatches = allBatches.filter((b) => !selectedIds.has(b.id));
     selectedIds.clear();
     renderRows();
+    // Einlagern/Entnehmen (stock-checkin.js/stock-checkout.js) each keep
+    // their own read cache — without this they wouldn't see this change
+    // until a manual refresh or full reload.
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     alert('Löschen fehlgeschlagen: ' + err.message);
     console.error(err);
@@ -458,6 +463,7 @@ editSaveBtn.addEventListener('click', async () => {
     }
 
     closeEdit();
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     alert('Speichern fehlgeschlagen: ' + err.message);
     console.error(err);
@@ -473,6 +479,7 @@ editDeleteBtn.addEventListener('click', async () => {
     await deleteDoc(doc(db, 'stockItems', editingBatch.id));
     allBatches = allBatches.filter((b) => b.id !== editingBatch.id);
     closeEdit();
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     alert('Löschen fehlgeschlagen: ' + err.message);
     console.error(err);
@@ -565,4 +572,10 @@ stocktableCard.addEventListener('click', () => {
 });
 
 window.addEventListener('erdkeller:signedin', () => loadConfig());
-window.addEventListener('erdkeller:refresh', () => loadConfig());
+window.addEventListener('erdkeller:refresh', async () => {
+  await loadConfig();
+  // If Bestandsliste is already open when a refresh fires (e.g. a checkin/
+  // checkout elsewhere in this session), reflect the fresh data immediately
+  // instead of only updating the in-memory cache silently.
+  if (!settingsPanelStocktable.classList.contains('hidden')) renderRows();
+});

@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=54';
-import { PALETTE } from './year-colors.js?v=54';
-import { renderRecentLog } from './stock-log.js?v=54';
-import { renderResultLines } from './format-batch.js?v=54';
+import { db } from './firebase-init.js?v=55';
+import { PALETTE } from './year-colors.js?v=55';
+import { renderRecentLog } from './stock-log.js?v=55';
+import { renderResultLines } from './format-batch.js?v=55';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -472,6 +472,10 @@ confirmBtn.addEventListener('click', async () => {
     goToStep('success');
     showUndoToast(`Entnommen: ${productName(batch.productId)}`);
     renderRecentLog(recentLogEl);
+    // Bestandsliste (stock-table.js) and Einlagern (stock-checkin.js) each
+    // keep their own read cache of stockItems — without this they wouldn't
+    // see this change until a manual refresh or full reload.
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     alert('Fehler beim Entnehmen: ' + err.message);
     console.error(err);
@@ -517,6 +521,7 @@ undoBtn.addEventListener('click', async () => {
     if (idx >= 0) allBatches[idx] = { id: idToRestore, ...dataToRestore };
     else allBatches.push({ id: idToRestore, ...dataToRestore });
     if (logIdToDelete) await deleteDoc(doc(db, 'stockLog', logIdToDelete));
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     alert('Rückgängig fehlgeschlagen: ' + err.message);
     console.error(err);

@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=54';
-import { renderRecentLog } from './stock-log.js?v=54';
-import { renderResultLines } from './format-batch.js?v=54';
+import { db } from './firebase-init.js?v=55';
+import { renderRecentLog } from './stock-log.js?v=55';
+import { renderResultLines } from './format-batch.js?v=55';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -564,6 +564,10 @@ checkinConfirmBtn.addEventListener('click', async () => {
     goToStep('success');
     showUndoToast(`Eingelagert: ${selection.product.name}`);
     renderRecentLog(recentLogEl);
+    // Bestandsliste (stock-table.js) and Entnehmen (stock-checkout.js) each
+    // keep their own read cache of stockItems/products — without this they
+    // wouldn't see this batch until a manual refresh or full reload.
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     alert('Fehler beim Einlagern: ' + err.message);
     console.error(err);
@@ -603,6 +607,7 @@ undoBtn.addEventListener('click', async () => {
   try {
     await deleteDoc(doc(db, 'stockItems', idToDelete));
     if (logIdToDelete) await deleteDoc(doc(db, 'stockLog', logIdToDelete));
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     alert('Rückgängig fehlgeschlagen: ' + err.message);
     console.error(err);
