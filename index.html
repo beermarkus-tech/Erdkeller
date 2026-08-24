@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=46">
+<link rel="manifest" href="manifest.json?v=47">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=46">
+<link rel="stylesheet" href="css/styles.css?v=47">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 46</div>
+<div id="build-tag" class="build-tag">Build 47</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -288,6 +288,11 @@
           <div class="sc-text"><div class="sc-title">Ziele</div><div class="sc-sub">Zielmengen je Typ/Kategorie/Produkt</div></div>
           <span class="chev">›</span>
         </div>
+        <div class="settings-card" data-target="planning">
+          <span class="sym">🧮</span>
+          <div class="sc-text"><div class="sc-title">Planung</div><div class="sc-sub">Haushalt, Autonomie &amp; Vorschläge</div></div>
+          <span class="chev">›</span>
+        </div>
         <div class="settings-card" data-target="export">
           <span class="sym">📤</span>
           <div class="sc-text"><div class="sc-title">Export</div><div class="sc-sub">PDF &amp; CSV — Schritt 15/19</div></div>
@@ -516,6 +521,54 @@
         </div>
       </div>
 
+      <div class="settings-panel hidden" id="settings-panel-planning">
+        <div class="sticky-panel-header">
+          <div class="panel-header-row">
+            <button class="panel-back-btn" data-back type="button">‹ Planung</button>
+          </div>
+        </div>
+
+        <div class="section-label">Haushalt</div>
+        <div id="household-list"></div>
+        <button class="add-row-btn" id="add-household-member-btn">+ Person hinzufügen</button>
+        <p class="settings-note">Richtwerte pro Tag: Kind ~1200–1800 kcal, Teenager ~2000–2200 kcal, Erwachsener ~2000–2500 kcal — bei hoher körperlicher Aktivität höher ansetzen.</p>
+
+        <div class="section-label">Autonomie &amp; Makros</div>
+        <div class="form-group">
+          <label>Autonomiedauer (Tage)</label>
+          <input type="number" id="planning-autonomy-days" placeholder="z.B. 90">
+        </div>
+        <div class="tax-planning-row">
+          <div class="tax-planning-field">
+            <label>Kohlenhydrate %</label>
+            <input type="number" id="planning-macro-kohlenhydrat">
+          </div>
+          <div class="tax-planning-field">
+            <label>Protein %</label>
+            <input type="number" id="planning-macro-protein">
+          </div>
+          <div class="tax-planning-field">
+            <label>Fett %</label>
+            <input type="number" id="planning-macro-fett">
+          </div>
+        </div>
+
+        <div class="section-label">Wasser</div>
+        <div class="form-group">
+          <label>Liter pro Person/Tag</label>
+          <input type="number" step="0.1" id="planning-water-rate">
+        </div>
+        <div class="form-group">
+          <label>Wasser-Kategorie</label>
+          <select id="planning-water-category"></select>
+        </div>
+
+        <p id="planning-status" class="taxonomy-status"></p>
+
+        <div class="section-label">Vorschläge</div>
+        <div id="planning-suggestions"></div>
+      </div>
+
       <div class="settings-panel hidden" id="settings-panel-export">
         <div class="sticky-panel-header">
           <div class="panel-header-row">
@@ -544,20 +597,21 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=46"></script>
-<script type="module" src="js/auth.js?v=46"></script>
-<script type="module" src="js/app-shell.js?v=46"></script>
-<script type="module" src="js/account-menu.js?v=46"></script>
-<script type="module" src="js/refresh-button.js?v=46"></script>
-<script type="module" src="js/settings-nav.js?v=46"></script>
-<script type="module" src="js/data-tabs.js?v=46"></script>
-<script type="module" src="js/taxonomy.js?v=46"></script>
-<script type="module" src="js/storage-locations.js?v=46"></script>
-<script type="module" src="js/year-colors.js?v=46"></script>
-<script type="module" src="js/stock-checkin.js?v=46"></script>
-<script type="module" src="js/stock-checkout.js?v=46"></script>
-<script type="module" src="js/stock-table.js?v=46"></script>
-<script type="module" src="js/targets.js?v=46"></script>
-<script type="module" src="js/admin-log.js?v=46"></script>
+<script src="js/app.js?v=47"></script>
+<script type="module" src="js/auth.js?v=47"></script>
+<script type="module" src="js/app-shell.js?v=47"></script>
+<script type="module" src="js/account-menu.js?v=47"></script>
+<script type="module" src="js/refresh-button.js?v=47"></script>
+<script type="module" src="js/settings-nav.js?v=47"></script>
+<script type="module" src="js/data-tabs.js?v=47"></script>
+<script type="module" src="js/taxonomy.js?v=47"></script>
+<script type="module" src="js/storage-locations.js?v=47"></script>
+<script type="module" src="js/year-colors.js?v=47"></script>
+<script type="module" src="js/stock-checkin.js?v=47"></script>
+<script type="module" src="js/stock-checkout.js?v=47"></script>
+<script type="module" src="js/stock-table.js?v=47"></script>
+<script type="module" src="js/targets.js?v=47"></script>
+<script type="module" src="js/planning.js?v=47"></script>
+<script type="module" src="js/admin-log.js?v=47"></script>
 </body>
 </html>

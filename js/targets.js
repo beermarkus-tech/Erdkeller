@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=46';
+import { db } from './firebase-init.js?v=47';
 import {
   doc, getDoc, setDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -35,6 +35,13 @@ let productIndex = new Map();
 let targets = { types: {}, categories: {}, subcategories: {}, products: {} };
 let loadOk = false;
 
+// Defaults for the Personen×Tage fields, sourced from Settings → Planung
+// (js/planning.js) — household member count and the configured autonomy
+// duration. Only used to pre-fill new/unset targets, never overwrites a
+// target that already has its own saved people/days values.
+let defaultPeopleCount = null;
+let defaultAutonomyDays = null;
+
 const openTypes = new Set();
 const openCats = new Set();
 
@@ -45,10 +52,12 @@ let pendingMode = 'flat';
 
 async function loadAll() {
   try {
-    const [taxSnap, targetsSnap, productsSnap] = await Promise.all([
+    const [taxSnap, targetsSnap, productsSnap, householdSnap, planningSnap] = await Promise.all([
       getDoc(doc(db, 'config', 'taxonomy')),
       getDoc(doc(db, 'config', 'targets')),
       getDocs(collection(db, 'products')),
+      getDoc(doc(db, 'config', 'household')),
+      getDoc(doc(db, 'config', 'planning')),
     ]);
     taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
     const t = targetsSnap.exists() ? targetsSnap.data() : {};
@@ -60,6 +69,9 @@ async function loadAll() {
     };
     allProducts = productsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     productIndex = new Map(allProducts.map((p) => [p.id, p]));
+    const householdMembers = householdSnap.exists() && Array.isArray(householdSnap.data().members) ? householdSnap.data().members : [];
+    defaultPeopleCount = householdMembers.length || null;
+    defaultAutonomyDays = planningSnap.exists() ? (planningSnap.data().autonomyDays ?? null) : null;
     loadOk = true;
   } catch (err) {
     loadOk = false;
@@ -302,8 +314,12 @@ function openEdit(level, id, label, unit) {
 
   flatInput.value = target && target.mode === 'flat' ? target.amount : '';
   rateInput.value = target && target.mode === 'peopleDuration' ? target.ratePerPersonDay : '';
-  peopleInput.value = target && target.mode === 'peopleDuration' ? target.people : '';
-  daysInput.value = target && target.mode === 'peopleDuration' ? target.days : '';
+  // Pre-fill Personen/Tage from Settings → Planung (household size / autonomy
+  // duration) whenever this target has no saved value of its own yet — lets
+  // switching to "Personen × Tage" mode start from a sensible default
+  // instead of blank fields.
+  peopleInput.value = target && target.mode === 'peopleDuration' ? target.people : (defaultPeopleCount ?? '');
+  daysInput.value = target && target.mode === 'peopleDuration' ? target.days : (defaultAutonomyDays ?? '');
   updateComputedNote();
 
   editModal.classList.add('show');
