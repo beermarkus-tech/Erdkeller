@@ -1275,6 +1275,12 @@ nav.bottomnav button .icon {
 }
 
 /* Step 9: admin stock table */
+.tax-expand-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
 .select-mode-btn {
   border: 1px solid var(--stone-dark);
   background: white;

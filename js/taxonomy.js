@@ -1,8 +1,10 @@
-import { db } from './firebase-init.js?v=44';
+import { db } from './firebase-init.js?v=45';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
 const addTypeBtn = document.getElementById('add-type-btn');
+const expandAllBtn = document.getElementById('expand-all-btn');
+const collapseAllBtn = document.getElementById('collapse-all-btn');
 const statusEl = document.getElementById('taxonomy-status');
 const ref = doc(db, 'config', 'taxonomy');
 
@@ -377,6 +379,20 @@ addTypeBtn.addEventListener('click', () => {
   saveTaxonomy();
   render();
   focusNewName(type.id);
+});
+
+expandAllBtn.addEventListener('click', () => {
+  taxonomy.types.forEach((type) => {
+    openTypes.add(type.id);
+    (type.categories || []).forEach((cat) => openCats.add(cat.id));
+  });
+  render();
+});
+
+collapseAllBtn.addEventListener('click', () => {
+  openTypes.clear();
+  openCats.clear();
+  render();
 });
 
 // Wait for auth to actually resolve before reading /config/taxonomy — the
