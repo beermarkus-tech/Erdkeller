@@ -476,6 +476,23 @@ nav.bottomnav button .icon {
 }
 
 /* Optional Planung fields on a category (SPEC.md Section 7) */
+.tax-planning-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 0;
+  font-size: 13px;
+  color: #4a4940;
+  cursor: pointer;
+}
+
+.tax-planning-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cellar);
+  flex-shrink: 0;
+}
+
 .tax-planning-row {
   display: flex;
   gap: 10px;

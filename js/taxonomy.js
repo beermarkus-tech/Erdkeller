@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=41';
+import { db } from './firebase-init.js?v=42';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -9,6 +9,7 @@ const ref = doc(db, 'config', 'taxonomy');
 let taxonomy = { types: [] };
 const openTypes = new Set(); // UI-only expand/collapse state, not persisted
 const openCats = new Set(); // same, one level down (category → subcategories)
+const planningEnabled = new Set(); // category IDs with the Planung checkbox on — UI-only, not persisted
 
 // Tracks whether the in-memory `taxonomy` object actually reflects what's
 // in Firestore. This is the fix for a real data-loss bug: a prior version
@@ -242,47 +243,81 @@ function renderCategory(type, cat) {
 
   // Optional Planung fields (SPEC.md Section 7) — kcal/kg + macro type
   // feed the calorie calculator, diversity floor is a separate per-person
-  // minimum stock guarantee. All three left unset = category doesn't
-  // participate in either, which is the normal case (Medizin, produce
-  // governed by the diversity floor instead, etc.).
-  const planningRow = document.createElement('div');
-  planningRow.className = 'tax-planning-row';
-  planningRow.innerHTML = `
-    <div class="tax-planning-field">
-      <label>kcal/kg</label>
-      <input type="number" class="tax-kcal-input" value="${cat.kcalPerKg ?? ''}" placeholder="z.B. 7000">
-    </div>
-    <div class="tax-planning-field">
-      <label>Makro</label>
-      <select class="tax-macro-select">
-        <option value=""${!cat.macroType ? ' selected' : ''}>–</option>
-        <option value="kohlenhydrat"${cat.macroType === 'kohlenhydrat' ? ' selected' : ''}>Kohlenhydrat</option>
-        <option value="protein"${cat.macroType === 'protein' ? ' selected' : ''}>Protein</option>
-        <option value="fett"${cat.macroType === 'fett' ? ' selected' : ''}>Fett</option>
-      </select>
-    </div>
-    <div class="tax-planning-field">
-      <label>Diversität (g/Pers./Tag)</label>
-      <input type="number" class="tax-diversity-input" value="${cat.diversityFloorGramsPerPersonDay ?? ''}" placeholder="z.B. 50">
-    </div>
-  `;
-  body.appendChild(planningRow);
+  // minimum stock guarantee. Gated behind one checkbox rather than shown
+  // unconditionally: most categories (Werkzeug, Medizin, ...) have no
+  // sensible kcal/kg at all, so the default is fields hidden entirely, not
+  // just empty. Checking the box only reveals the fields — the two groups
+  // (kcal/macro vs. diversity floor) stay independently optional within
+  // it, matching produce categories that only ever set the diversity
+  // floor. `planningEnabled` is UI-only state (like openTypes/openCats
+  // above it), not persisted — re-derived from whether any of the three
+  // fields already has data whenever a category is first rendered.
+  if (cat.kcalPerKg != null || cat.macroType || cat.diversityFloorGramsPerPersonDay != null) {
+    planningEnabled.add(cat.id);
+  }
 
-  planningRow.querySelector('.tax-kcal-input').addEventListener('change', (e) => {
-    if (e.target.value === '') delete cat.kcalPerKg;
-    else cat.kcalPerKg = Number(e.target.value);
-    saveTaxonomy();
+  const planningToggle = document.createElement('label');
+  planningToggle.className = 'tax-planning-toggle';
+  planningToggle.innerHTML = `
+    <input type="checkbox" class="tax-planning-checkbox"${planningEnabled.has(cat.id) ? ' checked' : ''}>
+    Für Vorratsplanung berücksichtigen (Kalorien/Diversität)
+  `;
+  body.appendChild(planningToggle);
+
+  planningToggle.querySelector('.tax-planning-checkbox').addEventListener('change', (e) => {
+    if (e.target.checked) {
+      planningEnabled.add(cat.id);
+      render();
+    } else {
+      planningEnabled.delete(cat.id);
+      delete cat.kcalPerKg;
+      delete cat.macroType;
+      delete cat.diversityFloorGramsPerPersonDay;
+      saveTaxonomy();
+      render();
+    }
   });
-  planningRow.querySelector('.tax-macro-select').addEventListener('change', (e) => {
-    if (e.target.value === '') delete cat.macroType;
-    else cat.macroType = e.target.value;
-    saveTaxonomy();
-  });
-  planningRow.querySelector('.tax-diversity-input').addEventListener('change', (e) => {
-    if (e.target.value === '') delete cat.diversityFloorGramsPerPersonDay;
-    else cat.diversityFloorGramsPerPersonDay = Number(e.target.value);
-    saveTaxonomy();
-  });
+
+  if (planningEnabled.has(cat.id)) {
+    const planningRow = document.createElement('div');
+    planningRow.className = 'tax-planning-row';
+    planningRow.innerHTML = `
+      <div class="tax-planning-field">
+        <label>kcal/kg</label>
+        <input type="number" class="tax-kcal-input" value="${cat.kcalPerKg ?? ''}" placeholder="z.B. 7000">
+      </div>
+      <div class="tax-planning-field">
+        <label>Makro</label>
+        <select class="tax-macro-select">
+          <option value=""${!cat.macroType ? ' selected' : ''}>–</option>
+          <option value="kohlenhydrat"${cat.macroType === 'kohlenhydrat' ? ' selected' : ''}>Kohlenhydrat</option>
+          <option value="protein"${cat.macroType === 'protein' ? ' selected' : ''}>Protein</option>
+          <option value="fett"${cat.macroType === 'fett' ? ' selected' : ''}>Fett</option>
+        </select>
+      </div>
+      <div class="tax-planning-field">
+        <label>Diversität (g/Pers./Tag)</label>
+        <input type="number" class="tax-diversity-input" value="${cat.diversityFloorGramsPerPersonDay ?? ''}" placeholder="z.B. 50">
+      </div>
+    `;
+    body.appendChild(planningRow);
+
+    planningRow.querySelector('.tax-kcal-input').addEventListener('change', (e) => {
+      if (e.target.value === '') delete cat.kcalPerKg;
+      else cat.kcalPerKg = Number(e.target.value);
+      saveTaxonomy();
+    });
+    planningRow.querySelector('.tax-macro-select').addEventListener('change', (e) => {
+      if (e.target.value === '') delete cat.macroType;
+      else cat.macroType = e.target.value;
+      saveTaxonomy();
+    });
+    planningRow.querySelector('.tax-diversity-input').addEventListener('change', (e) => {
+      if (e.target.value === '') delete cat.diversityFloorGramsPerPersonDay;
+      else cat.diversityFloorGramsPerPersonDay = Number(e.target.value);
+      saveTaxonomy();
+    });
+  }
 
   const subList = document.createElement('div');
   subList.className = 'tax-sub-list';
