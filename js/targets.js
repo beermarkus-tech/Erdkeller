@@ -15,7 +15,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=53';
+import { db } from './firebase-init.js?v=54';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -476,13 +476,17 @@ function renderSplitGroup(items, splitMap, groupIds, onStep, showStepper) {
 function renderSubSplitGroup(cat, source) {
   const subIds = (cat.subcategories || []).map((s) => s.id);
   if (source.kg == null) {
-    const items = cat.subcategories.map((sub) => ({ id: sub.id, name: sub.name, formatted: '– Daten unvollständig' }));
+    const items = cat.subcategories.map((sub) => ({
+      id: sub.id, name: sub.name, sym: sub.sym, formatted: '– Daten unvollständig',
+    }));
     return renderSplitGroup(items, {}, subIds, () => {}, false);
   }
   const split = getSubSplit(cat.id, subIds);
   const items = cat.subcategories.map((sub) => {
     const kg = (source.kg * (split[sub.id] || 0)) / 100;
-    return { id: sub.id, name: sub.name, formatted: formatComputedAmount(kg, cat) };
+    return {
+      id: sub.id, name: sub.name, sym: sub.sym, formatted: formatComputedAmount(kg, cat),
+    };
   });
   return renderSplitGroup(items, split, subIds, (id, delta) => {
     targets.subSplits[cat.id] = stepSplit({ ...split }, subIds, id, delta);
@@ -615,7 +619,17 @@ function renderSubcategoryGroupFor(type, cat) {
   const frag = document.createDocumentFragment();
   const header = document.createElement('div');
   header.className = 'targets-subgroup-label';
-  header.textContent = cat.name;
+  // The parent category's own total, so the split below reads as "X kg
+  // divided into these subcategories" rather than a bare name — computed
+  // categories show their live figure, manual ones show whatever target
+  // is set on the category itself (if any).
+  let totalText = null;
+  if (source.kind !== 'off') {
+    totalText = source.kg != null ? formatComputedAmount(source.kg, cat) : 'Daten unvollständig';
+  } else if (targets.categories[cat.id]) {
+    totalText = formatTargetLabel(targets.categories[cat.id]);
+  }
+  header.textContent = totalText ? `${cat.name} — ${totalText}` : cat.name;
   frag.appendChild(header);
 
   if (source.kind === 'off') {
