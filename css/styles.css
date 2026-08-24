@@ -1953,7 +1953,8 @@ nav.bottomnav button .icon {
   border: 1px solid var(--stone-dark);
   border-radius: var(--radius);
   margin-bottom: 8px;
-  overflow: hidden;
+  /* No overflow:hidden here — see .tax-type above; it blocks touch-scroll
+     gesture propagation to the scrolling <main> ancestor on Android Chrome. */
 }
 
 .dash-cat-head {
@@ -2056,6 +2057,9 @@ nav.bottomnav button .icon {
   display: none;
   border-top: 1px solid var(--stone-dark);
   background: var(--paper);
+  /* Matches .dash-cat-card's own radius so its bottom corners stay flush
+     now that the card no longer clips via overflow:hidden (see above). */
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .dash-cat-card.open .dash-sub-list {

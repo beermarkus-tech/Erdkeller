@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=56';
-import { renderRecentLog } from './stock-log.js?v=56';
-import { renderResultLines } from './format-batch.js?v=56';
+import { db } from './firebase-init.js?v=57';
+import { renderRecentLog } from './stock-log.js?v=57';
+import { renderResultLines } from './format-batch.js?v=57';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
