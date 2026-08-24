@@ -1,5 +1,5 @@
-import { db } from './firebase-init.js?v=55';
-import { PALETTE } from './year-colors.js?v=55';
+import { db } from './firebase-init.js?v=56';
+import { PALETTE } from './year-colors.js?v=56';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -9,6 +9,9 @@ const settingsPanelStocktable = document.getElementById('settings-panel-stocktab
 
 const selectModeBtn = document.getElementById('table-select-mode-btn');
 const searchInput = document.getElementById('table-search-input');
+const subcatFilterBanner = document.getElementById('table-subcat-filter-banner');
+const subcatFilterLabel = document.getElementById('table-subcat-filter-label');
+const subcatFilterClearBtn = document.getElementById('table-subcat-filter-clear');
 const typeFilterRow = document.getElementById('table-type-filters');
 const categoryFilterRow = document.getElementById('table-category-filters');
 const storageFilterRow = document.getElementById('table-storage-filters');
@@ -64,6 +67,12 @@ let allBatches = [];
 let productIndex = new Map();
 
 let searchText = '';
+// Set only via openFilteredBySubcategory (a tap-through from Übersicht,
+// Step 10) — matched by subcategoryId via the product, never by the
+// batch's own denormalized subcategory name string, so a rename in
+// Taxonomie can't silently break it.
+let activeSubcategoryFilter = null;
+let activeSubcategoryFilterName = '';
 let selectedTypes = new Set();
 let selectedCategories = new Set();
 let selectedStorages = new Set();
@@ -175,6 +184,10 @@ function compareBatches(a, b) {
 function filteredBatches() {
   const q = searchText.trim().toLowerCase();
   return allBatches.filter((b) => {
+    if (activeSubcategoryFilter) {
+      const product = productIndex.get(b.productId);
+      if (!product || product.subcategoryId !== activeSubcategoryFilter) return false;
+    }
     if (selectedTypes.size && !selectedTypes.has(b.type)) return false;
     if (selectedCategories.size && !selectedCategories.has(b.category)) return false;
     if (selectedStorages.size && !selectedStorages.has(b.storage)) return false;
@@ -310,7 +323,24 @@ function renderRow(batch) {
   return row;
 }
 
+function renderSubcatFilterBanner() {
+  if (activeSubcategoryFilter) {
+    subcatFilterLabel.textContent = `Unterkategorie: ${activeSubcategoryFilterName}`;
+    subcatFilterBanner.classList.remove('hidden');
+  } else {
+    subcatFilterBanner.classList.add('hidden');
+  }
+}
+
+subcatFilterClearBtn.addEventListener('click', () => {
+  activeSubcategoryFilter = null;
+  activeSubcategoryFilterName = '';
+  renderSubcatFilterBanner();
+  renderRows();
+});
+
 function renderRows() {
+  renderSubcatFilterBanner();
   rowListEl.innerHTML = '';
   const rows = filteredBatches().sort(compareBatches);
   if (rows.length === 0) {
@@ -565,11 +595,25 @@ stocktableCard.addEventListener('click', () => {
   selectedIds.clear();
   selectModeBtn.classList.remove('active');
   selectModeBtn.textContent = 'Auswählen';
+  activeSubcategoryFilter = null;
+  activeSubcategoryFilterName = '';
   closeEdit();
   renderFilters();
   renderSortBar();
   renderRows();
 });
+
+// Tap-through from Übersicht (Step 10, js/dashboard.js): reuses the same
+// nav-btn/settings-card click handlers a real tap would trigger — that's
+// what actually switches to the Admin tab and opens this panel — then
+// layers the subcategory filter on top once it's open.
+export function openFilteredBySubcategory(subcategoryId, subcategoryName) {
+  document.querySelector('.nav-btn[data-tab="settings"]').click();
+  stocktableCard.click();
+  activeSubcategoryFilter = subcategoryId;
+  activeSubcategoryFilterName = subcategoryName;
+  renderRows();
+}
 
 window.addEventListener('erdkeller:signedin', () => loadConfig());
 window.addEventListener('erdkeller:refresh', async () => {

@@ -1548,6 +1548,30 @@ nav.bottomnav button .icon {
   border-color: var(--cellar);
 }
 
+/* Bestandsliste opened via a subcategory tap from Übersicht (Step 10) —
+   shows what it's filtered to and lets you clear back to the full list. */
+.subcat-filter-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--ok-bg);
+  color: var(--ok);
+  border-radius: 10px;
+  padding: 8px 10px 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.subcat-filter-banner button {
+  background: none;
+  border: none;
+  color: var(--ok);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
 .filter-section {
   margin-bottom: 14px;
 }
@@ -1852,3 +1876,289 @@ nav.bottomnav button .icon {
     top: var(--tablet-header-stack, 56px);
   }
 }
+
+/* --- Übersicht / Dashboard (Step 10) -------------------------------------- */
+
+#dash-unit-toggle {
+  margin-bottom: 18px;
+}
+
+.dash-hero {
+  background: var(--cellar);
+  color: var(--paper);
+  border-radius: 18px;
+  padding: 20px 20px 18px;
+  margin-bottom: 22px;
+}
+
+.dash-hero-label {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #B9C6BB;
+  margin-bottom: 6px;
+}
+
+.dash-hero-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.dash-hero-current {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-hero-target {
+  font-size: 14px;
+  color: #B9C6BB;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-hero-bar-track {
+  height: 8px;
+  background: rgba(244, 242, 234, 0.18);
+  border-radius: 5px;
+  overflow: hidden;
+  margin: 12px 0 10px;
+}
+
+.dash-hero-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  background: #8FBF97;
+  transition: width 0.4s ease;
+}
+
+.dash-hero-meta {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #D8DFD3;
+}
+
+.dash-hero-meta b {
+  color: var(--paper);
+}
+
+.dash-cat-card {
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.dash-cat-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dash-cat-sym {
+  font-size: 20px;
+  flex-shrink: 0;
+  width: 26px;
+  text-align: center;
+}
+
+.dash-cat-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-cat-name {
+  font-weight: 600;
+  font-size: 14.5px;
+  margin-bottom: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-cat-bar-track {
+  height: 6px;
+  background: var(--stone);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dash-cat-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.dash-cat-bar-fill.ok { background: var(--ok); }
+.dash-cat-bar-fill.warn { background: var(--warn); }
+.dash-cat-bar-fill.danger { background: var(--danger); }
+
+.dash-cat-figures {
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-cat-current {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.dash-cat-current.ok { color: var(--ok); }
+.dash-cat-current.warn { color: var(--warn); }
+.dash-cat-current.danger { color: var(--danger); }
+
+.dash-cat-target {
+  font-size: 11.5px;
+  color: #6b6a5f;
+}
+
+.dash-cat-chevron {
+  flex-shrink: 0;
+  color: #6b6a5f;
+  font-size: 13px;
+  width: 14px;
+  text-align: center;
+  transition: transform 0.2s ease;
+}
+
+.dash-cat-card.open .dash-cat-chevron {
+  transform: rotate(180deg);
+}
+
+.dash-cat-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 14px 11px;
+  margin-top: -4px;
+}
+
+.dash-coverage-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+.dash-coverage-chip.ok { background: var(--ok-bg); color: var(--ok); }
+.dash-coverage-chip.warn { background: var(--warn-bg); color: var(--warn); }
+.dash-coverage-chip.danger { background: var(--danger-bg); color: var(--danger); }
+
+.dash-sub-list {
+  display: none;
+  border-top: 1px solid var(--stone-dark);
+  background: var(--paper);
+}
+
+.dash-cat-card.open .dash-sub-list {
+  display: block;
+}
+
+.dash-sub-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 10px 18px;
+  border-top: 1px solid var(--stone-dark);
+}
+
+.dash-sub-row:first-child {
+  border-top: none;
+}
+
+.dash-sub-row.tappable {
+  cursor: pointer;
+}
+
+.dash-sub-row.tappable:active {
+  background: var(--stone);
+}
+
+.dash-sub-sym {
+  font-size: 15px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.dash-sub-name {
+  flex: 1;
+  font-size: 13px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-sub-bar-track {
+  width: 48px;
+  height: 5px;
+  background: var(--stone);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.dash-sub-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+.dash-sub-bar-fill.ok { background: var(--ok); }
+.dash-sub-bar-fill.warn { background: var(--warn); }
+.dash-sub-bar-fill.danger { background: var(--danger); }
+.dash-sub-bar-fill.none { background: var(--stone-dark); }
+
+.dash-sub-figures {
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  min-width: 56px;
+}
+
+.dash-sub-current {
+  font-weight: 700;
+}
+.dash-sub-current.ok { color: var(--ok); }
+.dash-sub-current.warn { color: var(--warn); }
+.dash-sub-current.danger { color: var(--danger); }
+.dash-sub-current.none { color: #6b6a5f; font-weight: 600; }
+
+.dash-sub-arrow {
+  color: #6b6a5f;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.dash-legend {
+  display: flex;
+  gap: 14px;
+  margin: 16px 2px 4px;
+  font-size: 11px;
+  color: #6b6a5f;
+}
+
+.dash-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dash-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dash-dot.ok { background: var(--ok); }
+.dash-dot.warn { background: var(--warn); }
+.dash-dot.danger { background: var(--danger); }
