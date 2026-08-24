@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=38';
-import { PALETTE } from './year-colors.js?v=38';
-import { renderRecentLog } from './stock-log.js?v=38';
-import { renderResultLines } from './format-batch.js?v=38';
+import { db } from './firebase-init.js?v=39';
+import { PALETTE } from './year-colors.js?v=39';
+import { renderRecentLog } from './stock-log.js?v=39';
+import { renderResultLines } from './format-batch.js?v=39';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -34,7 +34,6 @@ const subcategoryGrid = document.getElementById('checkout-subcategory-grid');
 const batchSearchInput = document.getElementById('checkout-batch-search');
 const batchListEl = document.getElementById('checkout-batch-list');
 
-const batchNameEl = document.getElementById('checkout-batch-name');
 const batchMetaEl = document.getElementById('checkout-batch-meta');
 const qtyNumEl = document.getElementById('checkout-qty-num');
 const qtyMinusBtn = document.getElementById('checkout-qty-minus');
@@ -405,12 +404,10 @@ globalSearchInput.addEventListener('input', () => renderGlobalSearchResults(glob
 // --- Remove step ---------------------------------------------------------
 
 function prepareRemoveStep() {
-  batchNameEl.textContent = selection.batch ? productName(selection.batch.productId) : '';
   if (selection.batch) {
     renderResultLines(batchMetaEl, {
       qty: selection.batch.quantity,
-      details: selection.batch.details,
-      content: selection.batch.content,
+      productName: productName(selection.batch.productId),
       bestBefore: selection.batch.bestBefore,
       storage: selection.batch.storage,
     });
@@ -469,8 +466,6 @@ confirmBtn.addEventListener('click', async () => {
     renderResultLines(successDetail, {
       qty: selection.removeQty,
       productName: productName(batch.productId),
-      details: batch.details,
-      content: batch.content,
       bestBefore: batch.bestBefore,
       storage: batch.storage,
     });

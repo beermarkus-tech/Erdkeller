@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=38';
-import { renderRecentLog } from './stock-log.js?v=38';
-import { renderResultLines } from './format-batch.js?v=38';
+import { db } from './firebase-init.js?v=39';
+import { renderRecentLog } from './stock-log.js?v=39';
+import { renderResultLines } from './format-batch.js?v=39';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -557,7 +557,6 @@ checkinConfirmBtn.addEventListener('click', async () => {
     renderResultLines(successDetail, {
       qty: selection.qty,
       productName: selection.product.name,
-      content: data.content,
       bestBefore: data.bestBefore,
       storage: data.storage,
     });

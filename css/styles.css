@@ -974,11 +974,6 @@ nav.bottomnav button .icon {
   text-align: center;
 }
 
-#checkout-batch-name {
-  text-align: center;
-  margin: 8px 0 20px;
-}
-
 .result-line {
   color: var(--charcoal);
   font-size: 20px;
