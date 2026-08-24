@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=47';
+import { db } from './firebase-init.js?v=48';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -12,17 +12,21 @@ let taxonomy = { types: [] };
 const openTypes = new Set(); // UI-only expand/collapse state, not persisted
 const openCats = new Set(); // same, one level down (category → subcategories)
 
-// Whether the Planung checkbox is on for a category. Persisted as its own
-// field (cat.planningEnabled) rather than derived from whether kcal/macro/
-// diversity data happens to be present — unchecking the box must not
-// delete that data, only stop the calculator from using it, so re-checking
-// later brings the same numbers straight back. Categories saved before
-// this field existed have no planningEnabled key at all; for those we
-// fall back to "any data present" so pre-existing entries don't silently
-// look unchecked/hidden the first time they're rendered under this code.
-function categoryPlanningEnabled(cat) {
-  if (cat.planningEnabled != null) return !!cat.planningEnabled;
-  return cat.kcalPerKg != null || !!cat.macroType || cat.diversityFloorGramsPerPersonDay != null;
+// Which Planung path a category is on: 'off' | 'calorie' | 'diversity'.
+// Persisted as its own field (cat.planningMode) rather than derived from
+// whether kcal/macro/diversity data happens to be present — switching
+// modes must not delete the other mode's data, only stop it from being
+// used, so switching back brings the same numbers straight back.
+// Categories saved before this field existed (or before Kalorien/
+// Diversität were split into an exclusive choice) have no planningMode key
+// at all; for those we infer from whatever data is present, preferring
+// Kalorien if a category somehow has both (pre-existing edge case from the
+// old single-checkbox model).
+function categoryPlanningMode(cat) {
+  if (cat.planningMode) return cat.planningMode;
+  if (cat.kcalPerKg != null || !!cat.macroType) return 'calorie';
+  if (cat.diversityFloorGramsPerPersonDay != null) return 'diversity';
+  return 'off';
 }
 
 // Tracks whether the in-memory `taxonomy` object actually reflects what's
@@ -255,29 +259,33 @@ function renderCategory(type, cat) {
     render();
   });
 
-  // Optional Planung fields (SPEC.md Section 7) — kcal/kg + macro type feed
-  // the calorie calculator, diversity floor is a separate per-person
-  // minimum stock guarantee. Gated behind one checkbox rather than shown
-  // unconditionally: most categories (Werkzeug, Medizin, ...) have no
-  // sensible kcal/kg at all, so the default is fields hidden entirely, not
-  // just empty. Unchecking the box only stops the calculator from using
-  // the data — it does NOT clear kcalPerKg/macroType/diversityFloor, so
-  // re-checking it brings the same numbers straight back.
-  const planningToggle = document.createElement('label');
-  planningToggle.className = 'tax-planning-toggle';
-  planningToggle.innerHTML = `
-    <input type="checkbox" class="tax-planning-checkbox"${categoryPlanningEnabled(cat) ? ' checked' : ''}>
-    Für Vorratsplanung berücksichtigen
+  // Optional Planung fields (SPEC.md Section 7) — a category picks exactly
+  // one path: Kalorien (kcal/kg + macro type, feeds the calorie/macro
+  // calculator) or Diversität (a per-person minimum stock floor for
+  // low-calorie/high-nutrition categories like produce) — never both, since
+  // in practice a category is either a macro staple or a diversity
+  // safeguard, not both at once. Switching modes never clears the other
+  // mode's stored data, only stops it from being used — flipping back
+  // brings the same numbers straight back.
+  const modeToggle = document.createElement('div');
+  modeToggle.className = 'unit-toggle tax-mode-toggle';
+  const mode = categoryPlanningMode(cat);
+  modeToggle.innerHTML = `
+    <button type="button" class="unit-btn${mode === 'off' ? ' active' : ''}" data-mode="off">Nicht genutzt</button>
+    <button type="button" class="unit-btn${mode === 'calorie' ? ' active' : ''}" data-mode="calorie">Kalorien</button>
+    <button type="button" class="unit-btn${mode === 'diversity' ? ' active' : ''}" data-mode="diversity">Diversität</button>
   `;
-  body.appendChild(planningToggle);
+  body.appendChild(modeToggle);
 
-  planningToggle.querySelector('.tax-planning-checkbox').addEventListener('change', (e) => {
-    cat.planningEnabled = e.target.checked;
-    saveTaxonomy();
-    render();
+  modeToggle.querySelectorAll('.unit-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      cat.planningMode = btn.dataset.mode;
+      saveTaxonomy();
+      render();
+    });
   });
 
-  if (categoryPlanningEnabled(cat)) {
+  if (mode === 'calorie') {
     const planningRow = document.createElement('div');
     planningRow.className = 'tax-planning-row';
     planningRow.innerHTML = `
@@ -294,10 +302,6 @@ function renderCategory(type, cat) {
           <option value="fett"${cat.macroType === 'fett' ? ' selected' : ''}>Fett</option>
         </select>
       </div>
-      <div class="tax-planning-field">
-        <label>Diversität (g/Pers./Tag)</label>
-        <input type="number" class="tax-diversity-input" value="${cat.diversityFloorGramsPerPersonDay ?? ''}" placeholder="z.B. 50">
-      </div>
     `;
     body.appendChild(planningRow);
 
@@ -311,6 +315,17 @@ function renderCategory(type, cat) {
       else cat.macroType = e.target.value;
       saveTaxonomy();
     });
+  } else if (mode === 'diversity') {
+    const planningRow = document.createElement('div');
+    planningRow.className = 'tax-planning-row';
+    planningRow.innerHTML = `
+      <div class="tax-planning-field">
+        <label>Diversität (g/Pers./Tag)</label>
+        <input type="number" class="tax-diversity-input" value="${cat.diversityFloorGramsPerPersonDay ?? ''}" placeholder="z.B. 50">
+      </div>
+    `;
+    body.appendChild(planningRow);
+
     planningRow.querySelector('.tax-diversity-input').addEventListener('change', (e) => {
       if (e.target.value === '') delete cat.diversityFloorGramsPerPersonDay;
       else cat.diversityFloorGramsPerPersonDay = Number(e.target.value);

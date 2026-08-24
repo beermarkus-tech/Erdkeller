@@ -1,10 +1,10 @@
-// Step 11c — Planung: household roster, autonomy duration, macro split and
-// water rate, and the resulting per-category kg suggestions (SPEC.md
-// Section 7). This is a calculator that feeds Ziele (js/targets.js), not a
-// live-linked source of truth — "Anwenden" on a suggestion row writes a
-// normal flat kg target into /config/targets and from then on it's just a
-// regular manually-set target.
-import { db } from './firebase-init.js?v=47';
+// Planung (SPEC.md Section 7) — household roster, autonomy duration, macro
+// split, and water rate/category. Collects the inputs and shows only the
+// resulting global numbers (kcal per macro, kg for water); the actual
+// per-category/subcategory split lives in Ziele (js/targets.js), which
+// reads /config/household and /config/planning directly and recomputes
+// live — there is deliberately no "apply" step here.
+import { db } from './firebase-init.js?v=48';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const planningCard = document.querySelector('.settings-card[data-target="planning"]');
@@ -20,7 +20,7 @@ const macroFettInput = document.getElementById('planning-macro-fett');
 const waterRateInput = document.getElementById('planning-water-rate');
 const waterCategorySelect = document.getElementById('planning-water-category');
 const statusEl = document.getElementById('planning-status');
-const suggestionsEl = document.getElementById('planning-suggestions');
+const computedEl = document.getElementById('planning-computed');
 
 const MACRO_LABELS = { kohlenhydrat: 'Kohlenhydrate', protein: 'Protein', fett: 'Fett' };
 
@@ -31,16 +31,6 @@ let loadOk = false;
 
 function genId() {
   return crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
-}
-
-// Same gating rule as js/taxonomy.js's categoryPlanningEnabled — unchecking
-// "Für Vorratsplanung berücksichtigen" on a category must stop it from
-// feeding these suggestions even though its kcal/macro/diversity data is
-// still sitting there in Firestore, ready to come back the moment it's
-// re-checked.
-function categoryPlanningEnabled(cat) {
-  if (cat.planningEnabled != null) return !!cat.planningEnabled;
-  return cat.kcalPerKg != null || !!cat.macroType || cat.diversityFloorGramsPerPersonDay != null;
 }
 
 function flatCategories() {
@@ -110,24 +100,6 @@ async function savePlanning() {
   }
 }
 
-// Applying a suggestion must never clobber a concurrent edit made in
-// js/targets.js (or another applied suggestion in the same session), so it
-// always does a fresh read-merge-write of the whole /config/targets doc
-// rather than trusting any in-memory copy.
-async function applySuggestion(categoryId, kg) {
-  try {
-    const ref = doc(db, 'config', 'targets');
-    const snap = await getDoc(ref);
-    const data = snap.exists() ? snap.data() : {};
-    const categories = { ...(data.categories || {}) };
-    categories[categoryId] = { mode: 'flat', amount: Math.round(kg * 100) / 100, unit: 'kg' };
-    await setDoc(ref, { ...data, categories });
-  } catch (err) {
-    console.error(err);
-    alert('Fehler beim Anwenden: ' + err.message);
-  }
-}
-
 // --- Household roster --------------------------------------------------
 
 function renderHousehold() {
@@ -161,7 +133,7 @@ function renderHousehold() {
     kcalInput.addEventListener('change', (e) => {
       member.kcalPerDay = e.target.value === '' ? null : Number(e.target.value);
       saveHousehold();
-      renderSuggestions();
+      renderComputedOutput();
     });
     delBtn.addEventListener('click', () => {
       if (!confirm(`"${member.name || 'Person'}" entfernen?`)) return;
@@ -219,21 +191,21 @@ function renderWaterCategoryOptions() {
   waterCategorySelect.value = current;
 }
 
-autonomyDaysInput.addEventListener('input', renderSuggestions);
+autonomyDaysInput.addEventListener('input', renderComputedOutput);
 autonomyDaysInput.addEventListener('change', () => {
   planning.autonomyDays = autonomyDaysInput.value === '' ? null : Number(autonomyDaysInput.value);
   savePlanning();
 });
 
 [['kohlenhydrat', macroKohlenhydratInput], ['protein', macroProteinInput], ['fett', macroFettInput]].forEach(([key, input]) => {
-  input.addEventListener('input', renderSuggestions);
+  input.addEventListener('input', renderComputedOutput);
   input.addEventListener('change', () => {
     planning.macroSplit[key] = input.value === '' ? null : Number(input.value);
     savePlanning();
   });
 });
 
-waterRateInput.addEventListener('input', renderSuggestions);
+waterRateInput.addEventListener('input', renderComputedOutput);
 waterRateInput.addEventListener('change', () => {
   planning.waterLitersPerPersonDay = waterRateInput.value === '' ? null : Number(waterRateInput.value);
   savePlanning();
@@ -242,10 +214,10 @@ waterRateInput.addEventListener('change', () => {
 waterCategorySelect.addEventListener('change', () => {
   planning.waterCategoryId = waterCategorySelect.value;
   savePlanning();
-  renderSuggestions();
+  renderComputedOutput();
 });
 
-// --- Suggestions ---------------------------------------------------------
+// --- Global computed output -----------------------------------------------
 
 function peopleCount() {
   return household.members.length;
@@ -271,130 +243,48 @@ function currentWaterRate() {
   return Number(waterRateInput.value) || 0;
 }
 
-function makeSuggestionRow(categoryId, title, note, kg) {
+function makeComputedRow(label, valueText) {
   const row = document.createElement('div');
-  row.className = 'suggestion-row';
-
-  const info = document.createElement('div');
-  info.className = 'suggestion-info';
-  const titleEl = document.createElement('div');
-  titleEl.className = 'suggestion-title';
-  titleEl.textContent = title;
-  const noteEl = document.createElement('div');
-  noteEl.className = 'suggestion-note';
-  noteEl.textContent = note;
-  info.appendChild(titleEl);
-  info.appendChild(noteEl);
-
-  const input = document.createElement('input');
-  input.type = 'number';
-  input.step = '0.01';
-  input.className = 'suggestion-input';
-  input.value = Math.round(kg * 100) / 100;
-
-  const applyBtn = document.createElement('button');
-  applyBtn.type = 'button';
-  applyBtn.className = 'suggestion-apply-btn';
-  applyBtn.textContent = 'Anwenden';
-  applyBtn.addEventListener('click', async () => {
-    const amount = Number(input.value);
-    if (input.value === '' || isNaN(amount)) return;
-    applyBtn.disabled = true;
-    applyBtn.textContent = '…';
-    await applySuggestion(categoryId, amount);
-    applyBtn.textContent = '✓ Übernommen';
-    setTimeout(() => {
-      applyBtn.disabled = false;
-      applyBtn.textContent = 'Anwenden';
-    }, 1500);
-  });
-
-  row.appendChild(info);
-  row.appendChild(input);
-  row.appendChild(applyBtn);
+  row.className = 'computed-row';
+  const labelEl = document.createElement('span');
+  labelEl.className = 'computed-label';
+  labelEl.textContent = label;
+  const valueEl = document.createElement('span');
+  valueEl.className = 'computed-value';
+  valueEl.textContent = valueText;
+  row.appendChild(labelEl);
+  row.appendChild(valueEl);
   return row;
 }
 
-function renderSuggestions() {
-  suggestionsEl.innerHTML = '';
+// The four global numbers this screen exists to produce — Ziele reads
+// /config/household + /config/planning directly and live-computes the same
+// values itself to split across tagged categories/subcategories, so there
+// is deliberately no "apply" action here anymore (SPEC.md Section 7).
+function renderComputedOutput() {
+  computedEl.innerHTML = '';
   const people = peopleCount();
-  if (people === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'screen-placeholder';
-    empty.textContent = 'Bitte zuerst Haushaltsmitglieder hinzufügen.';
-    suggestionsEl.appendChild(empty);
-    return;
-  }
-
   const days = currentAutonomyDays();
-  if (days <= 0) {
+  if (people === 0 || days <= 0) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
-    empty.textContent = 'Bitte eine Autonomiedauer (Tage) eingeben.';
-    suggestionsEl.appendChild(empty);
+    empty.textContent = people === 0
+      ? 'Bitte zuerst Haushaltsmitglieder hinzufügen.'
+      : 'Bitte eine Autonomiedauer (Tage) eingeben.';
+    computedEl.appendChild(empty);
     return;
   }
 
   const totalKcal = totalDailyKcal() * days;
   const split = currentMacroSplit();
-  const cats = flatCategories();
-
-  let anySection = false;
-
   ['kohlenhydrat', 'protein', 'fett'].forEach((macro) => {
-    const taggedCats = cats.filter(({ cat }) => categoryPlanningEnabled(cat) && cat.macroType === macro && cat.kcalPerKg != null);
-    if (taggedCats.length === 0) return;
-    anySection = true;
     const macroKcal = totalKcal * (split[macro] || 0) / 100;
-    const groupLabel = document.createElement('div');
-    groupLabel.className = 'section-label';
-    groupLabel.textContent = `${MACRO_LABELS[macro]} — ${Math.round(macroKcal)} kcal gesamt`;
-    suggestionsEl.appendChild(groupLabel);
-    taggedCats.forEach(({ id, name, cat }) => {
-      const kg = cat.kcalPerKg > 0 ? macroKcal / cat.kcalPerKg : 0;
-      suggestionsEl.appendChild(makeSuggestionRow(
-        id, name, `${cat.kcalPerKg} kcal/kg · als einzige Quelle für ${MACRO_LABELS[macro]}`, kg,
-      ));
-    });
+    computedEl.appendChild(makeComputedRow(MACRO_LABELS[macro], `${Math.round(macroKcal).toLocaleString('de-DE')} kcal`));
   });
 
-  const diversityCats = cats.filter(({ cat }) => categoryPlanningEnabled(cat) && cat.diversityFloorGramsPerPersonDay != null);
-  if (diversityCats.length > 0) {
-    anySection = true;
-    const groupLabel = document.createElement('div');
-    groupLabel.className = 'section-label';
-    groupLabel.textContent = 'Diversität';
-    suggestionsEl.appendChild(groupLabel);
-    diversityCats.forEach(({ id, name, cat }) => {
-      const kg = (cat.diversityFloorGramsPerPersonDay / 1000) * people * days;
-      suggestionsEl.appendChild(makeSuggestionRow(
-        id, name, `${cat.diversityFloorGramsPerPersonDay} g/Person/Tag × ${people} Personen × ${days} Tage`, kg,
-      ));
-    });
-  }
-
-  if (planning.waterCategoryId) {
-    const waterCat = cats.find((c) => c.id === planning.waterCategoryId);
-    if (waterCat) {
-      anySection = true;
-      const groupLabel = document.createElement('div');
-      groupLabel.className = 'section-label';
-      groupLabel.textContent = 'Wasser';
-      suggestionsEl.appendChild(groupLabel);
-      const rate = currentWaterRate();
-      const kg = rate * people * days;
-      suggestionsEl.appendChild(makeSuggestionRow(
-        waterCat.id, waterCat.name, `${rate} L/Person/Tag × ${people} Personen × ${days} Tage`, kg,
-      ));
-    }
-  }
-
-  if (!anySection) {
-    const empty = document.createElement('p');
-    empty.className = 'screen-placeholder';
-    empty.textContent = 'Keine Kategorien für die Vorratsplanung markiert. In der Taxonomie kcal/kg, Makro oder Diversität setzen, oder eine Wasser-Kategorie wählen.';
-    suggestionsEl.appendChild(empty);
-  }
+  const waterKg = currentWaterRate() * people * days;
+  const waterLabel = planning.waterCategoryId ? 'Wasser' : 'Wasser (keine Kategorie zugewiesen)';
+  computedEl.appendChild(makeComputedRow(waterLabel, `${Math.round(waterKg * 100) / 100} kg`));
 }
 
 // --- Entry point -----------------------------------------------------------
@@ -403,7 +293,7 @@ function render() {
   renderHousehold();
   syncPlanningFields();
   renderWaterCategoryOptions();
-  renderSuggestions();
+  renderComputedOutput();
 }
 
 planningCard.addEventListener('click', () => loadAll());

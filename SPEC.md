@@ -1,5 +1,5 @@
 # Erdkeller — Stock Management & Crisis Preparation App
-## Specification v15
+## Specification v16
 
 > **Note for implementation (e.g. Claude Code): follow the numbered build order in Section 17 ("Development Plan") — each step has its own test to pass before moving to the next. Section 18 lists the setup Markus needs to do on his side (GitHub repo, Firebase project, etc.) — some of it should happen before or during the early steps.**
 >
@@ -143,36 +143,27 @@ Firestore organizes data as **collections** (folders) of **documents** (individu
 
 ## 7. Autonomy-Based Stock Sizing (Targets Extension)
 
-A calorie- and water-driven calculator that **pre-fills the existing per-level target system** (Section 6, Settings → Targets) with suggested kg values — a calculator you review and apply, not a formula that stays live-linked to your targets afterward. Lives in its own admin Settings sub-section, **Settings → Planung**.
+Three admin Settings sub-sections form one **continuously live pipeline** — Taxonomie → Planung → Ziele — with **no manual "apply"/"commit" step anywhere**. Change a category's `kcalPerKg` in Taxonomie, or a household member's kcal in Planung, and every affected number in Ziele recomputes immediately.
 
 Everything here is deliberately approximate — the whole exercise is about getting *roughly* the right balance of calories, macros, and diversity for a given autonomy duration, not a precision nutrition tool.
 
-### Household roster
-- A separate admin-managed list of household members (`/config/household`), independent of `/users` — covers everyone who eats, including household members without their own app sign-in (e.g. children)
-- Each member: name + a **freely entered daily kcal value**. Reference ranges are shown as hints in the UI, not enforced or baked into app logic: Kind ~1200–1800, Teenager ~2000–2200, Erwachsener ~2000–2500 — adjusted upward by the admin for higher physical activity. No fixed age/activity lookup table in the app; this stays a judgment call by design.
-
-### Autonomy duration & macro split
-- Admin sets a target autonomy duration in days (`/config/planning.autonomyDays`). No hard default is enforced, but the UI should suggest **90 days** as a common starting benchmark.
-- Total kcal target = sum(household members' daily kcal) × autonomyDays
-- Macro split: adjustable percentages of that total, default **50% Kohlenhydrate / 20% Protein / 30% Fett**
-
-### Category kcal/kg + macro tagging
-- Each taxonomy **category** (Section 4/5, `/config/taxonomy`) gets two new **optional, admin-editable** fields, set directly in the existing category editor (Section 17, Step 4): `kcalPerKg` (number) and `macroType` (`kohlenhydrat` | `protein` | `fett`).
-- Categories without these fields simply don't participate in the calorie system — their targets stay purely manual. This is the expected, normal case for non-caloric categories (Medizin) and for produce categories governed by the diversity floor instead (see below).
-- **Deliberately admin-editable data, not hardcoded in app code.** The taxonomy is fully custom per household and actively evolves — matching in code by category name breaks silently on rename (which the taxonomy editor fully supports); matching by ID requires an awkward manual handshake every time the taxonomy changes. Two more optional fields on an already-editable category row is a small, consistent extension of existing functionality rather than new, more fragile architecture.
+### Taxonomie: category nutritional data
+- Each taxonomy **category** (Section 4/5, `/config/taxonomy`) has an exclusive 3-way Planung mode, set directly in the existing category editor (Section 17, Step 4): **Aus** (default — doesn't participate), **Kalorien** (`kcalPerKg` number + `macroType`: `kohlenhydrat` | `protein` | `fett`), or **Diversität** (`diversityFloorGramsPerPersonDay` number). A category is one or the other, never both — in practice a food is either a macro staple or a diversity safeguard, not both at once.
+- Switching modes never deletes the other mode's stored data, only stops it being used — switching back brings the same numbers straight back.
+- **Deliberately admin-editable data, not hardcoded in app code.** The taxonomy is fully custom per household and actively evolves — matching in code by category name breaks silently on rename (which the taxonomy editor fully supports); matching by ID requires an awkward manual handshake every time the taxonomy changes.
 
 **Suggested starting values**, worked out for Markus's actual category list (kcal/kg figures are household-planning-grade estimates, not lab values):
 
-| Category | kcal/kg | Makro |
-|---|---|---|
-| Fette, Öle & Nüsse | ~7000 | Fett |
-| Fisch, Fleisch, Eier | ~2000 | Protein |
-| Getreide & Hülsenfrüchte | ~3600 | Kohlenhydrate |
-| Milch & Milchprodukte | ~2800 | Fett |
-| Sonstiges | ~4000 | Kohlenhydrate |
-| Medizin | — | *(ausgeschlossen)* |
-| Gemüse | — | *(ausgeschlossen → Diversitäts-Mindestmenge)* |
-| Obst | — | *(ausgeschlossen → Diversitäts-Mindestmenge)* |
+| Category | Mode | kcal/kg | Makro |
+|---|---|---|---|
+| Fette, Öle & Nüsse | Kalorien | ~7000 | Fett |
+| Fisch, Fleisch, Eier | Kalorien | ~2000 | Protein |
+| Getreide & Hülsenfrüchte | Kalorien | ~3600 | Kohlenhydrate |
+| Milch & Milchprodukte | Kalorien | ~2800 | Fett |
+| Sonstiges | Kalorien | ~4000 | Kohlenhydrate |
+| Medizin | Aus | — | — |
+| Gemüse | Diversität (~50 g/Pers./Tag) | — | — |
+| Obst | Diversität (~30 g/Pers./Tag) | — | — |
 
 This assumes a small taxonomy restructuring (a data edit via the existing Step 4 editor, not a code change):
 - **Fette & Öle** → renamed **Fette, Öle & Nüsse**; "Nüsse, Kerne, Samen" moves in from Obst & Nüsse (nuts are fat-dominant, same order of magnitude as oil — folding them in loses much less accuracy than leaving them with low-density fruit)
@@ -182,19 +173,29 @@ This assumes a small taxonomy restructuring (a data edit via the existing Step 4
 
 Canned/pickled/dried fruit and vegetables **stay fully in the taxonomy and stock system** either way — this restructuring only affects which categories feed the calorie calculator, not what's trackable as stock.
 
-### Output & applying to targets
-- **No automatic cross-category split.** When a macro has multiple tagged categories, the calculator shows the macro-level kcal total plus its kg-equivalent computed per tagged category, as a reference — the admin manually decides the actual per-category kg targets from that. An automatic split (equal? weighted by existing stock?) would be arbitrary, so this stays a human decision.
-- An explicit **"Auf Ziele anwenden"** action writes the reviewed numbers into the regular `/config/targets` structure. From that point on they're indistinguishable from any other manually-set category target — no live link back to the calculator.
+**Vitamin C is deliberately not modeled via a produce floor.** Canned and dried produce loses significant vitamin C through heat processing and storage time, making a weight-based floor an unreliable guarantee. Recommended instead: stock a stable vitamin C supplement as its own product, with a manually-set target computed from the RDA directly — roughly 90 mg/day × people × autonomyDays ÷ mg per tablet. This is a one-time manual calculation using the per-product target override (see Ziele below), not a feature the app needs to compute.
 
-### Diversity / micronutrient floor
-- Independent of the calorie/macro math, since calorie math alone can't guarantee vitamin adequacy. A **minimum kg floor per person per day**, settable on any category as a third optional field alongside `kcalPerKg`/`macroType`.
-- Suggested defaults: **Gemüse ~50 g/person/day**, **Obst ~30 g/person/day** — rough placeholders (there's no authoritative figure for stockpiled preserved/dried produce specifically), using the same people × autonomyDays formula as the calorie system, freely adjustable.
-- **Vitamin C is deliberately not modeled via a produce floor.** Canned and dried produce loses significant vitamin C through heat processing and storage time, making a weight-based floor an unreliable guarantee. Recommended instead: stock a stable vitamin C supplement as its own product, with a manually-set target computed from the RDA directly — roughly 90 mg/day × people × autonomyDays ÷ mg per tablet. This is a one-time manual calculation using the existing per-product target field, not a feature the app needs to compute.
+### Planung: global targets
+Settings → Planung collects the inputs and shows only the resulting **global numbers** — no per-category detail, no apply action, that all lives in Ziele now.
+- **Household roster** (`/config/household`) — a separate admin-managed list of members, independent of `/users`, covering everyone who eats including household members without their own app sign-in (e.g. children). Each member: name + a **freely entered daily kcal value**. Reference ranges shown as hints, not enforced: Kind ~1200–1800, Teenager ~2000–2200, Erwachsener ~2000–2500 — adjusted upward for higher physical activity. No fixed age/activity lookup table; this stays a judgment call by design.
+- **Autonomy duration** (`/config/planning.autonomyDays`) in days. No hard default enforced, but the UI suggests **90 days** as a starting benchmark.
+- **Macro split** — adjustable percentages, default **50% Kohlenhydrate / 20% Protein / 30% Fett**.
+- **Water rate** — liters/person/day, admin-adjustable, default **3 L** (drinking + basic cooking/hygiene). 1 L = 1 kg, so water is a normal **kg**-tracked category like any other, no new unit type.
+- **Water category assignment** (`/config/planning.waterCategoryId`) — which taxonomy category receives the computed water target. Assigned here (not a Taxonomie planning mode) since it's a single admin-picked category, not a tagged set.
+- Output shown on this screen: total kcal target for Kohlenhydrate/Protein/Fett (household total kcal/day × autonomyDays × macro split %), and the total kg target for Wasser (rate × people × autonomyDays).
 
-### Water
-- A parallel, simpler calculator: **liters/person/day** (admin-adjustable, default **3 L**, covering drinking + basic cooking/hygiene) × household size × autonomyDays → a suggested kg target for the Wasser category.
-- 1 L of water = 1 kg, so water is just a normal **kg**-tracked category/product like any other — no new unit type needed.
-- No macro split or category tagging needed — water is a single homogeneous need mapping directly to one category, unlike the calorie system's multi-category spread.
+### Ziele: breaking global targets down to subcategories
+Settings → Ziele lists the full taxonomy tree. A **unit toggle** (kg / kg per Person&Tag / kcal / kcal per Person&Tag) controls how amounts display; kcal-based units fall back to kg for any category without a usable `kcalPerKg`.
+
+- **Aus categories** (and their subcategories, and product-level overrides) work exactly as before: a manually set target, flat amount or Personen×Tage, via tap-to-edit.
+- **Kalorien categories**: when a macro (Kohlenhydrate/Protein/Fett) has more than one tagged category, its global kcal target (from Planung) splits between them via a **±5-percentage-point stepper** per category, always summing to exactly 100% — clicking + on one category always takes 5 points from whichever sibling currently holds the most, clicking − always gives 5 to whichever holds the least, so the group can never land off 100% and there's no drag gesture to get wrong on a phone. A single tagged category in a macro is locked at 100% automatically.
+- **Diversität categories**: each computes its own target independently (floor g/person/day × people × autonomyDays) — not pooled against siblings, so no stepper at this level.
+- **Wasser category** (the one assigned in Planung): gets the computed water target directly, no stepper — it's a single assignment, not a shared pool.
+- **Subcategories under any computed category** (Kalorien, Diversität, or Wasser): the parent's computed total splits again across its subcategories with the same ±5% stepper mechanism — this is the level a future shopping list can use directly, since it's where individual products' stock naturally rolls up.
+- **Type level has no target of its own** — a type can span categories in completely different Planung modes (or none), so a rollup number there wouldn't mean much yet. (A later, separate idea: letting the admin mark a whole taxonomy type as "food" vs. not, so the calculators only ever consider categories inside food-marked types — not built yet.)
+- **Product-level target overrides** stay available exactly as before, independent of everything above — e.g. "I specifically want 5 kg of this one product," or the vitamin C tablet calculation above.
+
+Categories/subcategories with incomplete data (Kalorien mode without a macro or kcal/kg set, Diversität mode without a floor value) show a clear "data unvollständig" placeholder instead of a number, rather than silently computing 0 or crashing.
 
 ---
 
@@ -274,10 +275,10 @@ Each preview section shows a capped number of items (top 3–5) in a **fixed-hei
 
 1. **Alerts** — preview: top 3–5 items due/overdue within a **default 3-month horizon**, most prominent, always visible. "Alle anzeigen" opens a full-screen list with a **horizon selector** (1 Monat / 6 Monate / Bis Jahresende) to change the window; the dashboard preview itself always stays at the 3-month default regardless of what's picked in the full view.
 2. **Gaps summary** — preview: top few missing items in the same scrollable-preview pattern; **conditional**, only rendered if something is actually missing. "Alle anzeigen" opens the full list.
-3. **Totals overview** — per Type, each tile shows **current vs. target** (e.g. "45 kg / Ziel: 60 kg" with a small progress bar), tappable. "Alle anzeigen" opens a **hierarchical drill-down view**: Type → Category → Subcategory, each level showing amount vs. target (expand/collapse per type).
+3. **Totals overview** — per Type, each tile shows **current stock vs. the sum of its categories' targets** (e.g. "45 kg / Ziel: 60 kg" with a small progress bar) — a display-only rollup, since Ziele (Section 7) has no target stored at the type level itself. Tappable. "Alle anzeigen" opens a **hierarchical drill-down view**: Type (rollup) → Category → Subcategory, category/subcategory levels showing amount vs. their real (manual or computed) target from Ziele (expand/collapse per type).
 4. **Shopping list** — quick-access button; tapping opens the full shopping list (grouped by type, checkable items).
 
-Targets themselves are defined and edited in **Settings → Targets** (admin-only), not on the dashboard — the dashboard only displays progress against whatever targets are configured there.
+Targets themselves are defined and edited in **Settings → Ziele** (admin-only), manually for Aus categories/subcategories/products or live-computed for Kalorien/Diversität/Wasser categories per Section 7 — the dashboard only displays progress against whatever ends up there.
 
 ### 2. Stock
 Two entry points, each a **guided step-by-step flow** rather than a single browse screen (validated via interactive mockup):
@@ -328,11 +329,11 @@ Tablet: same guided-flow pattern, just with more tiles per row / more breathing 
 
 ### 5. Settings (admin-only)
 - Grouped into sub-sections rather than one flat list:
-  - **Data**: taxonomy management — **nested list editor** (Type → Category → Subcategory) with add/rename/delete **and drag-to-reorder** at each level; symbol field; optional per-category `kcalPerKg`/`macroType`/diversity-floor fields (Section 7); storage locations list; year color map
+  - **Data**: taxonomy management — **nested list editor** (Type → Category → Subcategory) with add/rename/delete **and drag-to-reorder** at each level; symbol field; the exclusive Aus/Kalorien/Diversität category planning mode (Section 7); storage locations list; year color map
   - **People**: **role toggle per existing signed-in user** — since sign-in is Google-based and self-provisioning (Julia/Sophia already have Google accounts), there's no invite-by-email flow needed; admin just flips a member's role between Admin/Member once they've signed in at least once
   - **Checklists**: maintenance + crisis management, reminder recipients
-  - **Targets**: settable at **any level** — type, category, subcategory, or individual product, whichever makes sense for that item (e.g. a flat "60kg Lebensmittel" type-level target, alongside a specific "10kg Reis" product-level target, coexisting without conflict) — using the flat-number or people×duration method from Section 6, or reviewing/applying suggestions from the autonomy calculator (Section 7)
-  - **Planung**: the autonomy-based stock sizing calculator (Section 7) — household roster, autonomy duration, macro split, water rate, and the computed suggestions with an "Auf Ziele anwenden" action
+  - **Ziele**: targets for **category, subcategory, or individual product** (no type-level target — see Section 7) — Aus categories/subcategories/products use the flat-number or people×duration method from Section 6; Kalorien/Diversität/Wasser categories and their subcategories are live-computed from Planung, split via the ±5% stepper
+  - **Planung**: the autonomy-based stock sizing inputs (Section 7) — household roster, autonomy duration, macro split, water rate + water category, and the resulting global kcal/kg numbers (no apply action — Ziele reads these live)
   - **Export**: PDF export access point, CSV backup
 
 ### PDF export
@@ -371,7 +372,7 @@ Bottom nav (mobile) / sidebar (tablet) with the 5 tabs, responsive breakpoint, p
 *Test:* All 5 tabs are reachable; layout switches correctly between mobile and tablet widths; overscroll is disabled.
 
 **Step 4 — Taxonomy management (Settings → Data)**
-Nested Type → Category → Subcategory editor: add/rename/delete at each level, symbol field, drag-to-reorder. (The optional `kcalPerKg`/`macroType`/diversity-floor category fields from Section 7 extend this editor later, in Step 11 — not part of this step.)
+Nested Type → Category → Subcategory editor: add/rename/delete at each level, symbol field, drag-to-reorder. (The Kalorien/Diversität category planning mode from Section 7 extends this editor later, in Step 11 — not part of this step.)
 *Test:* Build out a full taxonomy tree, reorder subcategories, reload the app, and confirm it persisted correctly in Firestore.
 
 **Step 5 — Storage locations & year color map (Settings → Data)**
@@ -399,9 +400,9 @@ Sortable/filterable table (Product, Subcategory, Category, Type, Quantity, Conte
 Alerts preview (3-month horizon, scrollable, "Alle anzeigen" → full list with 1 Monat/6 Monate/Bis Jahresende selector); gaps summary (conditional preview + full list); totals-with-targets tiles + hierarchical Type→Category→Subcategory drill-down; shopping list preview + full detail.
 *Test:* Dashboard accurately reflects real stock data — alerts match actual best-before dates, gaps match actual targets vs. stock, totals sum correctly in kg (or as plain counts for Stück-tracked categories).
 
-**Step 11 — Targets & Autonomy-Based Stock Sizing (Settings → Targets, Settings → Planung)**
-Set targets at any level (type/category/subcategory/product), via flat number or people × duration. Extends the Step 4 taxonomy editor with the optional `kcalPerKg`/`macroType`/diversity-floor category fields (Section 7). Builds the Planung screen: household roster CRUD, autonomy-duration + macro-split config, water-rate config, the computed macro/water suggestions (kcal totals + per-category kg reference, no auto-split across categories), and the "Auf Ziele anwenden" action writing into `/config/targets`.
-*Test:* Setting a target at each of the four levels correctly changes the corresponding Dashboard progress bar/gap calculation, with no conflicts between overlapping levels. Separately: build out a household + autonomy duration + macro split, confirm the calculated kcal/kg suggestions match the formulas in Section 7, and confirm "Auf Ziele anwenden" correctly writes them into regular category targets indistinguishable from manually-set ones. Water target: confirm the liters→kg suggestion matches people × days × rate.
+**Step 11 — Targets & Autonomy-Based Stock Sizing (Settings → Taxonomie, Settings → Planung, Settings → Ziele)**
+Extends the Step 4 taxonomy editor with the exclusive Kalorien/Diversität/Aus category planning mode (Section 7). Builds Planung: household roster CRUD, autonomy-duration + macro-split + water-rate config, water-category assignment, and the four computed global numbers (Kohlenhydrate/Protein/Fett kcal, Wasser kg) — no apply action. Builds Ziele: manual flat/Personen×Tage targets for Aus categories/subcategories/products (unchanged from the original per-level target system), plus live-computed targets for Kalorien/Diversität/Wasser categories with the ±5%-stepper macro-split and subcategory-split UI, plus the kg/kg-per-Person-Tag/kcal/kcal-per-Person-Tag display toggle.
+*Test:* Setting a manual target on an Aus category, subcategory, or product works as before. Separately: build out a household + autonomy duration + macro split + a Kalorien-tagged category, confirm its computed kg in Ziele matches the Section 7 formulas; add a second category to the same macro and confirm the ±5% steppers keep the group summing to exactly 100% and reallocate correctly in both directions; confirm a category's subcategories split its computed total the same way. Water: confirm the assigned category's computed kg matches people × days × rate. Diversity: confirm a Diversität category's computed kg matches its floor formula, independent of any macro category.
 
 **Step 12 — Checklists**
 Maintenance: grouped-by-frequency list, checkbox detail, auto-reset + `nextDue` roll-forward on completion, Settings → Checklists CRUD with per-checklist recipients. Crisis: card list, full-screen high-contrast reference view, Settings → Checklists CRUD for steps.

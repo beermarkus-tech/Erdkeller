@@ -511,21 +511,17 @@ nav.bottomnav button .icon {
   color: var(--paper);
 }
 
-.tax-planning-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 0 0;
-  font-size: 13px;
-  color: #4a4940;
-  cursor: pointer;
+/* A live-computed target (Kalorien/Diversität/Wasser) — not clickable, so
+   visually distinct from .has-target's "manually set, tap to edit" cellar
+   green. */
+.target-badge.computed {
+  background: #ddd8c8;
+  color: var(--charcoal);
+  cursor: default;
 }
 
-.tax-planning-toggle input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--cellar);
-  flex-shrink: 0;
+.tax-mode-toggle {
+  margin: 10px 0 0;
 }
 
 .tax-planning-row {
@@ -571,60 +567,96 @@ nav.bottomnav button .icon {
   font-family: 'Inter', sans-serif;
 }
 
-.suggestion-row {
+/* Planung's global output numbers, and Ziele's read-only macro/water
+   summary bar — same simple label/value row. */
+.computed-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: 10px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.computed-label {
+  font-weight: 600;
+}
+
+.computed-value {
+  color: var(--cellar);
+  font-weight: 600;
+}
+
+/* Ziele (Step 11) — live-computed category/subcategory rows. A computed
+   badge looks like .target-badge but isn't clickable (the amount is
+   derived, not directly editable); the split stepper lets the admin move
+   a category's/subcategory's share of its shared pool (a macro's kcal
+   total, or a parent category's computed total) in fixed 5-point steps —
+   see js/targets.js stepSplit() for why 5% steps beat a drag slider here. */
+.split-row {
   background: white;
   border: 1px solid var(--stone-dark);
   border-radius: 12px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
+  padding: 10px 14px;
+  margin-bottom: 6px;
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.suggestion-info {
+.split-info {
   flex: 1;
-  min-width: 140px;
+  min-width: 120px;
 }
 
-.suggestion-title {
+.split-title {
   font-weight: 600;
   font-size: 14px;
 }
 
-.suggestion-note {
-  font-size: 11.5px;
+.split-amount {
+  font-size: 12px;
   color: #6b6a5f;
   margin-top: 2px;
 }
 
-.suggestion-input {
-  width: 90px;
+.split-stepper {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.split-step-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   border: 1px solid var(--stone-dark);
-  border-radius: 8px;
-  padding: 6px 8px;
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
-}
-
-.suggestion-apply-btn {
-  flex-shrink: 0;
-  background: var(--cellar);
-  color: var(--paper);
-  border: none;
-  border-radius: 20px;
-  padding: 8px 14px;
-  font-size: 12.5px;
-  font-weight: 600;
+  background: white;
+  color: var(--cellar);
+  font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
-.suggestion-apply-btn:disabled {
-  opacity: 0.6;
+.split-step-btn:disabled {
+  opacity: 0.35;
   cursor: default;
+}
+
+.split-percent {
+  min-width: 38px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 13.5px;
 }
 
 .tax-sub-row {
