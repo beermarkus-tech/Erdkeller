@@ -499,14 +499,14 @@ nav.bottomnav button .icon {
 /* Optional Planung fields on a category (SPEC.md Section 7) */
 /* Ziele (Step 11b) — reuses .tax-type/.tax-cat/.tax-sub-row structure and
    styling from the taxonomy editor, just read-only name display instead
-   of editable inputs, plus a target badge. */
+   of editable inputs, plus a target badge. No overflow:hidden/ellipsis —
+   same touch-scroll-eaten-by-a-clipped-text-span bug as .dash-cat-card/
+   .tax-type (see their comments), just on a narrow text element instead
+   of a whole card; wraps to a second line for long names instead. */
 .tax-name-display {
   flex: 1;
   min-width: 0;
   font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .tax-type-head .tax-name-display {
@@ -2048,11 +2048,11 @@ nav.bottomnav button .icon {
   padding: 13px 14px;
   cursor: pointer;
   user-select: none;
-  /* Same touch-scroll-eaten-by-a-tap-target bug as .dash-cat-card/.tax-type
-     (see their comments) — this time starting a swipe on .dash-cat-name's
-     truncated text (overflow:hidden) rather than the card itself. Declaring
-     pan-y explicitly here fixes it regardless of which descendant triggers
-     it, without giving up the name's ellipsis truncation. */
+  /* touch-action: pan-y alone did NOT fix the touch-scroll-eaten-by-a-tap-
+     target bug here (confirmed on-device) — the actual fix was removing
+     overflow:hidden from .dash-cat-name (see that rule's comment), same
+     root cause as .dash-cat-card/.tax-type. Left here too since it's a
+     correct, harmless declaration for this row regardless. */
   touch-action: pan-y;
 }
 
@@ -2072,9 +2072,6 @@ nav.bottomnav button .icon {
   font-weight: 600;
   font-size: 14.5px;
   margin-bottom: 5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dash-cat-bar-track {
@@ -2188,9 +2185,6 @@ nav.bottomnav button .icon {
   flex: 1;
   font-size: 13px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dash-sub-bar-track {
@@ -2288,11 +2282,10 @@ nav.bottomnav button .icon {
 .dash-alert-row.warn { border-left-color: var(--warn); }
 
 .dash-alert-row-name {
+  flex: 1;
+  min-width: 0;
   font-size: 13.5px;
   font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dash-alert-row-date {
@@ -2338,11 +2331,15 @@ nav.bottomnav button .icon {
 }
 .dash-shopping-row:first-of-type { border-top: none; }
 
+/* No overflow:hidden/ellipsis — same touch-scroll bug as .dash-cat-name
+   above (confirmed on-device: swipes starting on a shopping-list item's
+   name were being eaten the same way); wraps instead. flex:1 + min-width:0
+   explicit now — overflow:hidden used to imply min-width:0 for a flex
+   item automatically; without it the row wouldn't shrink/wrap right. */
 .dash-shopping-row-name {
+  flex: 1;
+  min-width: 0;
   font-size: 13.5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dash-shopping-row-need {
@@ -2672,15 +2669,46 @@ nav.bottomnav button .icon {
     flex: 1;
   }
 
-  /* Checklisten (Wartung, live view): checklist cards two up. */
+  /* Checklisten (Wartung, live view): checklist cards two up. CSS multi-
+     column, not grid — grid places items row-major (item 1→col1/row1,
+     item 2→col2/row1, ...), so a tall card in one column forces a gap
+     under a short card next to it until that row's height catches up.
+     column-count lets each column flow independently instead. */
   #maintenance-list {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    align-items: start;
+    column-count: 2;
+    column-gap: 12px;
   }
   #maintenance-list .checklist-group {
-    margin-bottom: 0;
+    break-inside: avoid;
+  }
+
+  /* "Checklisten verwalten" rows: name, the three recipient checkboxes,
+     and delete all on one line, same idea as the item rows below (display:
+     contents unwraps .checklist-edit-head/.checklist-recipients so their
+     children join the row's own flex layout; order pushes delete to the
+     end). Scoped to #maintenance-manage-list specifically — .checklist-
+     edit-group/.checklist-edit-head are shared with the Krise editor,
+     which has a very different structure (steps rows nested inside) that
+     this must not touch. */
+  #maintenance-manage-list .checklist-edit-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  #maintenance-manage-list .checklist-edit-head,
+  #maintenance-manage-list .checklist-recipients {
+    display: contents;
+  }
+  #maintenance-manage-list .checklist-edit-head .tax-name-input {
+    flex: 2;
+    min-width: 0;
+  }
+  #maintenance-manage-list .checklist-edit-head .tax-del {
+    order: 3;
+  }
+  #maintenance-manage-list .checklist-recipients label {
+    white-space: nowrap;
   }
 
   /* Wartung editor: item text, frequency, "move to checklist", and delete
