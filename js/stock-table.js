@@ -1,5 +1,5 @@
-import { db } from './firebase-init.js?v=63';
-import { PALETTE } from './year-colors.js?v=63';
+import { db } from './firebase-init.js?v=64';
+import { PALETTE } from './year-colors.js?v=64';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -624,6 +624,18 @@ export function openFilteredBySubcategory(subcategoryId, subcategoryName) {
   stocktableCard.click();
   activeSubcategoryFilter = subcategoryId;
   activeSubcategoryFilterName = subcategoryName;
+  renderRows();
+}
+
+// Tap-through from Übersicht's Alerts (js/dashboard.js) — an expiring
+// batch doesn't have a subcategory-filter equivalent worth building (it's
+// one specific product, not a whole subcategory), so this reuses the
+// plain free-text search box instead.
+export function openFilteredByProductSearch(productName) {
+  document.querySelector('.nav-btn[data-tab="settings"]').click();
+  stocktableCard.click();
+  searchText = productName;
+  searchInput.value = productName;
   renderRows();
 }
 

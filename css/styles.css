@@ -2205,3 +2205,177 @@ nav.bottomnav button .icon {
 .dash-dot.ok { background: var(--ok); }
 .dash-dot.warn { background: var(--warn); }
 .dash-dot.danger { background: var(--danger); }
+
+/* Alerts & Einkaufsliste (Step 10 finish) */
+
+.dash-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.dash-section-head .section-label { margin: 0; }
+
+.dash-link-btn {
+  background: none;
+  border: none;
+  color: var(--cellar);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.dash-alerts {
+  margin-bottom: 22px;
+}
+
+.dash-alert-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  touch-action: pan-x;
+  padding-bottom: 2px;
+}
+
+/* No .none modifier — a chip with neither .danger nor .warn (further out
+   than next month) just gets this neutral background by default. */
+.dash-alert-chip {
+  flex-shrink: 0;
+  min-width: 140px;
+  max-width: 180px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  background: var(--stone);
+}
+.dash-alert-chip.danger { background: var(--danger-bg); }
+.dash-alert-chip.warn { background: var(--warn-bg); }
+
+.dash-alert-chip-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #262620;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 3px;
+}
+
+.dash-alert-chip-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b6a5f;
+}
+.dash-alert-chip.danger .dash-alert-chip-date { color: var(--danger); }
+.dash-alert-chip.warn .dash-alert-chip-date { color: var(--warn); }
+
+/* Full list inside #alerts-modal — same row language as .stock-product-row */
+.dash-alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.dash-alert-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-left: 4px solid var(--stone-dark);
+}
+.dash-alert-row.danger { border-left-color: var(--danger); }
+.dash-alert-row.warn { border-left-color: var(--warn); }
+
+.dash-alert-row-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-alert-row-date {
+  font-size: 12.5px;
+  font-weight: 600;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.dash-alert-row.danger .dash-alert-row-date { color: var(--danger); }
+.dash-alert-row.warn .dash-alert-row-date { color: var(--warn); }
+.dash-alert-row:not(.danger):not(.warn) .dash-alert-row-date { color: #6b6a5f; }
+
+.dash-shopping {
+  margin-top: 22px;
+}
+
+.dash-shopping-card {
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.dash-shopping-summary {
+  font-weight: 700;
+  font-size: 14.5px;
+  margin-bottom: 6px;
+}
+
+.dash-shopping-preview-list {
+  font-size: 13px;
+  color: #6b6a5f;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+/* Full list inside #shopping-modal, grouped by category name */
+.dash-shopping-group-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #6b6a5f;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 16px 0 8px;
+}
+.dash-shopping-group-label:first-child { margin-top: 0; }
+
+.dash-shopping-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--stone-dark);
+}
+.dash-shopping-row:first-of-type { border-top: none; }
+
+.dash-shopping-row-name {
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-shopping-row-need {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cellar);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* #alerts-modal / #shopping-modal can hold a long, unbounded list — unlike
+   the shorter modals elsewhere, this needs its own scroll so it doesn't
+   run off the bottom of the viewport with no way to reach the rest. */
+.dash-modal-sheet {
+  max-height: 85vh;
+  overflow-y: auto;
+}

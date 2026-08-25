@@ -22,11 +22,11 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=63';
+import { db } from './firebase-init.js?v=64';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory } from './stock-table.js?v=63';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=64';
 
 const unitToggleButtons = document.querySelectorAll('#dash-unit-toggle .select-mode-btn');
 const heroEl = document.getElementById('dash-hero');
@@ -34,9 +34,23 @@ const heroWaterEl = document.getElementById('dash-hero-water');
 const categoryListEl = document.getElementById('dash-category-list');
 const legendEl = document.getElementById('dash-legend');
 
+const alertsSectionEl = document.getElementById('dash-alerts');
+const alertStripEl = document.getElementById('dash-alert-strip');
+const alertsAllBtn = document.getElementById('dash-alerts-all-btn');
+const alertsModal = document.getElementById('alerts-modal');
+const alertsHorizonButtons = document.querySelectorAll('#alerts-horizon-toggle .select-mode-btn');
+const alertsFullListEl = document.getElementById('alerts-full-list');
+
+const shoppingSectionEl = document.getElementById('dash-shopping');
+const shoppingSummaryEl = document.getElementById('dash-shopping-summary');
+const shoppingPreviewListEl = document.getElementById('dash-shopping-preview-list');
+const shoppingAllBtn = document.getElementById('dash-shopping-all-btn');
+const shoppingModal = document.getElementById('shopping-modal');
+const shoppingFullListEl = document.getElementById('shopping-full-list');
+
 let taxonomy = { types: [] };
 let targetsDoc = {
-  categories: {}, subcategories: {}, macroSplits: {}, subSplits: {},
+  categories: {}, subcategories: {}, products: {}, macroSplits: {}, subSplits: {},
 };
 let household = { members: [] };
 let planning = { autonomyDays: null, macroSplit: {}, waterLitersPerPersonDay: null };
@@ -66,6 +80,7 @@ async function loadAll() {
     targetsDoc = {
       categories: t.categories || {},
       subcategories: t.subcategories || {},
+      products: t.products || {},
       macroSplits: t.macroSplits || {},
       subSplits: t.subSplits || {},
     };
@@ -277,6 +292,123 @@ function waterCurrentLiters(subStock) {
     });
   });
   return sum;
+}
+
+// Current stock for one specific product, in that product's own unit —
+// used by the Einkaufsliste's product-level targets (see
+// computeShoppingList). Unlike batchKg() above (kg-only, for the
+// Kategorien/Wasser sums), this also handles Stück-tracked products: a
+// piece count needs no content-string parsing at all, so it sidesteps the
+// "Stück has no kg conversion" gap entirely rather than hitting it.
+function productCurrentAmount(product) {
+  const batches = allBatches.filter((b) => b.productId === product.id);
+  if (product.unitType === 'stueck') {
+    return batches.reduce((s, b) => s + (b.quantity || 0), 0);
+  }
+  return batches.reduce((s, b) => s + batchKg(b), 0);
+}
+
+// --- Bald ablaufend (best-before alerts) ---------------------------------
+// bestBefore is stored as "MM/YYYY" (month precision only, no day — see
+// js/stock-checkin.js), so "expires within N months" is a month-index
+// comparison, not a date one. Unlike the rest of this screen, alerts cover
+// every batch regardless of Lebensmittel/Wasser/Sonstiges — a best-before
+// date matters for medicine or batteries just as much as food, and there's
+// no kcal/autonomy framing dependency here that would need excluding them.
+
+function monthIndex(mm, yyyy) {
+  return Number(yyyy) * 12 + Number(mm);
+}
+
+function nowMonthIndex() {
+  const d = new Date();
+  return d.getFullYear() * 12 + (d.getMonth() + 1);
+}
+
+// 'danger' = already due this month or overdue, 'warn' = due next month,
+// 'none' = further out (only reachable via the 6-Monate/Jahresende views).
+function alertSeverity(idx, nowIdx) {
+  if (idx <= nowIdx) return 'danger';
+  if (idx <= nowIdx + 1) return 'warn';
+  return 'none';
+}
+
+function computeAlerts(horizonEndIdx) {
+  const nowIdx = nowMonthIndex();
+  return allBatches
+    .filter((b) => b.bestBefore)
+    .map((b) => {
+      const [mm, yyyy] = b.bestBefore.split('/');
+      return { batch: b, idx: monthIndex(mm, yyyy) };
+    })
+    .filter(({ idx }) => idx <= horizonEndIdx)
+    .sort((a, b) => a.idx - b.idx)
+    .map(({ batch, idx }) => ({
+      batch,
+      product: productIndex.get(batch.productId),
+      severity: alertSeverity(idx, nowIdx),
+    }))
+    .filter((a) => a.product);
+}
+
+function horizonEndForMonths(months) {
+  return nowMonthIndex() + months;
+}
+
+function horizonEndForYearEnd() {
+  return new Date().getFullYear() * 12 + 12;
+}
+
+// --- Einkaufsliste (shopping list) ---------------------------------------
+// Every gap already visible on this screen, re-surfaced as "what to buy":
+// subcategory gaps from the Kategorien cards above (Lebensmittel only, by
+// construction of buildCategoryRows), individual product targets that are
+// short (any type — Ziele's Produktziele isn't Lebensmittel/Wasser-scoped
+// either, e.g. "at least 10 batteries" is just as valid a shopping-list
+// entry as a food product), and the Wasser hero's own shortfall if any.
+
+function computeShoppingList(subStock, rows) {
+  const items = [];
+
+  rows.forEach((row) => {
+    row.subs.forEach(({ sub, targetKg, currentKg }) => {
+      if (targetKg != null && currentKg < targetKg) {
+        items.push({
+          kind: 'sub', name: sub.name, group: row.cat.name, need: targetKg - currentKg, unit: 'kg', kcalPerKg: row.kcalPerKg,
+        });
+      }
+    });
+  });
+
+  Object.keys(targetsDoc.products || {}).forEach((productId) => {
+    const target = targetsDoc.products[productId];
+    const product = productIndex.get(productId);
+    if (!product) return;
+    const targetAmount = computeAmount(target);
+    if (!targetAmount) return;
+    const current = productCurrentAmount(product);
+    if (current < targetAmount) {
+      items.push({
+        kind: 'product', name: product.name, group: 'Produktziele', need: targetAmount - current, unit: target.unit,
+      });
+    }
+  });
+
+  const waterTarget = waterGlobalLiters();
+  const waterCurrent = waterCurrentLiters(subStock);
+  if (waterTarget != null && waterCurrent < waterTarget) {
+    items.push({
+      kind: 'water', name: 'Wasser', group: 'Produktziele', need: waterTarget - waterCurrent, unit: 'L',
+    });
+  }
+
+  return items;
+}
+
+function formatShoppingNeed(item) {
+  if (item.unit === 'stueck') return `${Math.ceil(item.need)} Stk`;
+  if (item.unit === 'L') return `${round2(item.need)} L`;
+  return formatAmount(item.need, item.kcalPerKg ?? null);
 }
 
 // --- Formatting ------------------------------------------------------------
@@ -533,6 +665,125 @@ unitToggleButtons.forEach((btn) => {
   });
 });
 
+// --- Alerts rendering --------------------------------------------------
+
+function makeAlertRow(className, alert) {
+  const row = document.createElement('div');
+  row.className = className + (alert.severity !== 'none' ? ' ' + alert.severity : '');
+  row.addEventListener('click', () => openFilteredByProductSearch(alert.product.name));
+  return row;
+}
+
+function renderAlertsPreview() {
+  alertStripEl.innerHTML = '';
+  if (!loadOk) {
+    alertsSectionEl.classList.add('hidden');
+    return;
+  }
+  const alerts = computeAlerts(horizonEndForMonths(3));
+  alertsSectionEl.classList.toggle('hidden', alerts.length === 0);
+  alerts.forEach((alert) => {
+    const chip = makeAlertRow('dash-alert-chip', alert);
+    chip.innerHTML = `
+      <div class="dash-alert-chip-name">${alert.product.name}</div>
+      <div class="dash-alert-chip-date">MHD ${alert.batch.bestBefore}</div>
+    `;
+    alertStripEl.appendChild(chip);
+  });
+}
+
+function renderAlertsModal(horizonEndIdx) {
+  alertsFullListEl.innerHTML = '';
+  const alerts = computeAlerts(horizonEndIdx);
+  if (alerts.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'screen-placeholder';
+    p.textContent = 'Nichts läuft in diesem Zeitraum ab.';
+    alertsFullListEl.appendChild(p);
+    return;
+  }
+  alerts.forEach((alert) => {
+    const row = makeAlertRow('dash-alert-row', alert);
+    row.innerHTML = `
+      <span class="dash-alert-row-name">${alert.product.name}</span>
+      <span class="dash-alert-row-date">${alert.batch.bestBefore}</span>
+    `;
+    alertsFullListEl.appendChild(row);
+  });
+}
+
+function alertsHorizonEnd(horizon) {
+  return horizon === 'year' ? horizonEndForYearEnd() : horizonEndForMonths(Number(horizon));
+}
+
+alertsAllBtn.addEventListener('click', () => {
+  alertsHorizonButtons.forEach((b) => b.classList.toggle('active', b.dataset.horizon === '1'));
+  renderAlertsModal(alertsHorizonEnd('1'));
+  alertsModal.classList.add('show');
+});
+alertsHorizonButtons.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    alertsHorizonButtons.forEach((b) => b.classList.toggle('active', b === btn));
+    renderAlertsModal(alertsHorizonEnd(btn.dataset.horizon));
+  });
+});
+alertsModal.addEventListener('click', (e) => {
+  if (e.target === alertsModal) alertsModal.classList.remove('show');
+});
+
+// --- Shopping list rendering ---------------------------------------------
+
+let shoppingItems = [];
+
+function renderShoppingPreview(items) {
+  shoppingSectionEl.classList.toggle('hidden', items.length === 0);
+  if (items.length === 0) return;
+  shoppingSummaryEl.textContent = items.length === 1
+    ? '1 Produkt braucht Nachschub'
+    : `${items.length} Produkte brauchen Nachschub`;
+  const names = items.slice(0, 5).map((it) => it.name);
+  shoppingPreviewListEl.textContent = names.join(', ') + (items.length > 5 ? ', …' : '');
+}
+
+function renderShoppingModal(items) {
+  shoppingFullListEl.innerHTML = '';
+  if (items.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'screen-placeholder';
+    p.textContent = 'Nichts fehlt gerade.';
+    shoppingFullListEl.appendChild(p);
+    return;
+  }
+  const groups = new Map();
+  items.forEach((item) => {
+    if (!groups.has(item.group)) groups.set(item.group, []);
+    groups.get(item.group).push(item);
+  });
+  groups.forEach((groupItems, groupName) => {
+    const label = document.createElement('div');
+    label.className = 'dash-shopping-group-label';
+    label.textContent = groupName;
+    shoppingFullListEl.appendChild(label);
+    groupItems.forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'dash-shopping-row';
+      row.innerHTML = `
+        <span class="dash-shopping-row-name">${item.name}</span>
+        <span class="dash-shopping-row-need">+${formatShoppingNeed(item)}</span>
+      `;
+      shoppingFullListEl.appendChild(row);
+    });
+  });
+}
+
+shoppingAllBtn.addEventListener('click', () => {
+  renderShoppingModal(shoppingItems);
+  shoppingModal.classList.add('show');
+});
+shoppingModal.addEventListener('click', (e) => {
+  if (e.target === shoppingModal) shoppingModal.classList.remove('show');
+});
+
 function render() {
   macroGroupIds = computeMacroGroups();
   syncUnitToggle();
@@ -541,6 +792,9 @@ function render() {
   renderHero(rows);
   renderHeroWater(waterCurrentLiters(subStock), waterGlobalLiters());
   renderCategoryList(rows);
+  renderAlertsPreview();
+  shoppingItems = loadOk ? computeShoppingList(subStock, rows) : [];
+  renderShoppingPreview(shoppingItems);
 }
 
 // --- Entry point -----------------------------------------------------------
