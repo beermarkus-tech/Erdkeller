@@ -598,6 +598,13 @@ nav.bottomnav button .icon {
   color: #4a4940;
 }
 
+/* Extra breathing room above each Erinnerungen frequency heading
+   (Wöchentlich/Monatlich/...) so they read as separate sections rather
+   than running together with the settings-note/row above. */
+.notif-freq-heading {
+  margin-top: 24px;
+}
+
 .tax-planning-field input,
 .tax-planning-field select {
   width: 100%;
@@ -606,6 +613,7 @@ nav.bottomnav button .icon {
   padding: 6px 8px;
   font-size: 14px;
   font-family: 'Inter', sans-serif;
+  background: white;
   box-sizing: border-box;
 }
 
@@ -2040,6 +2048,12 @@ nav.bottomnav button .icon {
   padding: 13px 14px;
   cursor: pointer;
   user-select: none;
+  /* Same touch-scroll-eaten-by-a-tap-target bug as .dash-cat-card/.tax-type
+     (see their comments) — this time starting a swipe on .dash-cat-name's
+     truncated text (overflow:hidden) rather than the card itself. Declaring
+     pan-y explicitly here fixes it regardless of which descendant triggers
+     it, without giving up the name's ellipsis truncation. */
+  touch-action: pan-y;
 }
 
 .dash-cat-sym {
@@ -2291,7 +2305,19 @@ nav.bottomnav button .icon {
 .dash-alert-row.warn .dash-alert-row-date { color: var(--warn); }
 .dash-alert-row:not(.danger):not(.warn) .dash-alert-row-date { color: #6b6a5f; }
 
-/* Einkaufsliste tab, grouped by category name */
+/* Einkaufsliste tab, grouped by category name. Always rendered as two
+   .dash-shopping-col groups (js/dashboard.js splits at category
+   boundaries) — stacked here on mobile so it reads as one flowing list;
+   @media (min-width: 900px) below puts them side by side on tablet. */
+.dash-shopping-cols {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-shopping-col {
+  min-width: 0;
+}
+
 .dash-shopping-group-label {
   font-size: 12.5px;
   font-weight: 700;
@@ -2624,4 +2650,65 @@ nav.bottomnav button .icon {
   display: flex;
   gap: 8px;
   padding-left: 26px;
+}
+
+/* Tablet-only layout (Build 76) — same 900px breakpoint as the rest of the
+   app's tablet rules above. Mobile is untouched; these only kick in where
+   there's real width to spare. */
+@media (min-width: 900px) {
+  /* MHD: three columns of alert rows instead of one long stack. */
+  .dash-alert-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Einkaufsliste: the two category-boundary-aware columns js/dashboard.js
+     already builds (see .dash-shopping-cols above) go side by side. */
+  .dash-shopping-cols {
+    flex-direction: row;
+    gap: 32px;
+  }
+  .dash-shopping-col {
+    flex: 1;
+  }
+
+  /* Checklisten (Wartung, live view): checklist cards two up. */
+  #maintenance-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  #maintenance-list .checklist-group {
+    margin-bottom: 0;
+  }
+
+  /* Wartung editor: item text, frequency, "move to checklist", and delete
+     all on one row instead of two. display:contents unwraps the .main/
+     .meta sub-rows so their children join the row's own flex layout
+     directly; `order` on the delete button (whose element still sits
+     between the text input and the two selects in the DOM) moves it
+     visually to the end, after the selects, without touching markup. */
+  .checklist-flat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+  }
+  .checklist-flat-row-main,
+  .checklist-flat-row-meta {
+    display: contents;
+  }
+  .checklist-flat-row-main .tax-name-input {
+    flex: 2;
+    min-width: 0;
+  }
+  .checklist-flat-row-main .tax-del {
+    order: 3;
+  }
+  .checklist-freq-select,
+  .checklist-move-select {
+    flex: 1;
+    min-width: 130px;
+  }
 }

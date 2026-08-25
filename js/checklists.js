@@ -36,7 +36,7 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=75';
+import { db } from './firebase-init.js?v=76';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
@@ -53,6 +53,7 @@ const checklistsTabBtns = document.querySelectorAll('.seg-btn[data-checklists-ta
 const checklistsTabPanels = document.querySelectorAll('.checklists-tab[data-checklists-tab-panel]');
 const maintenanceFilterButtons = document.querySelectorAll('#maintenance-filter-toggle .select-mode-btn');
 const maintenanceViewEl = document.getElementById('maintenance-view');
+const maintenanceLiveListFiltersEl = document.getElementById('maintenance-live-list-filters');
 const maintenanceListEl = document.getElementById('maintenance-list');
 const crisisViewEl = document.getElementById('crisis-view');
 const crisisListEl = document.getElementById('crisis-list');
@@ -107,7 +108,11 @@ let crisis = { types: [] };
 let notifications = { checklists: defaultNotificationsChecklists() };
 // Same data-integrity guard as taxonomy.js/storage-locations.js.
 let loadOk = false;
-let maintenanceFilter = 'due'; // 'due' | 'all' — live view (unchanged)
+let maintenanceFilter = 'due'; // 'due' | 'all' — live view
+// Which checklist groups to show on the live view — separate from the
+// editor's own selectedListFilters (Set), so filtering in one doesn't
+// silently affect the other.
+let selectedLiveListFilters = new Set();
 // One flag for both tabs — whichever tab is active shows its editor while
 // this is true, so switching tabs mid-edit stays in edit mode.
 let editMode = false;
@@ -262,10 +267,16 @@ function toggleItemDone(item) {
 
 // --- Main screen: Wartung -------------------------------------------------
 
+function renderMaintenanceLiveFilters() {
+  const listNames = maintenance.lists.map((l) => l.name);
+  renderChips(maintenanceLiveListFiltersEl, listNames, selectedLiveListFilters, renderMaintenanceList);
+}
+
 function renderMaintenanceList() {
   maintenanceListEl.innerHTML = '';
   if (!loadOk) return;
   maintenance.lists.forEach((list) => {
+    if (selectedLiveListFilters.size && !selectedLiveListFilters.has(list.name)) return;
     const dueItems = (list.items || []).filter((it) => !isDoneThisPeriod(it));
     const items = maintenanceFilter === 'due' ? dueItems : (list.items || []);
     if (items.length === 0) return;
@@ -467,7 +478,7 @@ function filteredFlatItems() {
       if (q && !item.text.toLowerCase().includes(q)) return false;
       return true;
     })
-    .sort((a, b) => b.item.text.localeCompare(a.item.text, 'de'));
+    .sort((a, b) => a.item.text.localeCompare(b.item.text, 'de'));
 }
 
 function renderChips(container, values, selectedSet, onChange) {
@@ -696,6 +707,7 @@ maintenanceEditViewEl.querySelectorAll('.checklist-section-header').forEach((btn
 // --- Entry point -----------------------------------------------------------
 
 function render() {
+  renderMaintenanceLiveFilters();
   renderMaintenanceList();
   renderCrisisList();
   renderMaintenanceManageList();

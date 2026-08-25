@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=75';
-import { PALETTE } from './year-colors.js?v=75';
-import { renderRecentLog } from './stock-log.js?v=75';
-import { renderResultLines } from './format-batch.js?v=75';
+import { db } from './firebase-init.js?v=76';
+import { PALETTE } from './year-colors.js?v=76';
+import { renderRecentLog } from './stock-log.js?v=76';
+import { renderResultLines } from './format-batch.js?v=76';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";

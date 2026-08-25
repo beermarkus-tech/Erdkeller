@@ -22,11 +22,11 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=75';
+import { db } from './firebase-init.js?v=76';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=75';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=76';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -723,22 +723,44 @@ function renderShoppingList(items) {
     if (!groups.has(item.group)) groups.set(item.group, []);
     groups.get(item.group).push(item);
   });
+
+  // Two columns, side by side on tablet via CSS (stacked on mobile, same
+  // flow as the old single-column list) — a whole category group always
+  // goes into one column, never split mid-category. Greedy bin-packing:
+  // each group goes into whichever column currently holds fewer items, so
+  // both stay roughly balanced without needing to split a group itself.
+  const columns = [[], []];
+  const columnCounts = [0, 0];
   groups.forEach((groupItems, groupName) => {
-    const label = document.createElement('div');
-    label.className = 'dash-shopping-group-label';
-    const sym = groupItems[0].groupSym;
-    label.textContent = sym ? `${sym} ${groupName}` : groupName;
-    shoppingFullListEl.appendChild(label);
-    groupItems.forEach((item) => {
-      const row = document.createElement('div');
-      row.className = 'dash-shopping-row';
-      row.innerHTML = `
-        <span class="dash-shopping-row-name">${item.name}</span>
-        <span class="dash-shopping-row-need">+${formatShoppingNeed(item)}</span>
-      `;
-      shoppingFullListEl.appendChild(row);
-    });
+    const target = columnCounts[0] <= columnCounts[1] ? 0 : 1;
+    columns[target].push([groupName, groupItems]);
+    columnCounts[target] += groupItems.length;
   });
+
+  const colsWrap = document.createElement('div');
+  colsWrap.className = 'dash-shopping-cols';
+  columns.forEach((colGroups) => {
+    const col = document.createElement('div');
+    col.className = 'dash-shopping-col';
+    colGroups.forEach(([groupName, groupItems]) => {
+      const label = document.createElement('div');
+      label.className = 'dash-shopping-group-label';
+      const sym = groupItems[0].groupSym;
+      label.textContent = sym ? `${sym} ${groupName}` : groupName;
+      col.appendChild(label);
+      groupItems.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'dash-shopping-row';
+        row.innerHTML = `
+          <span class="dash-shopping-row-name">${item.name}</span>
+          <span class="dash-shopping-row-need">+${formatShoppingNeed(item)}</span>
+        `;
+        col.appendChild(row);
+      });
+    });
+    colsWrap.appendChild(col);
+  });
+  shoppingFullListEl.appendChild(colsWrap);
 }
 
 function render() {
