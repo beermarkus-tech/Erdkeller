@@ -1,5 +1,5 @@
-import { db } from './firebase-init.js?v=68';
-import { PALETTE } from './year-colors.js?v=68';
+import { db } from './firebase-init.js?v=69';
+import { PALETTE } from './year-colors.js?v=69';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";

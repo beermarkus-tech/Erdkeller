@@ -22,11 +22,11 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=68';
+import { db } from './firebase-init.js?v=69';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=68';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=69';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -693,7 +693,14 @@ function renderAlertsList(horizonEndIdx) {
   });
 }
 
+// 'reached' reuses computeAlerts' own "<= horizonEnd, no lower bound"
+// filter with horizonEnd pinned to the current month — computeAlerts
+// already includes overdue batches in every horizon (that's what makes
+// them 'danger'-tinted there), so capping the horizon at "now" is exactly
+// "due this month or already passed", i.e. MHD erreicht — no separate
+// filter needed.
 function alertsHorizonEnd(horizon) {
+  if (horizon === 'reached') return nowMonthIndex();
   return horizon === 'year' ? horizonEndForYearEnd() : horizonEndForMonths(Number(horizon));
 }
 
