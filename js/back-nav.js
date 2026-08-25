@@ -1,25 +1,20 @@
 // Wires the hardware/gesture back button (Android) to the app's own
-// internal "go back" actions instead of leaving it to just exit the app
-// or do nothing — in a PWA the back button/gesture is a plain browser
-// popstate, and with no history entry to consume there's nothing for the
-// browser to intercept in the first place.
+// internal "go back" actions instead of leaving it to exit the app or do
+// nothing — in a PWA the back button/gesture is a plain browser popstate,
+// and with no history entry to consume there's nothing for the browser
+// to intercept in the first place.
 //
-// One sentinel history entry represents "there's an internal back action
-// available right now." Entering any of the app's four nested states
-// pushes one; popstate consumes it and performs whichever of those states
-// is deepest, in priority order — only one is ever meaningfully "on top"
-// since they live on different screens. Leaving a nested state any other
-// way (an on-screen back/close/Fertig button, switching tabs away from a
-// screen left mid-flow) collapses the same entry via history.back(), so
-// the sentinel never goes stale — the next real hardware back either
-// keeps unwinding a still-nested state or, once there's nothing left,
-// exits normally like any other screen.
-//
-// Deliberately scoped to nested/modal states only (Settings sub-panels,
-// the check-in/check-out guided flow, Checklisten edit mode, the crisis
-// reference overlay) — not bottom-nav tab switches. Switching tabs is
-// peer navigation, not depth, and unwinding it on back isn't how Android
-// bottom-nav apps normally behave.
+// Priority, checked on every back press: (1) unwind whichever of the four
+// nested states is deepest — Settings sub-panel, Stock guided flow,
+// Checklisten edit mode, crisis reference overlay (only one is ever
+// meaningfully "on top", since they live on different screens); (2) if
+// nothing's nested but a different bottom-nav tab is active, switch to
+// Dashboard — the floor; (3) if already at the floor (Dashboard, nothing
+// nested), absorb the press and do nothing further. The app is never
+// supposed to actually exit via back while signed in, so a sentinel
+// history entry is kept pushed at all times: consumed by popstate, then
+// immediately re-pushed after handling it, so there's always another one
+// waiting for the next press.
 
 const crisisReferenceEl = document.getElementById('crisis-reference');
 const crisisReferenceCloseBtn = document.getElementById('crisis-reference-close');
@@ -28,6 +23,8 @@ const checkinFlowEl = document.getElementById('stock-flow');
 const checkinBackBtn = document.getElementById('checkin-back-btn');
 const checkoutFlowEl = document.getElementById('stock-flow-checkout');
 const checkoutBackBtn = document.getElementById('checkout-back-btn');
+const appEl = document.getElementById('app');
+const dashboardNavBtn = document.querySelector('.nav-btn[data-tab="dashboard"]');
 
 // Switching to a *different* bottom-nav tab doesn't reset a screen's own
 // internal state (each screen only resets on erdkeller:navreset for its
@@ -55,36 +52,16 @@ function checklistsEditNested() {
   return screenActive('checklists') && checklistsEditToggleBtn.classList.contains('editing');
 }
 
-function isNested() {
-  // The crisis reference is a full-screen fixed overlay covering
-  // everything regardless of which screen is "active" beneath it, so it
-  // doesn't need the same active-screen guard as the other three.
-  return crisisReferenceEl.classList.contains('show')
-    || checklistsEditNested()
-    || settingsNested()
-    || checkinNested()
-    || checkoutNested();
+function appVisible() {
+  return !appEl.classList.contains('hidden');
 }
 
 let armed = false;
 
-// Keeps the sentinel entry in sync with whether we're actually nested
-// right now — not just arming, but also collapsing it via history.back()
-// when a nested state closes through anything *other* than a hardware
-// back press (tapping a screen's own on-screen back/close/Fertig button,
-// or switching bottom-nav tabs away from a screen left mid-flow). Without
-// this, a leftover sentinel from a state the user left another way would
-// sit unconsumed — the next real hardware back would silently swallow
-// one press for nothing before a second press actually did anything.
-function syncArmed() {
-  const nested = isNested();
-  if (nested && !armed) {
-    history.pushState({ erdkellerBack: true }, '');
-    armed = true;
-  } else if (!nested && armed) {
-    armed = false;
-    history.back();
-  }
+function ensureArmed() {
+  if (armed || !appVisible()) return;
+  history.pushState({ erdkellerBack: true }, '');
+  armed = true;
 }
 
 window.addEventListener('popstate', () => {
@@ -99,16 +76,18 @@ window.addEventListener('popstate', () => {
     checkinBackBtn.click();
   } else if (checkoutNested()) {
     checkoutBackBtn.click();
+  } else if (!screenActive('dashboard')) {
+    dashboardNavBtn?.click();
   }
-  syncArmed();
+  // Already at the floor (Dashboard, nothing nested) — nothing left to
+  // do, the press is simply absorbed.
+  ensureArmed();
 });
 
-// Reactive: rather than every module that opens/closes a nested state
-// remembering to call something here, watch for the class changes that
-// already mark each one (`.show`, `.editing`, a panel losing `.hidden`,
-// a flow's back button appearing, a tab's `.active` moving) and sync from
-// that alone.
-new MutationObserver(() => syncArmed())
+// Re-arms reactively on any relevant class change (a nested state opening
+// or closing, a tab switching, signing in) rather than requiring every
+// module that touches one of those to remember to call something here.
+new MutationObserver(() => ensureArmed())
   .observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true });
 
-syncArmed();
+ensureArmed();
