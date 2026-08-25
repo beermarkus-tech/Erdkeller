@@ -2308,9 +2308,55 @@ nav.bottomnav button .icon {
 
 /* Checklisten (Step 12) — same .checklists-tab.hidden pattern as
    .dash-tab/.data-tab elsewhere for the Wartung/Krise segmented tabs. */
-.checklists-tab.hidden,
-.checklists-edit-tab.hidden {
+.checklists-tab.hidden {
   display: none;
+}
+
+/* Editing lives inline on the screen itself (a pencil toggle swaps the
+   view for the same editor markup that used to sit under Settings), not
+   in its own admin submenu — same "inline, not tucked into Settings"
+   pattern SPEC.md Section 9 uses for Contacts/Notes. */
+.checklists-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.checklists-header .segmented {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+#checklists-status {
+  margin: 0 0 16px;
+}
+
+.checklists-edit-toggle {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--stone-dark);
+  background: white;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checklists-edit-toggle.editing {
+  width: auto;
+  padding: 0 14px;
+  border-radius: 20px;
+  border-color: var(--cellar);
+  background: var(--cellar);
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
 }
 
 #maintenance-filter-toggle {

@@ -27,29 +27,36 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=72';
+import { db } from './firebase-init.js?v=73';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
+//
+// No separate Settings → Checklisten submenu (there was one through Build
+// 72; Markus asked for it to fold inline instead, matching how SPEC.md
+// Section 9 already does Contacts/Notes — admin edits happen where the
+// content lives, not in a submenu you have to go find). The admin-only
+// pencil toggle below swaps each tab's view between the read/checkbox
+// list and the same editor markup, in place.
 
+const checklistsEditToggleBtn = document.getElementById('checklists-edit-toggle');
 const checklistsTabBtns = document.querySelectorAll('.seg-btn[data-checklists-tab]');
 const checklistsTabPanels = document.querySelectorAll('.checklists-tab[data-checklists-tab-panel]');
 const maintenanceFilterButtons = document.querySelectorAll('#maintenance-filter-toggle .select-mode-btn');
+const maintenanceViewEl = document.getElementById('maintenance-view');
 const maintenanceListEl = document.getElementById('maintenance-list');
+const crisisViewEl = document.getElementById('crisis-view');
 const crisisListEl = document.getElementById('crisis-list');
 const crisisReferenceEl = document.getElementById('crisis-reference');
 const crisisReferenceCloseBtn = document.getElementById('crisis-reference-close');
 const crisisReferenceTitleEl = document.getElementById('crisis-reference-title');
 const crisisReferenceStepsEl = document.getElementById('crisis-reference-steps');
 
-// --- DOM refs: Settings → Checklisten editor -------------------------------
-
-const checklistsCard = document.querySelector('.settings-card[data-target="checklists"]');
-const checklistsEditTabBtns = document.querySelectorAll('.seg-btn[data-checklists-edit-tab]');
-const checklistsEditTabPanels = document.querySelectorAll('.checklists-edit-tab[data-checklists-edit-tab-panel]');
+const maintenanceEditViewEl = document.getElementById('maintenance-edit-view');
 const maintenanceEditorEl = document.getElementById('maintenance-editor');
 const addMaintenanceListBtn = document.getElementById('add-maintenance-list-btn');
 const importMaintenanceBtn = document.getElementById('import-maintenance-btn');
+const crisisEditViewEl = document.getElementById('crisis-edit-view');
 const crisisEditorEl = document.getElementById('crisis-editor');
 const addCrisisTypeBtn = document.getElementById('add-crisis-type-btn');
 const statusEl = document.getElementById('checklists-status');
@@ -72,6 +79,9 @@ let crisis = { types: [] };
 // Same data-integrity guard as taxonomy.js/storage-locations.js.
 let loadOk = false;
 let maintenanceFilter = 'due'; // 'due' | 'all'
+// One flag for both tabs — whichever tab is active shows its editor while
+// this is true, so switching tabs mid-edit stays in edit mode.
+let editMode = false;
 
 function genId() {
   return crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
@@ -207,7 +217,7 @@ function renderMaintenanceList() {
     p.className = 'screen-placeholder';
     p.textContent = maintenanceFilter === 'due'
       ? 'Nichts fällig — alles erledigt.'
-      : 'Noch keine Checklisten vorhanden (Settings → Checklisten).';
+      : 'Noch keine Checklisten vorhanden — mit ✏️ oben rechts anlegen.';
     maintenanceListEl.appendChild(p);
   }
 }
@@ -228,7 +238,7 @@ function renderCrisisList() {
   if (crisis.types.length === 0) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = 'Noch keine Krisentypen angelegt (Settings → Checklisten).';
+    p.textContent = 'Noch keine Krisentypen angelegt — mit ✏️ oben rechts anlegen.';
     crisisListEl.appendChild(p);
     return;
   }
@@ -272,7 +282,7 @@ checklistsTabBtns.forEach((btn) => {
   });
 });
 
-// --- Settings → Checklisten editor: Wartung -------------------------------
+// --- Inline editor: Wartung -------------------------------------------
 
 function focusFirstInput(container) {
   const input = container.querySelector('.tax-name-input:last-of-type') || container.querySelector('.tax-name-input');
@@ -381,7 +391,7 @@ addMaintenanceListBtn.addEventListener('click', () => {
   renderMaintenanceEditor();
 });
 
-// --- Settings → Checklisten editor: Krise ---------------------------------
+// --- Inline editor: Krise -----------------------------------------------
 
 function renderCrisisEditor() {
   crisisEditorEl.innerHTML = '';
@@ -456,12 +466,29 @@ addCrisisTypeBtn.addEventListener('click', () => {
   renderCrisisEditor();
 });
 
-checklistsEditTabBtns.forEach((btn) => {
-  btn.addEventListener('click', () => {
-    checklistsEditTabBtns.forEach((b) => b.classList.toggle('active', b === btn));
-    checklistsEditTabPanels.forEach((p) => p.classList.toggle('hidden', p.dataset.checklistsEditTabPanel !== btn.dataset.checklistsEditTab));
-  });
+// --- Edit-mode toggle (admin-only pencil, top right) -----------------------
+//
+// One button swaps whichever tab is active between its read view and the
+// same editor markup, in place; tapping it again ("✓ Fertig") swaps back.
+// Both tabs' view/edit containers exist in the DOM at all times (editor
+// content is always kept current by render(), same as every other panel
+// in this app) — this just toggles which pair is visible.
+
+function applyEditMode() {
+  maintenanceViewEl.classList.toggle('hidden', editMode);
+  maintenanceEditViewEl.classList.toggle('hidden', !editMode);
+  crisisViewEl.classList.toggle('hidden', editMode);
+  crisisEditViewEl.classList.toggle('hidden', !editMode);
+  checklistsEditToggleBtn.classList.toggle('editing', editMode);
+  checklistsEditToggleBtn.textContent = editMode ? '✓ Fertig' : '✏️';
+}
+
+checklistsEditToggleBtn.addEventListener('click', () => {
+  editMode = !editMode;
+  applyEditMode();
 });
+
+applyEditMode();
 
 // --- One-time seed import --------------------------------------------------
 // Markus's real checklist, transcribed once. Adds to whatever's already
@@ -572,10 +599,11 @@ function render() {
 
 window.addEventListener('erdkeller:signedin', () => loadAll());
 window.addEventListener('erdkeller:refresh', () => loadAll());
-checklistsCard.addEventListener('click', () => loadAll());
 
 window.addEventListener('erdkeller:navreset', (e) => {
   if (e.detail.tab !== 'checklists') return;
   crisisReferenceEl.classList.remove('show');
+  editMode = false;
+  applyEditMode();
   render();
 });
