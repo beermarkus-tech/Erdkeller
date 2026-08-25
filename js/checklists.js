@@ -36,7 +36,7 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=80';
+import { db } from './firebase-init.js?v=81';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
@@ -446,12 +446,23 @@ function renderMaintenanceManageList() {
 }
 
 addMaintenanceListBtn.addEventListener('click', () => {
-  maintenance.lists.push({
-    id: genId(), name: 'Neue Checkliste', recipients: ['markus'], items: [],
-  });
+  const newList = { id: genId(), name: 'Neue Checkliste', recipients: ['markus'], items: [] };
+  maintenance.lists.push(newList);
+  // Auto-focus both filter rows on the new checklist — without this,
+  // "+ Eintrag hinzufügen" falls back to maintenance.lists[0] (whichever
+  // checklist was created first, not this one) whenever no single-
+  // checklist filter is active, so an item added right after creating a
+  // new checklist would silently land on a different, existing one,
+  // leaving the new checklist with 0 items and invisible on the live
+  // view (which skips empty checklists entirely).
+  selectedListFilters = new Set([newList.name]);
+  selectedLiveListFilters = new Set([newList.name]);
   saveMaintenance();
   renderMaintenanceManageList();
   renderMaintenanceFilters();
+  renderMaintenanceFlatList();
+  renderMaintenanceLiveFilters();
+  renderMaintenanceList();
 });
 
 // --- Flat, filterable item list (Build 74) ---------------------------------
@@ -579,9 +590,12 @@ addMaintenanceItemBtn.addEventListener('click', () => {
     statusEl.textContent = 'Zuerst eine Checkliste anlegen ("+ Neue Checkliste").';
     return;
   }
+  // Falls back to the most recently created checklist, not the first —
+  // "whichever checklist you were probably just working on" is a much
+  // safer guess with no filter active than "whichever came first".
   const targetList = selectedListFilters.size === 1
-    ? maintenance.lists.find((l) => selectedListFilters.has(l.name)) || maintenance.lists[0]
-    : maintenance.lists[0];
+    ? maintenance.lists.find((l) => selectedListFilters.has(l.name)) || maintenance.lists[maintenance.lists.length - 1]
+    : maintenance.lists[maintenance.lists.length - 1];
   if (!targetList.items) targetList.items = [];
   const newItem = { id: genId(), text: 'Neuer Eintrag', frequency: 'yearly', lastCompletedAt: null };
   targetList.items.push(newItem);
