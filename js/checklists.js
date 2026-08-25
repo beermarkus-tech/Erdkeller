@@ -36,7 +36,7 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=83';
+import { db } from './firebase-init.js?v=84';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
@@ -361,9 +361,13 @@ function renderCrisisList() {
 function openCrisisReference(type) {
   crisisReferenceTitleEl.textContent = type.name;
   crisisReferenceStepsEl.innerHTML = '';
-  (type.steps || []).forEach((step) => {
+  (type.steps || []).forEach((step, idx) => {
     const p = document.createElement('p');
-    p.textContent = step.text;
+    const numSpan = document.createElement('span');
+    numSpan.className = 'crisis-step-number';
+    numSpan.textContent = `${idx + 1}.`;
+    p.appendChild(numSpan);
+    p.appendChild(document.createTextNode(' ' + step.text));
     crisisReferenceStepsEl.appendChild(p);
   });
   crisisReferenceEl.classList.add('show');
@@ -642,10 +646,11 @@ function renderCrisisEditor() {
     });
     group.appendChild(head);
 
-    (type.steps || []).forEach((step) => {
+    (type.steps || []).forEach((step, idx) => {
       const row = document.createElement('div');
       row.className = 'checklist-edit-item-row';
       row.innerHTML = `
+        <span class="checklist-step-number">${idx + 1}.</span>
         <input class="tax-name-input" value="${escapeAttr(step.text)}" placeholder="Schritt">
         <button class="tax-del" title="Schritt löschen">✕</button>
       `;
