@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=58';
+import { db } from './firebase-init.js?v=59';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -225,7 +225,6 @@ function renderType(type) {
   // kcal/macro/diversity data, only stops the calculator from using it.
   const classToggle = document.createElement('div');
   classToggle.className = 'tax-expand-row tax-planning-toggle';
-  const cls = typeClass(type);
   classToggle.innerHTML = `
     <button type="button" class="select-mode-btn${cls === 'food' ? ' active' : ''}" data-class="food">Lebensmittel</button>
     <button type="button" class="select-mode-btn${cls === 'water' ? ' active' : ''}" data-class="water">Wasser</button>
