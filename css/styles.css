@@ -405,16 +405,21 @@ nav.bottomnav button .icon {
   text-align: left;
 }
 
+/* Explicit margin on both — not just margin-top — since these are <p>
+   tags: without a full reset here they keep the browser's default
+   top+bottom paragraph margin, which stacks unpredictably with whatever
+   comes next instead of collapsing cleanly with it. */
 .settings-note {
   font-size: 12px;
   color: #8a8776;
-  margin-top: 18px;
+  margin: 18px 0 0;
 }
 
 .taxonomy-status {
   font-size: 12px;
   color: #6b6a5f;
   min-height: 16px;
+  margin: 0;
 }
 
 /* Taxonomy editor */
@@ -557,11 +562,15 @@ nav.bottomnav button .icon {
   flex-shrink: 0;
 }
 
+/* margin, not padding — padding adds on top of a neighbor's margin
+   instead of collapsing with it, which was the other source of
+   inconsistent gaps between fields (e.g. Planung's Autonomiedauer field
+   above this row). */
 .tax-planning-row {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 10px 0 4px;
+  margin: 10px 0 4px;
 }
 
 .tax-planning-field {
@@ -1047,12 +1056,19 @@ nav.bottomnav button .icon {
   touch-action: pan-y;
 }
 
+/* margin-top makes the gap above a section header consistent everywhere,
+   regardless of what precedes it — previously 0, which left the gap
+   entirely up to whatever margin the preceding element happened to carry
+   (a .form-group's 18px, a <p> with the browser's default margin, a
+   .tax-planning-row's padding not collapsing at all, …), so the same
+   header could sit noticeably closer to or further from the content
+   above it depending on context. */
 .section-label {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #6b6a5f;
-  margin: 0 0 10px;
+  margin: 28px 0 10px;
   font-weight: 600;
 }
 

@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=65">
-<link rel="icon" href="icons/icon-192.png?v=65">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=65">
+<link rel="manifest" href="manifest.json?v=66">
+<link rel="icon" href="icons/icon-192.png?v=66">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=66">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=65">
+<link rel="stylesheet" href="css/styles.css?v=66">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 65</div>
+<div id="build-tag" class="build-tag">Build 66</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -695,18 +695,20 @@
             <input type="number" id="planning-macro-fett">
           </div>
         </div>
+        <p class="settings-note">Richtwert nach den DGE-Referenzwerten für eine ausgewogene Ernährung: ca. 50 % Kohlenhydrate, 30 % Fett, 20 % Protein der Kalorienzufuhr — ein guter Ausgangspunkt für die Vorratsplanung, keine individuelle Ernährungsberatung.</p>
 
         <div class="section-label">Wasser</div>
         <div class="form-group">
           <label>Liter pro Person/Tag</label>
           <input type="number" step="0.1" id="planning-water-rate">
         </div>
-
-        <p id="planning-status" class="taxonomy-status"></p>
+        <p class="settings-note">Empfehlung des BBK (Bundesamt für Bevölkerungsschutz und Katastrophenhilfe): 2 L Trinkwasser pro Person und Tag (Trinken, Kochen) plus Brauchwasser für Hygiene — z. B. eine gefüllte Badewanne (150–200 L) oder überschlägig +1 L pro Person und Tag. Der Standardwert 3 L/Tag deckt Trink- und Brauchwasser hier zusammen ab.</p>
 
         <div class="section-label">Berechnete Ziele</div>
         <p class="settings-note">Diese Zahlen werden live in Ziele auf die passenden Kategorien und Unterkategorien verteilt — keine weitere Aktion hier nötig.</p>
         <div id="planning-computed"></div>
+
+        <p id="planning-status" class="taxonomy-status"></p>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-export">
@@ -737,22 +739,22 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=65"></script>
-<script type="module" src="js/auth.js?v=65"></script>
-<script type="module" src="js/app-shell.js?v=65"></script>
-<script type="module" src="js/account-menu.js?v=65"></script>
-<script type="module" src="js/refresh-button.js?v=65"></script>
-<script type="module" src="js/settings-nav.js?v=65"></script>
-<script type="module" src="js/data-tabs.js?v=65"></script>
-<script type="module" src="js/taxonomy.js?v=65"></script>
-<script type="module" src="js/storage-locations.js?v=65"></script>
-<script type="module" src="js/year-colors.js?v=65"></script>
-<script type="module" src="js/stock-checkin.js?v=65"></script>
-<script type="module" src="js/stock-checkout.js?v=65"></script>
-<script type="module" src="js/stock-table.js?v=65"></script>
-<script type="module" src="js/dashboard.js?v=65"></script>
-<script type="module" src="js/targets.js?v=65"></script>
-<script type="module" src="js/planning.js?v=65"></script>
-<script type="module" src="js/admin-log.js?v=65"></script>
+<script src="js/app.js?v=66"></script>
+<script type="module" src="js/auth.js?v=66"></script>
+<script type="module" src="js/app-shell.js?v=66"></script>
+<script type="module" src="js/account-menu.js?v=66"></script>
+<script type="module" src="js/refresh-button.js?v=66"></script>
+<script type="module" src="js/settings-nav.js?v=66"></script>
+<script type="module" src="js/data-tabs.js?v=66"></script>
+<script type="module" src="js/taxonomy.js?v=66"></script>
+<script type="module" src="js/storage-locations.js?v=66"></script>
+<script type="module" src="js/year-colors.js?v=66"></script>
+<script type="module" src="js/stock-checkin.js?v=66"></script>
+<script type="module" src="js/stock-checkout.js?v=66"></script>
+<script type="module" src="js/stock-table.js?v=66"></script>
+<script type="module" src="js/dashboard.js?v=66"></script>
+<script type="module" src="js/targets.js?v=66"></script>
+<script type="module" src="js/planning.js?v=66"></script>
+<script type="module" src="js/admin-log.js?v=66"></script>
 </body>
 </html>
