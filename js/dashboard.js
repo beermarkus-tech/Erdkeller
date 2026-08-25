@@ -22,11 +22,11 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=67';
+import { db } from './firebase-init.js?v=68';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=67';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=68';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -368,7 +368,7 @@ function computeShoppingList(subStock, rows) {
     row.subs.forEach(({ sub, targetKg, currentKg }) => {
       if (targetKg != null && currentKg < targetKg) {
         items.push({
-          kind: 'sub', name: sub.name, group: row.cat.name, need: targetKg - currentKg, unit: 'kg', kcalPerKg: row.kcalPerKg,
+          kind: 'sub', name: sub.name, group: row.cat.name, groupSym: row.cat.sym || '', need: targetKg - currentKg, unit: 'kg', kcalPerKg: row.kcalPerKg,
         });
       }
     });
@@ -383,7 +383,7 @@ function computeShoppingList(subStock, rows) {
     const current = productCurrentAmount(product);
     if (current < targetAmount) {
       items.push({
-        kind: 'product', name: product.name, group: 'Produktziele', need: targetAmount - current, unit: target.unit,
+        kind: 'product', name: product.name, group: 'Produktziele', groupSym: '', need: targetAmount - current, unit: target.unit,
       });
     }
   });
@@ -392,7 +392,7 @@ function computeShoppingList(subStock, rows) {
   const waterCurrent = waterCurrentLiters(subStock);
   if (waterTarget != null && waterCurrent < waterTarget) {
     items.push({
-      kind: 'water', name: 'Wasser', group: 'Produktziele', need: waterTarget - waterCurrent, unit: 'L',
+      kind: 'water', name: 'Wasser', group: 'Produktziele', groupSym: '', need: waterTarget - waterCurrent, unit: 'L',
     });
   }
 
@@ -726,7 +726,8 @@ function renderShoppingList(items) {
   groups.forEach((groupItems, groupName) => {
     const label = document.createElement('div');
     label.className = 'dash-shopping-group-label';
-    label.textContent = groupName;
+    const sym = groupItems[0].groupSym;
+    label.textContent = sym ? `${sym} ${groupName}` : groupName;
     shoppingFullListEl.appendChild(label);
     groupItems.forEach((item) => {
       const row = document.createElement('div');
