@@ -2656,8 +2656,14 @@ nav.bottomnav button .icon {
   /* MHD: three columns of alert rows instead of one long stack. CSS
      multi-column, not grid — grid places items row-major (left to right,
      then wraps down), multi-column flows each column top-to-bottom first
-     the way the request asked for. */
+     the way the request asked for. display:block is required here, not
+     just column-count — multi-column has no effect at all on a flex
+     container, and the base (mobile) rule below sets display:flex for
+     its single-column stack, so without this override column-count was
+     silently ignored and the list stayed one column even at tablet
+     width. */
   .dash-alert-list {
+    display: block;
     column-count: 3;
     column-gap: 8px;
   }
