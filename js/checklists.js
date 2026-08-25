@@ -36,7 +36,7 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=81';
+import { db } from './firebase-init.js?v=82';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
@@ -626,16 +626,19 @@ function renderCrisisEditor() {
     head.querySelector('.tax-sym-input').addEventListener('change', (e) => {
       type.sym = e.target.value.trim();
       saveCrisis();
+      renderCrisisList();
     });
     head.querySelector('.tax-name-input').addEventListener('change', (e) => {
       type.name = e.target.value.trim();
       saveCrisis();
+      renderCrisisList();
     });
     head.querySelector('.tax-del').addEventListener('click', () => {
       if (!confirm(`Krisentyp "${type.name}" inkl. aller Schritte löschen?`)) return;
       crisis.types = crisis.types.filter((t) => t.id !== type.id);
       saveCrisis();
       renderCrisisEditor();
+      renderCrisisList();
     });
     group.appendChild(head);
 
@@ -681,6 +684,7 @@ addCrisisTypeBtn.addEventListener('click', () => {
   });
   saveCrisis();
   renderCrisisEditor();
+  renderCrisisList();
 });
 
 // --- Edit-mode toggle (admin-only pencil, top right) -----------------------
