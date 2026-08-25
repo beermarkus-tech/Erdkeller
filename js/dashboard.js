@@ -22,11 +22,14 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=64';
+import { db } from './firebase-init.js?v=65';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=64';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=65';
+
+const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
+const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
 
 const unitToggleButtons = document.querySelectorAll('#dash-unit-toggle .select-mode-btn');
 const heroEl = document.getElementById('dash-hero');
@@ -34,18 +37,9 @@ const heroWaterEl = document.getElementById('dash-hero-water');
 const categoryListEl = document.getElementById('dash-category-list');
 const legendEl = document.getElementById('dash-legend');
 
-const alertsSectionEl = document.getElementById('dash-alerts');
-const alertStripEl = document.getElementById('dash-alert-strip');
-const alertsAllBtn = document.getElementById('dash-alerts-all-btn');
-const alertsModal = document.getElementById('alerts-modal');
 const alertsHorizonButtons = document.querySelectorAll('#alerts-horizon-toggle .select-mode-btn');
 const alertsFullListEl = document.getElementById('alerts-full-list');
 
-const shoppingSectionEl = document.getElementById('dash-shopping');
-const shoppingSummaryEl = document.getElementById('dash-shopping-summary');
-const shoppingPreviewListEl = document.getElementById('dash-shopping-preview-list');
-const shoppingAllBtn = document.getElementById('dash-shopping-all-btn');
-const shoppingModal = document.getElementById('shopping-modal');
 const shoppingFullListEl = document.getElementById('shopping-full-list');
 
 let taxonomy = { types: [] };
@@ -665,35 +659,20 @@ unitToggleButtons.forEach((btn) => {
   });
 });
 
+// --- Tabs (Bestand / MHD / Einkaufsliste) --------------------------------
+
+dashTabBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    dashTabBtns.forEach((b) => b.classList.toggle('active', b === btn));
+    dashTabPanels.forEach((p) => p.classList.toggle('hidden', p.dataset.dashTabPanel !== btn.dataset.dashTab));
+  });
+});
+
 // --- Alerts rendering --------------------------------------------------
 
-function makeAlertRow(className, alert) {
-  const row = document.createElement('div');
-  row.className = className + (alert.severity !== 'none' ? ' ' + alert.severity : '');
-  row.addEventListener('click', () => openFilteredByProductSearch(alert.product.name));
-  return row;
-}
-
-function renderAlertsPreview() {
-  alertStripEl.innerHTML = '';
-  if (!loadOk) {
-    alertsSectionEl.classList.add('hidden');
-    return;
-  }
-  const alerts = computeAlerts(horizonEndForMonths(3));
-  alertsSectionEl.classList.toggle('hidden', alerts.length === 0);
-  alerts.forEach((alert) => {
-    const chip = makeAlertRow('dash-alert-chip', alert);
-    chip.innerHTML = `
-      <div class="dash-alert-chip-name">${alert.product.name}</div>
-      <div class="dash-alert-chip-date">MHD ${alert.batch.bestBefore}</div>
-    `;
-    alertStripEl.appendChild(chip);
-  });
-}
-
-function renderAlertsModal(horizonEndIdx) {
+function renderAlertsList(horizonEndIdx) {
   alertsFullListEl.innerHTML = '';
+  if (!loadOk) return;
   const alerts = computeAlerts(horizonEndIdx);
   if (alerts.length === 0) {
     const p = document.createElement('p');
@@ -703,7 +682,9 @@ function renderAlertsModal(horizonEndIdx) {
     return;
   }
   alerts.forEach((alert) => {
-    const row = makeAlertRow('dash-alert-row', alert);
+    const row = document.createElement('div');
+    row.className = 'dash-alert-row' + (alert.severity !== 'none' ? ' ' + alert.severity : '');
+    row.addEventListener('click', () => openFilteredByProductSearch(alert.product.name));
     row.innerHTML = `
       <span class="dash-alert-row-name">${alert.product.name}</span>
       <span class="dash-alert-row-date">${alert.batch.bestBefore}</span>
@@ -716,36 +697,19 @@ function alertsHorizonEnd(horizon) {
   return horizon === 'year' ? horizonEndForYearEnd() : horizonEndForMonths(Number(horizon));
 }
 
-alertsAllBtn.addEventListener('click', () => {
-  alertsHorizonButtons.forEach((b) => b.classList.toggle('active', b.dataset.horizon === '1'));
-  renderAlertsModal(alertsHorizonEnd('1'));
-  alertsModal.classList.add('show');
-});
+let currentAlertsHorizon = '1';
+
 alertsHorizonButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
+    currentAlertsHorizon = btn.dataset.horizon;
     alertsHorizonButtons.forEach((b) => b.classList.toggle('active', b === btn));
-    renderAlertsModal(alertsHorizonEnd(btn.dataset.horizon));
+    renderAlertsList(alertsHorizonEnd(currentAlertsHorizon));
   });
-});
-alertsModal.addEventListener('click', (e) => {
-  if (e.target === alertsModal) alertsModal.classList.remove('show');
 });
 
 // --- Shopping list rendering ---------------------------------------------
 
-let shoppingItems = [];
-
-function renderShoppingPreview(items) {
-  shoppingSectionEl.classList.toggle('hidden', items.length === 0);
-  if (items.length === 0) return;
-  shoppingSummaryEl.textContent = items.length === 1
-    ? '1 Produkt braucht Nachschub'
-    : `${items.length} Produkte brauchen Nachschub`;
-  const names = items.slice(0, 5).map((it) => it.name);
-  shoppingPreviewListEl.textContent = names.join(', ') + (items.length > 5 ? ', …' : '');
-}
-
-function renderShoppingModal(items) {
+function renderShoppingList(items) {
   shoppingFullListEl.innerHTML = '';
   if (items.length === 0) {
     const p = document.createElement('p');
@@ -776,14 +740,6 @@ function renderShoppingModal(items) {
   });
 }
 
-shoppingAllBtn.addEventListener('click', () => {
-  renderShoppingModal(shoppingItems);
-  shoppingModal.classList.add('show');
-});
-shoppingModal.addEventListener('click', (e) => {
-  if (e.target === shoppingModal) shoppingModal.classList.remove('show');
-});
-
 function render() {
   macroGroupIds = computeMacroGroups();
   syncUnitToggle();
@@ -792,9 +748,8 @@ function render() {
   renderHero(rows);
   renderHeroWater(waterCurrentLiters(subStock), waterGlobalLiters());
   renderCategoryList(rows);
-  renderAlertsPreview();
-  shoppingItems = loadOk ? computeShoppingList(subStock, rows) : [];
-  renderShoppingPreview(shoppingItems);
+  renderAlertsList(alertsHorizonEnd(currentAlertsHorizon));
+  renderShoppingList(loadOk ? computeShoppingList(subStock, rows) : []);
 }
 
 // --- Entry point -----------------------------------------------------------
@@ -809,5 +764,7 @@ window.addEventListener('erdkeller:refresh', () => loadAll());
 window.addEventListener('erdkeller:navreset', (e) => {
   if (e.detail.tab !== 'dashboard') return;
   openCategoryIds.clear();
+  dashTabBtns.forEach((b) => b.classList.toggle('active', b.dataset.dashTab === 'stock'));
+  dashTabPanels.forEach((p) => p.classList.toggle('hidden', p.dataset.dashTabPanel !== 'stock'));
   render();
 });

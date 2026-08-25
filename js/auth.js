@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=64';
+import { auth, db } from './firebase-init.js?v=65';
 import {
   GoogleAuthProvider,
   signInWithPopup,
