@@ -42,6 +42,21 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Step 12: /config/checklists is the one /config doc any signed-in
+    // family member can write, not just admin — ticking off a task is a
+    // member action, same reasoning as /stockItems check-in/check-out
+    // (Step 7), not a structural edit. Firestore rules can't cheaply tell
+    // "toggled one item's lastCompletedAt" apart from "restructured the
+    // whole list" within one nested-array document, so the document-level
+    // permission is member-wide; the admin-only Settings → Checklisten
+    // editor is what actually keeps add/remove/rename behind admin in
+    // practice. This literal path match takes precedence over the generic
+    // /config/{docId} wildcard above regardless of file order — Firestore
+    // rules resolve to the most specific matching pattern for a path.
+    match /config/checklists {
+      allow read, write: if isSignedIn();
+    }
+
     // Step 6: /products (master catalog). Unlike /config, any signed-in
     // family member can create a new product — SPEC.md Section 5 has
     // members adding one inline during check-in the first time something

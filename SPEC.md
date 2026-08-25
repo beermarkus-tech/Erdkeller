@@ -77,8 +77,9 @@ Firestore organizes data as **collections** (folders) of **documents** (individu
 /config/planning                 autonomy duration, macro split, water rate — see Section 7
 /stockItems/{itemId}             see Section 5
 /products/{productId}            name, subcategoryId, unitType (kg | stueck)
-/checklists/{checklistId}        title, frequency, recipients, nextDue
-/crisisTypes/{crisisId}          title, steps
+/config/checklists               lists: [{ id, name, recipients, items: [{ id, text,
+                                  frequency, lastCompletedAt }] }] — see Section 8
+/config/crisisTypes              types: [{ id, name, sym, steps: [{ id, text }] }]
 /contacts/{contactId}            name, role, phone, address, notes, isEmergency (bool)
 /notes/{noteId}                  title, body, photos
 /recipes/{recipeId}              title, body, photos, tags
@@ -202,9 +203,11 @@ Categories/subcategories with incomplete data (Kalorien mode without a macro or 
 
 ## 8. Checklists
 
-- **Maintenance checklists**: monthly/quarterly/yearly, recurring (e.g. water tank cleaning, battery charging, diesel changing). Admin-configured; **admin decides per checklist who receives the reminder** (self only, or also Julia/Sophia). List is **grouped by frequency** (all monthly checklists together, then quarterly, then yearly) rather than sorted by due date.
+- **Maintenance checklists**: no link to Bestand/Ziele at all — deliberately rejected mapping items to real products (a stock-flavored entry like "Klopapier (2x)" doesn't cleanly become a taxonomy product with a "satisfied" threshold), so an item is just text + frequency + checkbox, full stop. **Grouped by topic** (Ausrüstung, Autos, Dokumente, Gesundheit, ...), matching how the household actually organizes its own list, rather than by frequency — each item still carries its own weekly/monthly/quarterly/yearly frequency, shown as a tag. A **Fällig/Alle filter toggle** shows only items due this period vs. everything. Admin-configured (Settings → Checklisten); **admin decides per checklist who receives it** (Markus only, or also Julia/Sophia) — reminders themselves are still Section 12 (Notifications), not yet built.
+  - **Completion model**: no rolling `nextDue`-from-completion scheduler. Real usage is a single monthly sitting working through everything due at once, so each item just carries a `lastCompletedAt` timestamp; "done for the current period" is *derived* by comparing the calendar period (week/month/quarter/year, by `frequency`) of `lastCompletedAt` against the current period — the same period-bucket-comparison shape as the MHD month-index alerts (Section 6/Step 10). Ticking the box sets `lastCompletedAt` to now; it silently resets unchecked the moment the calendar rolls into a new period, whether or not it was checked in the period that just ended. No "einmalig" (one-off) frequency — even nominally one-time items (passport, compass, ...) get a real recurring cadence (seeded as yearly) so they're still checked occasionally rather than disappearing from the list forever.
+  - Firestore permission note: `/config/checklists` is the one `/config` doc any signed-in family member can write (not just admin) — ticking a box is a member action, same reasoning as stock check-in/out. The admin-only Settings → Checklisten editor is what actually keeps structural edits (add/rename/delete/reorder) behind admin in practice.
 - **Crisis checklists**: fully open — admin can create new crisis types freely (e.g. "Power outage", "Water outage", "Medical emergency", "Evacuation"), each with its own first-steps checklist. Presented as a **large-text, high-contrast scrolling list** — a pure read-through reference, no checkboxes or step-tracking, since the goal is fast calm reading under stress rather than progress tracking.
-- **Guaranteed offline availability**: crisis checklist content is explicitly pre-cached on first app load/sign-in (not just covered incidentally by general offline persistence, see Section 13) — this is the one section where offline access is mission-critical, since it's meant to be readable during outages regardless of when the device last synced.
+- **Guaranteed offline availability**: crisis checklist content is explicitly pre-cached on first app load/sign-in (not just covered incidentally by general offline persistence, see Section 13) — this is the one section where offline access is mission-critical, since it's meant to be readable during outages regardless of when the device last synced. *(Not yet implemented — still relies on general offline persistence, Section 13.)*
 
 ---
 
@@ -314,10 +317,10 @@ Tablet: same guided-flow pattern, just with more tiles per row / more breathing 
 - This view is for admin-style bulk review and cleanup — the guided Einlagern/Entnehmen flow remains the primary daily-use path for everyone else
 
 ### 3. Checklists (Maintenance / Crisis sub-tabs)
-**Maintenance:**
-- List **grouped by frequency** (Monatlich / Quartalsweise / Jährlich sections), each item showing title, next-due date, status (overdue/due soon/OK)
-- Detail: steps as **individual checkboxes**, auto-reset to unchecked when the cycle restarts; checklist auto-completes and rolls `nextDue` forward once all steps are checked
-- Admin-only: edit title/frequency/steps/recipients
+**Maintenance** *(as built — see Section 8 for the deviations from the original plan below)*:
+- List **grouped by checklist topic** (Ausrüstung, Autos, Dokumente, ...), each item showing text, a frequency tag, its checkbox, and (once checked at least once) a "zuletzt: MM/YYYY" note; a **Fällig/Alle** toggle filters to just what's due this period
+- Checkbox per item, no sub-steps; auto-resets to unchecked once the calendar rolls into the item's next period (week/month/quarter/year, derived from `lastCompletedAt` — no `nextDue` field, no roll-forward logic)
+- Admin-only: edit checklist name/recipients, add/edit/delete items and their frequency (Settings → Checklisten)
 
 **Crisis:**
 - List: crisis types as cards (Power outage, Water outage, etc.)
@@ -415,6 +418,9 @@ Extends the Step 4 taxonomy editor with the exclusive Kalorien/Diversität/Aus c
 **Step 12 — Checklists**
 Maintenance: grouped-by-frequency list, checkbox detail, auto-reset + `nextDue` roll-forward on completion, Settings → Checklists CRUD with per-checklist recipients. Crisis: card list, full-screen high-contrast reference view, Settings → Checklists CRUD for steps.
 *Test:* Complete a maintenance checklist and confirm `nextDue` advances correctly by its frequency and all checkboxes reset; crisis reference view renders in its distinct style with no checkboxes.
+
+**Status: built**, with three deliberate deviations from the plan above, confirmed with Markus during Step 12 design — see Section 8 for the reasoning behind each: no Bestand/Ziele link at all (not even optional); no `nextDue` roll-forward, replaced by the period-bucket derived-completion model; no "einmalig" frequency (folded into yearly). Maintenance is grouped by checklist topic rather than by frequency, with a Fällig/Alle toggle. A one-time **"Bekannte Checkliste importieren"** button in Settings → Checklisten seeds Markus's real ~113-item list (transcribed from his existing tracking sheet) into `/config/checklists` on first use.
+*Test:* Tick a maintenance item, confirm it shows done and reappears unchecked once the calendar rolls into its next period (spot-check by editing `lastCompletedAt` in Firestore for a fast period, e.g. weekly); Fällig/Alle toggle filters correctly; add/rename/delete a checklist and an item in Settings, confirm both the main screen and the editor stay in sync; add a crisis type with steps, confirm it opens the full-screen high-contrast reference view with no checkboxes; run the import button once and confirm all groups and items appear, re-running it and confirming (per its warning) it duplicates rather than overwrites.
 
 **Step 13 — Info section (Contacts / Notes / Recipes)**
 Pinned emergency contacts + general list + detail view; notes list + detail; recipes tag-filtered photo grid + detail. Inline admin-only add/edit on all three.

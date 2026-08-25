@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=71">
-<link rel="icon" href="icons/icon-192.png?v=71">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=71">
+<link rel="manifest" href="manifest.json?v=72">
+<link rel="icon" href="icons/icon-192.png?v=72">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=72">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=71">
+<link rel="stylesheet" href="css/styles.css?v=72">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 71</div>
+<div id="build-tag" class="build-tag">Build 72</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -293,7 +293,28 @@
       </div>
     </div>
     <div class="screen" data-screen="checklists">
-      <p class="screen-placeholder">Checklisten — wird in Schritt 12 gebaut.</p>
+      <div class="segmented">
+        <button class="seg-btn active" data-checklists-tab="maintenance" type="button">Wartung</button>
+        <button class="seg-btn" data-checklists-tab="crisis" type="button">Krise</button>
+      </div>
+
+      <div class="checklists-tab" data-checklists-tab-panel="maintenance">
+        <div class="tax-expand-row" id="maintenance-filter-toggle">
+          <button type="button" class="select-mode-btn active" data-filter="due">Fällig</button>
+          <button type="button" class="select-mode-btn" data-filter="all">Alle</button>
+        </div>
+        <div id="maintenance-list"></div>
+      </div>
+
+      <div class="checklists-tab hidden" data-checklists-tab-panel="crisis">
+        <div id="crisis-list"></div>
+      </div>
+    </div>
+
+    <div class="crisis-reference hidden" id="crisis-reference">
+      <button type="button" class="crisis-reference-close" id="crisis-reference-close">‹ Zurück</button>
+      <div class="crisis-reference-title" id="crisis-reference-title"></div>
+      <div class="crisis-reference-steps" id="crisis-reference-steps"></div>
     </div>
     <div class="screen" data-screen="info">
       <p class="screen-placeholder">Info — wird in Schritt 13 gebaut.</p>
@@ -505,8 +526,24 @@
           <div class="panel-header-row">
             <button class="panel-back-btn" data-back type="button">‹ Checklisten</button>
           </div>
+          <div class="segmented">
+            <button class="seg-btn active" data-checklists-edit-tab="maintenance" type="button">Wartung</button>
+            <button class="seg-btn" data-checklists-edit-tab="crisis" type="button">Krise</button>
+          </div>
         </div>
-        <p class="screen-placeholder">Checklisten-Verwaltung — wird in Schritt 12 gebaut.</p>
+
+        <div class="checklists-edit-tab" data-checklists-edit-tab-panel="maintenance">
+          <div id="maintenance-editor"></div>
+          <button class="add-row-btn" id="add-maintenance-list-btn">+ Neue Checkliste</button>
+          <button class="add-row-btn small" id="import-maintenance-btn">Bekannte Checkliste importieren (einmalig)</button>
+        </div>
+
+        <div class="checklists-edit-tab hidden" data-checklists-edit-tab-panel="crisis">
+          <div id="crisis-editor"></div>
+          <button class="add-row-btn" id="add-crisis-type-btn">+ Neuer Krisentyp</button>
+        </div>
+
+        <p id="checklists-status" class="taxonomy-status"></p>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-targets">
@@ -740,22 +777,23 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=71"></script>
-<script type="module" src="js/auth.js?v=71"></script>
-<script type="module" src="js/app-shell.js?v=71"></script>
-<script type="module" src="js/account-menu.js?v=71"></script>
-<script type="module" src="js/refresh-button.js?v=71"></script>
-<script type="module" src="js/settings-nav.js?v=71"></script>
-<script type="module" src="js/data-tabs.js?v=71"></script>
-<script type="module" src="js/taxonomy.js?v=71"></script>
-<script type="module" src="js/storage-locations.js?v=71"></script>
-<script type="module" src="js/year-colors.js?v=71"></script>
-<script type="module" src="js/stock-checkin.js?v=71"></script>
-<script type="module" src="js/stock-checkout.js?v=71"></script>
-<script type="module" src="js/stock-table.js?v=71"></script>
-<script type="module" src="js/dashboard.js?v=71"></script>
-<script type="module" src="js/targets.js?v=71"></script>
-<script type="module" src="js/planning.js?v=71"></script>
-<script type="module" src="js/admin-log.js?v=71"></script>
+<script src="js/app.js?v=72"></script>
+<script type="module" src="js/auth.js?v=72"></script>
+<script type="module" src="js/app-shell.js?v=72"></script>
+<script type="module" src="js/account-menu.js?v=72"></script>
+<script type="module" src="js/refresh-button.js?v=72"></script>
+<script type="module" src="js/settings-nav.js?v=72"></script>
+<script type="module" src="js/data-tabs.js?v=72"></script>
+<script type="module" src="js/taxonomy.js?v=72"></script>
+<script type="module" src="js/storage-locations.js?v=72"></script>
+<script type="module" src="js/year-colors.js?v=72"></script>
+<script type="module" src="js/stock-checkin.js?v=72"></script>
+<script type="module" src="js/stock-checkout.js?v=72"></script>
+<script type="module" src="js/stock-table.js?v=72"></script>
+<script type="module" src="js/dashboard.js?v=72"></script>
+<script type="module" src="js/targets.js?v=72"></script>
+<script type="module" src="js/planning.js?v=72"></script>
+<script type="module" src="js/checklists.js?v=72"></script>
+<script type="module" src="js/admin-log.js?v=72"></script>
 </body>
 </html>

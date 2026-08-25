@@ -2305,3 +2305,224 @@ nav.bottomnav button .icon {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
+
+/* Checklisten (Step 12) — same .checklists-tab.hidden pattern as
+   .dash-tab/.data-tab elsewhere for the Wartung/Krise segmented tabs. */
+.checklists-tab.hidden,
+.checklists-edit-tab.hidden {
+  display: none;
+}
+
+#maintenance-filter-toggle {
+  margin-bottom: 18px;
+}
+
+.checklist-group {
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  padding: 14px 16px;
+}
+
+.checklist-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.checklist-group-name {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.checklist-group-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.checklist-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--stone-dark);
+}
+.checklist-item-row:first-of-type {
+  border-top: none;
+}
+
+.checklist-item-check {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  accent-color: var(--cellar);
+}
+
+.checklist-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.checklist-item-text {
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.checklist-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.checklist-freq-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6b6a5f;
+  background: var(--stone);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.checklist-item-lastdone {
+  font-size: 11px;
+  color: #8a8776;
+}
+
+/* Krise — card list on the main screen, admin editor reuses the same
+   .tax-type-like rows in Settings. */
+.crisis-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.crisis-card .sym {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.crisis-card-name {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 15px;
+  flex: 1;
+}
+
+/* Full-screen, high-contrast, read-only reference — meant to be legible
+   fast and calmly during an actual outage, not a normal app screen, so it
+   deliberately doesn't reuse the paper/cellar palette or any checkbox. */
+.crisis-reference {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #14140f;
+  color: #F4F2EA;
+  overflow-y: auto;
+  padding: 20px 22px 40px;
+}
+.crisis-reference.show {
+  display: block;
+}
+
+.crisis-reference-close {
+  background: none;
+  border: 1px solid #4a4940;
+  color: #F4F2EA;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+.crisis-reference-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 26px;
+  margin-bottom: 20px;
+}
+
+.crisis-reference-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-size: 19px;
+  line-height: 1.5;
+}
+
+/* --- Settings → Checklisten editor -------------------------------------- */
+
+.checklist-edit-group {
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: 14px;
+  margin-bottom: 10px;
+  padding: 12px;
+}
+
+.checklist-edit-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.checklist-recipients {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 4px 0 10px;
+  font-size: 12.5px;
+  color: #4a4940;
+}
+
+.checklist-recipients label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.checklist-edit-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.checklist-edit-item-row .tax-name-input {
+  flex: 2;
+}
+
+.checklist-freq-select {
+  flex: 1;
+  min-width: 96px;
+  border: 1px solid var(--stone-dark);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+}
+
+.crisis-edit-steps {
+  padding-left: 4px;
+}
