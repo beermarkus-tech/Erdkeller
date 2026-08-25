@@ -17,7 +17,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=66';
+import { db } from './firebase-init.js?v=67';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -156,6 +156,10 @@ async function saveTargets() {
   try {
     await setDoc(doc(db, 'config', 'targets'), targets);
     statusEl.textContent = '';
+    // js/dashboard.js caches /config/targets in memory (its Kategorien/
+    // Wasser gaps and Einkaufsliste both depend on it) and only reloads
+    // on this event — same bug class as js/taxonomy.js's saveTaxonomy fix.
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
     console.error(err);
@@ -842,6 +846,12 @@ newProductCreateBtn.addEventListener('click', async () => {
     const product = { id: newDoc.id, name, subcategoryId, unitType: newProductUnit };
     allProducts.push(product);
     productIndex.set(product.id, product);
+    // Other modules (Bestand's guided flow, Übersicht) cache the product
+    // list in memory too and only reload on this event — same bug class
+    // as js/taxonomy.js's saveTaxonomy fix. Fired here rather than left
+    // to saveTargets() below, since the admin can dismiss the target-edit
+    // modal that follows without saving a target at all.
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
     newProductForm.classList.add('hidden');
     pickerModal.classList.remove('show');
     openEdit('products', product.id, product.name, product.unitType);

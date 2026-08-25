@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=66';
+import { db } from './firebase-init.js?v=67';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const listEl = document.getElementById('storage-list');
@@ -36,6 +36,10 @@ async function saveStorage() {
   try {
     await setDoc(ref, { locations });
     statusEl.textContent = '';
+    // stock-checkin/-checkout/-table cache this list in memory and only
+    // reload on this event — same bug class as js/taxonomy.js's
+    // saveTaxonomy fix.
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
     console.error(err);

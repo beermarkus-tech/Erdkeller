@@ -7,7 +7,7 @@
 // category picker: which stock counts as water is now a whole Taxonomie
 // type tagged Wasser (js/taxonomy.js), summed globally in the Übersicht
 // (js/dashboard.js) rather than assigned to one hand-picked category here.
-import { db } from './firebase-init.js?v=66';
+import { db } from './firebase-init.js?v=67';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const planningCard = document.querySelector('.settings-card[data-target="planning"]');
@@ -82,6 +82,10 @@ async function saveHousehold() {
   try {
     await setDoc(doc(db, 'config', 'household'), household);
     statusEl.textContent = '';
+    // Dashboard/Ziele cache household+planning in memory and only reload
+    // on this event — see js/taxonomy.js's saveTaxonomy for the same fix
+    // and the full rationale (this is the same bug class).
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
     console.error(err);
@@ -97,6 +101,7 @@ async function savePlanning() {
   try {
     await setDoc(doc(db, 'config', 'planning'), planning);
     statusEl.textContent = '';
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
     console.error(err);
