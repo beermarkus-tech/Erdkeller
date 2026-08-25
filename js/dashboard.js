@@ -22,11 +22,11 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=70';
+import { db } from './firebase-init.js?v=71';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=70';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=71';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -345,23 +345,15 @@ function computeAlerts(minIdx, maxIdx) {
     .filter((a) => a.product);
 }
 
-function horizonEndForYearEnd() {
-  return new Date().getFullYear() * 12 + 12;
-}
-
 // Each button is its own exclusive band, not "everything up to here" —
 // picking 1 Monat should never re-show what MHD erreicht already covers.
-// "Bis Jahresende" is the one exception to a clean ladder: since it's a
-// calendar cutoff (not a duration), from July on fewer than 6 months
-// remain in the year, so its band can end up empty (year-end already
-// falls inside the 6-Monate band above it) — correct, if occasionally
-// unsatisfying, rather than re-showing months 6-Monate already listed.
+// A clean duration ladder: reached, next month, months 2-6, months 7-12.
 function alertsRange(horizon) {
   const nowIdx = nowMonthIndex();
   if (horizon === 'reached') return { min: -Infinity, max: nowIdx };
   if (horizon === '1') return { min: nowIdx + 1, max: nowIdx + 1 };
   if (horizon === '6') return { min: nowIdx + 2, max: nowIdx + 6 };
-  return { min: nowIdx + 7, max: horizonEndForYearEnd() };
+  return { min: nowIdx + 7, max: nowIdx + 12 };
 }
 
 // --- Einkaufsliste (shopping list) ---------------------------------------
