@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=82';
+import { db } from './firebase-init.js?v=83';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
