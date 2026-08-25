@@ -2653,10 +2653,17 @@ nav.bottomnav button .icon {
    app's tablet rules above. Mobile is untouched; these only kick in where
    there's real width to spare. */
 @media (min-width: 900px) {
-  /* MHD: three columns of alert rows instead of one long stack. */
+  /* MHD: three columns of alert rows instead of one long stack. CSS
+     multi-column, not grid — grid places items row-major (left to right,
+     then wraps down), multi-column flows each column top-to-bottom first
+     the way the request asked for. */
   .dash-alert-list {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    column-count: 3;
+    column-gap: 8px;
+  }
+  .dash-alert-row {
+    break-inside: avoid;
+    margin-bottom: 8px;
   }
 
   /* Einkaufsliste: the two category-boundary-aware columns js/dashboard.js
