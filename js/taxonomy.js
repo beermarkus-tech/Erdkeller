@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=61';
+import { db } from './firebase-init.js?v=62';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -309,6 +309,16 @@ function renderCategory(type, cat) {
   wrap.className = 'tax-cat';
   wrap.dataset.id = cat.id;
 
+  // A Wasser category with 0-1 subcategories has an entirely empty body —
+  // it never gets the Kalorien/Diversität toggle (water skips that
+  // entirely), and the subcategory list stays hidden too (see
+  // ensureWaterSubcategory below) — so the expand/collapse chevron would
+  // have nothing to reveal. Only show it when the body can actually hold
+  // something: any food-classed category (planning mode toggle), or a
+  // Wasser category that still has real pre-existing subcategories (the
+  // >1 fallback case).
+  const emptyBody = typeClass(type) === 'water' && (cat.subcategories || []).length <= 1;
+
   const head = document.createElement('div');
   head.className = 'tax-cat-head';
   head.innerHTML = `
@@ -316,12 +326,12 @@ function renderCategory(type, cat) {
     <input class="tax-sym-input" value="${escapeAttr(cat.sym || '')}" placeholder="•">
     <input class="tax-name-input" value="${escapeAttr(cat.name || '')}" placeholder="Kategoriename">
     <button class="tax-del" title="Kategorie löschen">✕</button>
-    <button class="tax-toggle">${openCats.has(cat.id) ? '▴' : '▾'}</button>
+    ${emptyBody ? '' : `<button class="tax-toggle">${openCats.has(cat.id) ? '▴' : '▾'}</button>`}
   `;
   wrap.appendChild(head);
 
   const body = document.createElement('div');
-  body.className = 'tax-cat-body' + (openCats.has(cat.id) ? ' open' : '');
+  body.className = 'tax-cat-body' + (emptyBody || openCats.has(cat.id) ? ' open' : '');
   wrap.appendChild(body);
 
   head.querySelector('.tax-sym-input').addEventListener('change', (e) => {
@@ -338,11 +348,14 @@ function renderCategory(type, cat) {
     saveTaxonomy();
     render();
   });
-  head.querySelector('.tax-toggle').addEventListener('click', () => {
-    if (openCats.has(cat.id)) openCats.delete(cat.id);
-    else openCats.add(cat.id);
-    render();
-  });
+  const catToggleBtn = head.querySelector('.tax-toggle');
+  if (catToggleBtn) {
+    catToggleBtn.addEventListener('click', () => {
+      if (openCats.has(cat.id)) openCats.delete(cat.id);
+      else openCats.add(cat.id);
+      render();
+    });
+  }
 
   // Optional Planung fields (SPEC.md Section 7) — a category picks exactly
   // one path: Kalorien (kcal/kg + macro type, feeds the calorie/macro
@@ -423,13 +436,11 @@ function renderCategory(type, cat) {
     }
   }
 
-  let hideSubcategoryUI = false;
   if (typeClass(type) === 'water') {
     if (ensureWaterSubcategory(cat)) saveTaxonomy();
-    hideSubcategoryUI = cat.subcategories.length <= 1;
   }
 
-  if (!hideSubcategoryUI) {
+  if (!emptyBody) {
     const subList = document.createElement('div');
     subList.className = 'tax-sub-list';
     (cat.subcategories || []).forEach((sub) => subList.appendChild(renderSubcategory(cat, sub)));

@@ -1219,6 +1219,19 @@ nav.bottomnav button .icon {
   font-weight: 700;
   min-width: 50px;
   text-align: center;
+  /* Looks exactly like the plain number it replaced — no visible text-
+     field chrome in any state — but is a real <input> underneath so
+     tapping it opens the numeric keyboard for direct entry. Typing "60"
+     beats tapping + fifty-nine times. */
+  font-family: 'Inter', sans-serif;
+  color: inherit;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .date-display {

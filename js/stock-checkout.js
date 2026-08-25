@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=61';
-import { PALETTE } from './year-colors.js?v=61';
-import { renderRecentLog } from './stock-log.js?v=61';
-import { renderResultLines } from './format-batch.js?v=61';
+import { db } from './firebase-init.js?v=62';
+import { PALETTE } from './year-colors.js?v=62';
+import { renderRecentLog } from './stock-log.js?v=62';
+import { renderResultLines } from './format-batch.js?v=62';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -437,17 +437,30 @@ function prepareRemoveStep() {
     batchMetaEl.innerHTML = '';
   }
   selection.removeQty = 1;
-  qtyNumEl.textContent = '1';
+  qtyNumEl.value = '1';
 }
 
 qtyMinusBtn.addEventListener('click', () => {
   selection.removeQty = Math.max(1, selection.removeQty - 1);
-  qtyNumEl.textContent = String(selection.removeQty);
+  qtyNumEl.value = String(selection.removeQty);
 });
 qtyPlusBtn.addEventListener('click', () => {
   const max = selection.batch ? selection.batch.quantity : 1;
   selection.removeQty = Math.min(max, selection.removeQty + 1);
-  qtyNumEl.textContent = String(selection.removeQty);
+  qtyNumEl.value = String(selection.removeQty);
+});
+// Tap the number to type a quantity directly (e.g. removing 60 bottles of
+// water at once) — see the .qty-num CSS comment for why this is a real
+// <input> styled to look like the plain number it replaced.
+qtyNumEl.addEventListener('focus', () => qtyNumEl.select());
+qtyNumEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') qtyNumEl.blur();
+});
+qtyNumEl.addEventListener('blur', () => {
+  const max = selection.batch ? selection.batch.quantity : 1;
+  const n = parseInt(qtyNumEl.value, 10);
+  selection.removeQty = Number.isFinite(n) ? Math.min(max, Math.max(1, n)) : 1;
+  qtyNumEl.value = String(selection.removeQty);
 });
 
 // --- Confirm & write -------------------------------------------------

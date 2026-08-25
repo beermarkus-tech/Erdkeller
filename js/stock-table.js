@@ -1,5 +1,5 @@
-import { db } from './firebase-init.js?v=61';
-import { PALETTE } from './year-colors.js?v=61';
+import { db } from './firebase-init.js?v=62';
+import { PALETTE } from './year-colors.js?v=62';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -416,7 +416,7 @@ function openEditModal(batch) {
   editNameInput.value = productName(batch.productId);
 
   editQty = batch.quantity;
-  editQtyNumEl.textContent = String(editQty);
+  editQtyNumEl.value = String(editQty);
 
   editDetailsInput.value = batch.details || '';
 
@@ -451,11 +451,23 @@ function closeEdit() {
 
 editQtyMinusBtn.addEventListener('click', () => {
   editQty = Math.max(1, editQty - 1);
-  editQtyNumEl.textContent = String(editQty);
+  editQtyNumEl.value = String(editQty);
 });
 editQtyPlusBtn.addEventListener('click', () => {
   editQty += 1;
-  editQtyNumEl.textContent = String(editQty);
+  editQtyNumEl.value = String(editQty);
+});
+// Tap the number to type a quantity directly (e.g. correcting to 60
+// bottles of water) — see the .qty-num CSS comment for why this is a real
+// <input> styled to look like the plain number it replaced.
+editQtyNumEl.addEventListener('focus', () => editQtyNumEl.select());
+editQtyNumEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') editQtyNumEl.blur();
+});
+editQtyNumEl.addEventListener('blur', () => {
+  const n = parseInt(editQtyNumEl.value, 10);
+  editQty = Number.isFinite(n) && n >= 1 ? n : 1;
+  editQtyNumEl.value = String(editQty);
 });
 editContentInput.addEventListener('blur', () => {
   editContentInput.value = normalizeContent(editContentInput.value);

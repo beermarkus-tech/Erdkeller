@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=61';
-import { renderRecentLog } from './stock-log.js?v=61';
-import { renderResultLines } from './format-batch.js?v=61';
+import { db } from './firebase-init.js?v=62';
+import { renderRecentLog } from './stock-log.js?v=62';
+import { renderResultLines } from './format-batch.js?v=62';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -416,7 +416,7 @@ newProductContinueBtn.addEventListener('click', () => {
 function prepareDetailStep() {
   detailProductName.textContent = selection.product ? selection.product.name : '';
   selection.qty = 1;
-  qtyNumEl.textContent = '1';
+  qtyNumEl.value = '1';
   selection.details = '';
   detailsInput.value = '';
   selection.content = '';
@@ -438,11 +438,23 @@ function prepareDetailStep() {
 
 qtyMinusBtn.addEventListener('click', () => {
   selection.qty = Math.max(1, selection.qty - 1);
-  qtyNumEl.textContent = String(selection.qty);
+  qtyNumEl.value = String(selection.qty);
 });
 qtyPlusBtn.addEventListener('click', () => {
   selection.qty += 1;
-  qtyNumEl.textContent = String(selection.qty);
+  qtyNumEl.value = String(selection.qty);
+});
+// Tap the number to type a quantity directly (e.g. 60 bottles of water) —
+// see the .qty-num CSS comment for why this is a real <input> styled to
+// look like the plain number it replaced.
+qtyNumEl.addEventListener('focus', () => qtyNumEl.select());
+qtyNumEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') qtyNumEl.blur();
+});
+qtyNumEl.addEventListener('blur', () => {
+  const n = parseInt(qtyNumEl.value, 10);
+  selection.qty = Number.isFinite(n) && n >= 1 ? n : 1;
+  qtyNumEl.value = String(selection.qty);
 });
 function normalizeContent(raw) {
   const trimmed = (raw || '').trim();
