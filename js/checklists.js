@@ -36,7 +36,7 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=74';
+import { db } from './firebase-init.js?v=75';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
@@ -64,11 +64,9 @@ const crisisReferenceStepsEl = document.getElementById('crisis-reference-steps')
 const maintenanceEditViewEl = document.getElementById('maintenance-edit-view');
 const maintenanceManageListEl = document.getElementById('maintenance-manage-list');
 const addMaintenanceListBtn = document.getElementById('add-maintenance-list-btn');
-const importMaintenanceBtn = document.getElementById('import-maintenance-btn');
 const maintenanceSearchInput = document.getElementById('maintenance-search-input');
 const maintenanceListFiltersEl = document.getElementById('maintenance-list-filters');
 const maintenanceFreqFiltersEl = document.getElementById('maintenance-freq-filters');
-const maintenanceStatusToggleEl = document.getElementById('maintenance-status-toggle');
 const maintenanceFlatListEl = document.getElementById('maintenance-flat-list');
 const addMaintenanceItemBtn = document.getElementById('add-maintenance-item-btn');
 const crisisEditViewEl = document.getElementById('crisis-edit-view');
@@ -117,7 +115,6 @@ let editMode = false;
 let maintenanceSearch = '';
 let selectedListFilters = new Set();
 let selectedFreqFilters = new Set();
-let maintenanceStatusFilter = 'open'; // 'open' | 'done' — binary, no "show all"
 
 function genId() {
   return crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
@@ -463,15 +460,14 @@ function flattenMaintenanceItems() {
 
 function filteredFlatItems() {
   const q = maintenanceSearch.trim().toLowerCase();
-  return flattenMaintenanceItems().filter(({ item, list }) => {
-    if (selectedListFilters.size && !selectedListFilters.has(list.name)) return false;
-    if (selectedFreqFilters.size && !selectedFreqFilters.has(FREQ_LABELS[item.frequency] || item.frequency)) return false;
-    const done = isDoneThisPeriod(item);
-    if (maintenanceStatusFilter === 'open' && done) return false;
-    if (maintenanceStatusFilter === 'done' && !done) return false;
-    if (q && !item.text.toLowerCase().includes(q)) return false;
-    return true;
-  });
+  return flattenMaintenanceItems()
+    .filter(({ item, list }) => {
+      if (selectedListFilters.size && !selectedListFilters.has(list.name)) return false;
+      if (selectedFreqFilters.size && !selectedFreqFilters.has(FREQ_LABELS[item.frequency] || item.frequency)) return false;
+      if (q && !item.text.toLowerCase().includes(q)) return false;
+      return true;
+    })
+    .sort((a, b) => b.item.text.localeCompare(a.item.text, 'de'));
 }
 
 function renderChips(container, values, selectedSet, onChange) {
@@ -510,14 +506,9 @@ function renderMaintenanceFlatList() {
     const main = document.createElement('div');
     main.className = 'checklist-flat-row-main';
     main.innerHTML = `
-      <input type="checkbox" class="checklist-item-check" ${isDoneThisPeriod(item) ? 'checked' : ''}>
       <input class="tax-name-input" value="${escapeAttr(item.text)}" placeholder="Eintrag">
       <button class="tax-del" title="Eintrag löschen">✕</button>
     `;
-    main.querySelector('.checklist-item-check').addEventListener('change', () => {
-      toggleItemDone(item);
-      renderMaintenanceFlatList();
-    });
     main.querySelector('.tax-name-input').addEventListener('change', (e) => {
       item.text = e.target.value.trim();
       saveMaintenance();
@@ -562,9 +553,7 @@ function renderMaintenanceFlatList() {
   if (!rows.length) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = maintenanceStatusFilter === 'open'
-      ? 'Nichts offen für diese Auswahl.'
-      : 'Nichts Erledigtes für diese Auswahl.';
+    p.textContent = 'Keine Einträge für diese Auswahl.';
     maintenanceFlatListEl.appendChild(p);
   }
 }
@@ -572,14 +561,6 @@ function renderMaintenanceFlatList() {
 maintenanceSearchInput.addEventListener('input', (e) => {
   maintenanceSearch = e.target.value;
   renderMaintenanceFlatList();
-});
-
-maintenanceStatusToggleEl.querySelectorAll('.select-mode-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    maintenanceStatusFilter = btn.dataset.status;
-    maintenanceStatusToggleEl.querySelectorAll('.select-mode-btn').forEach((b) => b.classList.toggle('active', b === btn));
-    renderMaintenanceFlatList();
-  });
 });
 
 addMaintenanceItemBtn.addEventListener('click', () => {
@@ -701,104 +682,15 @@ checklistsEditToggleBtn.addEventListener('click', () => {
 
 applyEditMode();
 
-// --- One-time seed import --------------------------------------------------
-// Markus's real checklist, transcribed once. Adds to whatever's already
-// there rather than replacing it, so it's safe alongside manual edits —
-// but running it twice does duplicate every item, hence the confirm.
-
-const SEED_MAINTENANCE = [
-  { name: 'Ausrüstung', items: [
-    ['Baseballschläger', 'yearly'], ['Batterien AA, AAA (Haltbarkeit prüfen)', 'yearly'],
-    ['Campinglampe prüfen / aufladen', 'monthly'], ['Chlor choque', 'yearly'],
-    ['Feuerstahl', 'yearly'], ['Feuerzeuge', 'yearly'], ['Kerzenvorrat', 'yearly'],
-    ['Kompass', 'yearly'], ['Leatherman', 'yearly'], ['Pfefferspray', 'yearly'],
-    ['Powerbank prüfen / aufladen', 'monthly'], ['Radio prüfen / aufladen', 'monthly'],
-    ['Starke Taschenlampe & Akkus prüfen / aufladen', 'monthly'], ['Streichhölzer', 'yearly'],
-    ['Taschenlampen', 'yearly'], ['Wasserfilter', 'yearly'], ['Wanderkarte Umgebung vorhanden?', 'yearly'],
-  ] },
-  { name: 'Autos', items: [
-    ['Ab Oktober: Autotanks immer halbvoll', 'weekly'], ['Ab Oktober: Benzinkanister Rasenmäher voll?', 'monthly'],
-    ['Ab Oktober: Dieselkanister durchtauschen', 'monthly'], ['Ab Oktober: Ölstand kontrollieren', 'monthly'],
-  ] },
-  { name: 'Dokumente', items: [
-    ['Ausweise: Personalausweis Julia', 'yearly'], ['Ausweise: Personalausweis Markus', 'yearly'],
-    ['Ausweise: Reisepass Julia', 'yearly'], ['Ausweise: Reisepass Markus', 'yearly'],
-    ['Ausweise: Reisepass Sophia', 'yearly'], ['Autos: Carte Grise (Touran)', 'yearly'],
-    ['Autos: Carte Grise (Volvo)', 'yearly'], ['Autos: Führerschein Julia', 'yearly'],
-    ['Autos: Führerschein Markus', 'yearly'], ['Eltern: Patientenverfügung Beers', 'yearly'],
-    ['Familienbuch: Eheurkunde (D & F)', 'yearly'], ['Familienbuch: Geburtsurkunde Julia', 'yearly'],
-    ['Familienbuch: Geburtsurkunde Markus', 'yearly'], ['Familienbuch: Geburtsurkunde Sophia (D & F)', 'yearly'],
-    ['Gesundheit: Blutgruppenausweis Julia', 'yearly'], ['Gesundheit: Blutgruppenausweis Markus', 'yearly'],
-    ['Gesundheit: Impfheft Julia', 'yearly'], ['Gesundheit: Impfheft Markus', 'yearly'],
-    ['Gesundheit: Impfheft Sophia', 'yearly'], ['Gesundheit: Sozialversicherungsausweis Markus', 'yearly'],
-    ['Haus: Attestation Compromis de Vente', 'yearly'], ['Kreditkarten', 'yearly'],
-    ['Notfallfrequenzen checken', 'yearly'], ['Notfallordner: Auf Stand?', 'yearly'],
-    ['Tiere: Dokumente Ziegen', 'yearly'], ['Tiere: Heimtierausweis Karlchen', 'yearly'],
-    ['Tiere: Heimtierausweis Maja', 'yearly'], ['Tiere: Heimtierausweis Peppa', 'yearly'],
-    ['Tiere: iCAD Ausweis Karlchen', 'yearly'], ['Tiere: iCAD Ausweis Maja', 'yearly'],
-    ['Tiere: iCAD Ausweis Peppa', 'yearly'], ['USB-Stick (Alle Dokumente) auf Stand?', 'yearly'],
-    ['Versicherung: Haftpflicht', 'yearly'], ['Versicherung: Hausrat', 'yearly'],
-    ['Versicherung: Schule', 'yearly'], ['Versicherung: Touran', 'yearly'],
-    ['Versicherung: Volvo', 'yearly'], ['Wichtige Kontakte & Adressen', 'yearly'],
-  ] },
-  { name: 'Gesundheit', items: [
-    ['Erste-Hilfe-Kit', 'yearly'], ['Handdesinfektionsmittel', 'yearly'], ['Medizinischer Alkohol', 'yearly'],
-    ['OP-Masken & FFP2-Masken', 'yearly'], ['Vitaminpräparate', 'yearly'], ['Wunddesinfektion', 'yearly'],
-  ] },
-  { name: 'Haushalt', items: [
-    ['Alufolie', 'yearly'], ['Einweggeschirr und -Besteck (2/P/d×6Wo=250)', 'yearly'],
-    ['Küchenpapier (4x)', 'yearly'], ['Müllbeutel (120l, 3 Rollen)', 'yearly'],
-    ['Müllbeutel (30l, 3 Rollen)', 'yearly'], ['Müllbeutel (60l, 3 Rollen)', 'yearly'],
-    ['Müllbeutel Klo (50l, 120 Stück)', 'yearly'], ['Waschmittel Hand (2x)', 'yearly'],
-    ['FI-Schutzschalter prüfen', 'yearly'],
-  ] },
-  { name: 'Heizung', items: [
-    ['Anzündholz Ofen vorhanden? (5x)', 'yearly'], ['Gasheizgerät prüfen', 'yearly'],
-    ['Holz für Ofen kaufen', 'yearly'], ['Ofenanzünder kaufen', 'yearly'],
-    ['Ofenstreichhölzer kaufen', 'yearly'], ['Schornsteinfeger kommen lassen', 'yearly'],
-  ] },
-  { name: 'Hygiene', items: [
-    ['Binden / Tampons', 'yearly'], ['Eau de Javel', 'yearly'], ['Einmalhandschuhe (100x)', 'yearly'],
-    ['Feuchttücher', 'yearly'], ['Heulboxen (4x)', 'yearly'], ['Kernseife (2x)', 'yearly'],
-    ['Klopapier (2x)', 'yearly'], ['Pflaster', 'yearly'], ['Rasierklingen (1x)', 'yearly'],
-    ['Rasierschaum (1x)', 'yearly'], ['Seife (4x)', 'yearly'], ['Shampoo (je 2 Flaschen)', 'yearly'],
-    ['Taschentücher (2x)', 'yearly'], ['Zahnbürsten (je 1x)', 'yearly'], ['Zahnpasta (je 2 Tuben)', 'yearly'],
-  ] },
-  { name: 'Kochen', items: [
-    ['Dutch Oven ok?', 'yearly'], ['Gaskocher prüfen', 'yearly'], ['Raketenofen OK?', 'yearly'],
-    ['Sack Kohlebriketts (5x)', 'yearly'], ['Tampons (Feueranzünder)', 'yearly'],
-    ['Volle Gasflasche vorhanden? (Propan)', 'monthly'], ['Zwei Gasflaschen (Propan)', 'yearly'],
-    ['Zweige für Raketenofen', 'yearly'],
-  ] },
-  { name: 'Sicherheit', items: [
-    ['Feuerlöscher prüfen', 'yearly'], ['Löschdecke vorhanden?', 'yearly'], ['Warnwesten vorhanden?', 'yearly'],
-  ] },
-  { name: 'Tiere', items: [
-    ['Heu (2 Ballen)', 'monthly'], ['Stroh (1 Ballen)', 'monthly'],
-    ['Tierfutter vorhanden?', 'monthly'], ['Wassertank Tiere voll?', 'weekly'],
-  ] },
-  { name: 'Vorräte', items: [
-    ['Vorräte auffüllen? (Einkaufsliste)', 'monthly'], ['Vorratsliste drucken (MHD)', 'monthly'],
-    ['Brauchwasserkanister neu befüllen', 'yearly'],
-  ] },
-];
-
-importMaintenanceBtn.addEventListener('click', () => {
-  if (!confirm('Bekannte Checkliste hinzufügen? Bestehende Checklisten bleiben erhalten — bei erneutem Ausführen entstehen doppelte Einträge.')) return;
-  SEED_MAINTENANCE.forEach((list) => {
-    maintenance.lists.push({
-      id: genId(),
-      name: list.name,
-      recipients: ['markus'],
-      items: list.items.map(([text, frequency]) => ({
-        id: genId(), text, frequency, lastCompletedAt: null,
-      })),
-    });
+// Checklisten verwalten / Einträge — collapsible, same
+// .targets-section-header pattern as Ziele (js/targets.js), scoped to this
+// screen so it doesn't pick up Ziele's own section headers.
+maintenanceEditViewEl.querySelectorAll('.checklist-section-header').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const body = btn.nextElementSibling;
+    const collapsed = body.classList.toggle('collapsed');
+    btn.querySelector('.tax-toggle').textContent = collapsed ? '▾' : '▴';
   });
-  saveMaintenance();
-  renderMaintenanceManageList();
-  renderMaintenanceFilters();
-  renderMaintenanceFlatList();
 });
 
 // --- Entry point -----------------------------------------------------------

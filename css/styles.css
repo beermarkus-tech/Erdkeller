@@ -568,6 +568,7 @@ nav.bottomnav button .icon {
    above this row). */
 .tax-planning-row {
   display: flex;
+  align-items: flex-end;
   gap: 10px;
   flex-wrap: wrap;
   margin: 10px 0 4px;
@@ -583,6 +584,18 @@ nav.bottomnav button .icon {
   font-size: 11px;
   color: #6b6a5f;
   margin-bottom: 4px;
+}
+
+/* Kohlenhydrate/Protein/Fett read lighter than Autonomiedauer right above
+   them (.form-group label) even though both are number-input labels in
+   the same section — scoped to just this row rather than changing
+   .tax-planning-field label everywhere, since Erinnerungen's Woche/
+   Wochentag/Monat labels deliberately stay small to keep each frequency's
+   own heading (also .form-group-styled) the more prominent element. */
+.planning-macro-row label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a4940;
 }
 
 .tax-planning-field input,
@@ -634,14 +647,20 @@ nav.bottomnav button .icon {
 
 /* Ziele's three top-level collapsible sections (Kategorien / Unterkategorien
    / Produktziele) — separated by a rule rather than nested inside one
-   another, so each level's targets live in exactly one place. */
-.targets-section + .targets-section {
+   another, so each level's targets live in exactly one place. Checklisten's
+   Wartung editor (Build 75) reuses the same look for its "Checklisten
+   verwalten"/"Einträge" sections via its own class names — same CSS,
+   separate JS toggle wiring per file (avoids two files' click listeners
+   both attaching to one shared class and double-toggling each other). */
+.targets-section + .targets-section,
+.checklist-section + .checklist-section {
   border-top: 1px solid var(--stone-dark);
   padding-top: 16px;
   margin-top: 16px;
 }
 
-.targets-section-header {
+.targets-section-header,
+.checklist-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -656,11 +675,13 @@ nav.bottomnav button .icon {
   cursor: pointer;
 }
 
-.targets-section-body {
+.targets-section-body,
+.checklist-section-body {
   margin-top: 10px;
 }
 
-.targets-section-body.collapsed {
+.targets-section-body.collapsed,
+.checklist-section-body.collapsed {
   display: none;
 }
 
