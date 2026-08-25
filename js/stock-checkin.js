@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=60';
-import { renderRecentLog } from './stock-log.js?v=60';
-import { renderResultLines } from './format-batch.js?v=60';
+import { db } from './firebase-init.js?v=61';
+import { renderRecentLog } from './stock-log.js?v=61';
+import { renderResultLines } from './format-batch.js?v=61';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -121,6 +121,12 @@ function buildSubcategoryIndex() {
   });
 }
 
+// See js/taxonomy.js's typeClass for the fallback-derivation rationale.
+function typeClass(type) {
+  if (type.typeClass) return type.typeClass;
+  return type.isFoodType ? 'food' : 'other';
+}
+
 // --- Navigation ---------------------------------------------------------
 
 function setActiveStep(stepName) {
@@ -137,7 +143,10 @@ function currentStepName() {
 function goBack() {
   const current = currentStepName();
   if (!current || current === 'success') return;
-  const prev = current === 'detail' ? (selection.isNewProduct ? 'new-product' : 'product') : PREV_STEP[current];
+  let prev = current === 'detail' ? (selection.isNewProduct ? 'new-product' : 'product') : PREV_STEP[current];
+  // Wasser skips the subcategory step (see renderCategoryGrid) — never
+  // step back into a screen that was never actually shown.
+  if (current === 'product' && selection.type && typeClass(selection.type) === 'water') prev = 'category';
   if (prev) goToStep(prev);
   else returnHome();
 }
@@ -184,7 +193,11 @@ function renderBreadcrumb(currentStep) {
   const crumbs = [];
   if (selection.type) crumbs.push({ label: `${selection.type.sym || ''} ${selection.type.name}`.trim(), step: 'type' });
   if (selection.category) crumbs.push({ label: `${selection.category.sym || ''} ${selection.category.name}`.trim(), step: 'category' });
-  if (selection.subcategory) crumbs.push({ label: `${selection.subcategory.sym || ''} ${selection.subcategory.name}`.trim(), step: 'subcategory' });
+  // Wasser's subcategory is an invisible implementation detail (see
+  // renderCategoryGrid) — never surface it as its own breadcrumb step.
+  if (selection.subcategory && !(selection.type && typeClass(selection.type) === 'water')) {
+    crumbs.push({ label: `${selection.subcategory.sym || ''} ${selection.subcategory.name}`.trim(), step: 'subcategory' });
+  }
   if (selection.product && (currentStep === 'detail' || currentStep === 'success')) {
     crumbs.push({ label: selection.product.name, step: currentStep === 'success' ? null : 'detail' });
   }
@@ -238,10 +251,19 @@ function renderTypeGrid() {
 
 function renderCategoryGrid() {
   categoryGrid.innerHTML = '';
+  const isWater = selection.type && typeClass(selection.type) === 'water';
   ((selection.type && selection.type.categories) || []).forEach((cat) => {
     categoryGrid.appendChild(makeTile(cat.sym, cat.name, () => {
       selection.category = cat;
-      goToStep('subcategory');
+      // Wasser has no subcategory choice to make (js/taxonomy.js keeps
+      // exactly one auto-managed subcategory per category) — jump
+      // straight to product selection instead of showing that step.
+      if (isWater && cat.subcategories && cat.subcategories[0]) {
+        selection.subcategory = cat.subcategories[0];
+        goToStep('product');
+      } else {
+        goToStep('subcategory');
+      }
     }));
   });
 }
@@ -329,7 +351,14 @@ function renderGlobalSearchResults(text) {
     nameEl.textContent = p.name;
     const metaEl = document.createElement('span');
     metaEl.className = 'pmeta';
-    metaEl.textContent = path ? `${path.type.name} › ${path.category.name} › ${path.subcategory.name}` : '';
+    // Wasser's subcategory name mirrors its category (see renderCategoryGrid
+    // above) — drop the redundant trailing segment rather than showing
+    // "Wasser › Trinkwasser › Trinkwasser".
+    metaEl.textContent = path
+      ? (path.subcategory.name === path.category.name
+        ? `${path.type.name} › ${path.category.name}`
+        : `${path.type.name} › ${path.category.name} › ${path.subcategory.name}`)
+      : '';
     const wrap = document.createElement('span');
     wrap.style.display = 'flex';
     wrap.style.flexDirection = 'column';

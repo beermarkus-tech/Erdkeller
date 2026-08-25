@@ -17,7 +17,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=60';
+import { db } from './firebase-init.js?v=61';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -733,9 +733,11 @@ function render() {
 function flatSubcategories() {
   const list = [];
   taxonomy.types.forEach((type) => (type.categories || []).forEach((cat) => (cat.subcategories || []).forEach((sub) => {
-    list.push({
-      id: sub.id, label: `${type.name} › ${cat.name} › ${sub.name}`, isFood: typeClass(type) === 'food',
-    });
+    // A Wasser subcategory's name mirrors its category (js/taxonomy.js's
+    // ensureWaterSubcategory) — drop the redundant trailing segment
+    // rather than showing "Wasser › Trinkwasser › Trinkwasser".
+    const label = sub.name === cat.name ? `${type.name} › ${cat.name}` : `${type.name} › ${cat.name} › ${sub.name}`;
+    list.push({ id: sub.id, label, isFood: typeClass(type) === 'food' });
   })));
   return list;
 }

@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=60';
-import { PALETTE } from './year-colors.js?v=60';
-import { renderRecentLog } from './stock-log.js?v=60';
-import { renderResultLines } from './format-batch.js?v=60';
+import { db } from './firebase-init.js?v=61';
+import { PALETTE } from './year-colors.js?v=61';
+import { renderRecentLog } from './stock-log.js?v=61';
+import { renderResultLines } from './format-batch.js?v=61';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -124,6 +124,12 @@ function typeHasStock(type) {
   return (type.categories || []).some((cat) => categoryHasStock(cat));
 }
 
+// See js/taxonomy.js's typeClass for the fallback-derivation rationale.
+function typeClass(type) {
+  if (type.typeClass) return type.typeClass;
+  return type.isFoodType ? 'food' : 'other';
+}
+
 // --- Navigation ---------------------------------------------------------
 
 function setActiveStep(stepName) {
@@ -140,7 +146,10 @@ function currentStepName() {
 function goBack() {
   const current = currentStepName();
   if (!current || current === 'success') return;
-  const prev = PREV_STEP[current];
+  let prev = PREV_STEP[current];
+  // Wasser skips the subcategory step (see renderCategoryGrid) — never
+  // step back into a screen that was never actually shown.
+  if (current === 'batch' && selection.type && typeClass(selection.type) === 'water') prev = 'category';
   if (prev) goToStep(prev);
   else returnHome();
 }
@@ -180,7 +189,11 @@ function renderBreadcrumb(currentStep) {
   const crumbs = [];
   if (selection.type) crumbs.push({ label: `${selection.type.sym || ''} ${selection.type.name}`.trim(), step: 'type' });
   if (selection.category) crumbs.push({ label: `${selection.category.sym || ''} ${selection.category.name}`.trim(), step: 'category' });
-  if (selection.subcategory) crumbs.push({ label: `${selection.subcategory.sym || ''} ${selection.subcategory.name}`.trim(), step: 'subcategory' });
+  // Wasser's subcategory is an invisible implementation detail (see
+  // renderCategoryGrid) — never surface it as its own breadcrumb step.
+  if (selection.subcategory && !(selection.type && typeClass(selection.type) === 'water')) {
+    crumbs.push({ label: `${selection.subcategory.sym || ''} ${selection.subcategory.name}`.trim(), step: 'subcategory' });
+  }
   if (selection.batch && (currentStep === 'remove' || currentStep === 'success')) {
     crumbs.push({ label: productName(selection.batch.productId), step: currentStep === 'success' ? null : 'remove' });
   }
@@ -238,10 +251,19 @@ function renderTypeGrid() {
 
 function renderCategoryGrid() {
   categoryGrid.innerHTML = '';
+  const isWater = selection.type && typeClass(selection.type) === 'water';
   ((selection.type && selection.type.categories) || []).forEach((cat) => {
     categoryGrid.appendChild(makeTile(cat.sym, cat.name, () => {
       selection.category = cat;
-      goToStep('subcategory');
+      // Wasser has no subcategory choice to make (js/taxonomy.js keeps
+      // exactly one auto-managed subcategory per category) — jump
+      // straight to the batch list instead of showing that step.
+      if (isWater && cat.subcategories && cat.subcategories[0]) {
+        selection.subcategory = cat.subcategories[0];
+        goToStep('batch');
+      } else {
+        goToStep('subcategory');
+      }
     }, null, !categoryHasStock(cat)));
   });
 }

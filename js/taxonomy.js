@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=60';
+import { db } from './firebase-init.js?v=61';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -44,6 +44,34 @@ function typeClass(type) {
 // from whatever data is present, preferring Kalorien if a category
 // somehow has both (pre-existing edge case from the old single-checkbox
 // model).
+// Wasser categories skip the subcategory level entirely from the user's
+// perspective (Type → Category → Product, no picking a subcategory that
+// doesn't semantically exist for water) — but the data model underneath
+// is untouched: subcategoryId stays the one universal addressing key
+// everywhere else in the app (Ziele, Übersicht, Bestand). So each Wasser
+// category silently keeps exactly one auto-managed subcategory, its
+// name/symbol kept in sync with the category so raw Firestore data never
+// looks orphaned. Returns true if it changed something (caller should
+// save). If a category already has more than one subcategory (e.g. real
+// ones from before it was reclassified to Wasser), this leaves it alone —
+// renderCategory falls back to the normal subcategory UI in that case
+// rather than silently hiding existing structure.
+function ensureWaterSubcategory(cat) {
+  if (!cat.subcategories) cat.subcategories = [];
+  if (cat.subcategories.length > 1) return false;
+  if (cat.subcategories.length === 0) {
+    cat.subcategories.push({ id: genId(), name: cat.name, sym: cat.sym || '' });
+    return true;
+  }
+  const sub = cat.subcategories[0];
+  if (sub.name !== cat.name || sub.sym !== (cat.sym || '')) {
+    sub.name = cat.name;
+    sub.sym = cat.sym || '';
+    return true;
+  }
+  return false;
+}
+
 function categoryPlanningMode(type, cat) {
   if (typeClass(type) !== 'food') return 'off';
   if (cat.planningMode) return cat.planningMode;
@@ -395,29 +423,37 @@ function renderCategory(type, cat) {
     }
   }
 
-  const subList = document.createElement('div');
-  subList.className = 'tax-sub-list';
-  (cat.subcategories || []).forEach((sub) => subList.appendChild(renderSubcategory(cat, sub)));
-  body.appendChild(subList);
+  let hideSubcategoryUI = false;
+  if (typeClass(type) === 'water') {
+    if (ensureWaterSubcategory(cat)) saveTaxonomy();
+    hideSubcategoryUI = cat.subcategories.length <= 1;
+  }
 
-  const addSubBtn = document.createElement('div');
-  addSubBtn.className = 'add-sub-row';
-  addSubBtn.textContent = '+ Unterkategorie hinzufügen';
-  addSubBtn.addEventListener('click', () => {
-    if (!cat.subcategories) cat.subcategories = [];
-    const newSub = { id: genId(), name: 'Neue Unterkategorie', sym: '' };
-    cat.subcategories.push(newSub);
-    openCats.add(cat.id);
-    saveTaxonomy();
-    render();
-    focusNewName(newSub.id);
-  });
-  body.appendChild(addSubBtn);
+  if (!hideSubcategoryUI) {
+    const subList = document.createElement('div');
+    subList.className = 'tax-sub-list';
+    (cat.subcategories || []).forEach((sub) => subList.appendChild(renderSubcategory(cat, sub)));
+    body.appendChild(subList);
 
-  makeReorderable(subList, '.tax-sub-row', (orderedIds) => {
-    cat.subcategories = orderedIds.map((id) => cat.subcategories.find((s) => s.id === id));
-    saveTaxonomy();
-  });
+    const addSubBtn = document.createElement('div');
+    addSubBtn.className = 'add-sub-row';
+    addSubBtn.textContent = '+ Unterkategorie hinzufügen';
+    addSubBtn.addEventListener('click', () => {
+      if (!cat.subcategories) cat.subcategories = [];
+      const newSub = { id: genId(), name: 'Neue Unterkategorie', sym: '' };
+      cat.subcategories.push(newSub);
+      openCats.add(cat.id);
+      saveTaxonomy();
+      render();
+      focusNewName(newSub.id);
+    });
+    body.appendChild(addSubBtn);
+
+    makeReorderable(subList, '.tax-sub-row', (orderedIds) => {
+      cat.subcategories = orderedIds.map((id) => cat.subcategories.find((s) => s.id === id));
+      saveTaxonomy();
+    });
+  }
 
   return wrap;
 }
