@@ -252,6 +252,7 @@ Evaluated for Step 7 and **not built for now** — see Section 19 "Nice to have 
 - Offline-first: local persistence (e.g. Firestore's built-in offline cache, or a custom IndexedDB store), syncing to Firebase on reconnect
 - Conflict resolution: **last-write-wins** (simplest approach; conflicts expected to be rare given quick check-in/out actions)
 - **Crisis checklists — explicit pre-cache guarantee**: general offline persistence covers whatever's already been loaded/queried, which isn't a strong enough guarantee for a mission-critical section. On sign-in (and whenever crisis data changes), proactively fetch and store all `/crisisTypes` documents in the local store/service-worker cache, so they're readable offline even if that screen was never opened while online.
+- *(V2, not yet scoped: Section 20.2 sketches a stronger, explicit IndexedDB mirror — deliberately written on every sync rather than relying on Firestore's opaque built-in cache — plus a monetization tier that depends on it.)*
 
 ---
 
@@ -260,6 +261,7 @@ Evaluated for Step 7 and **not built for now** — see Section 19 "Nice to have 
 - No automatic scheduled backup for v1 (would require Firebase's paid Blaze plan for scheduled Cloud Functions) — not worth the added cost/complexity at this stage
 - **Manual CSV export**: an in-app "Download backup (CSV)" button, admin-triggered, whenever desired
 - **CSV import (full replace)**: planned as an **end-game / later-phase feature** — imports a CSV and replaces all data in the Firebase DB. Not urgent; sequenced after core stock/checklist/crisis features are working.
+- *(V2, not yet scoped: Section 20.2 proposes a full JSON export/backup format alongside CSV, plus timestamp-based conflict handling on import — CSV alone can't round-trip Erdkeller's relational data.)*
 
 ---
 
@@ -476,3 +478,105 @@ These need to happen outside Claude Code — mostly account/console setup that o
 
 - **Barcode scanning (retail products), via Open Food Facts**: evaluated during Step 7 and deliberately not built. Same underlying tech as QR scanning (Section 11) — EAN/UPC is just another symbology the same browser-based scanning library reads — and lookup would hit the free, no-key [Open Food Facts](https://world.openfoodfacts.org) API directly from the browser. Shelved for two reasons: (1) narrower payoff than expected — OFF's category tree doesn't map to Erdkeller's custom taxonomy, so the Type→Category→Subcategory drill-down still has to happen manually either way, and there's no best-before data to pull (that's always batch-specific/manual); the only real win would be pre-filling the product name and a content/size string. (2) **the pre-filled name is the wrong name** — OFF returns full retail labels ("Barilla Top Ultra Fine Cooking Spaghetti") where Markus wants short generic stock names ("Spaghetti"), so auto-fill would need manual editing on every single scan anyway, undermining the "accelerant" premise. If revisited, it'd need either a stricter one-word-generic-name convention accepted at review time, or a mapping/alias step — neither trivial. Coverage also isn't complete (smaller/regional brands, home-repackaged goods).
 - **Nutrition-table / best-before-date photo OCR**: ruled out earlier for the same categories of reasons (Section 11 history) — not needed by the category-level calorie system (Section 7), and both have materially worse accuracy/cost tradeoffs than barcode lookup already was.
+
+---
+
+## 20. V2 Ideas (Not Yet Scoped) — Monetization & Local-First Persistence
+
+*Two fully-drafted proposals, captured here so they aren't lost. Neither is in scope for the current build (Section 17's Development Plan) — nothing below should be implemented until this chapter is explicitly picked up and actually scoped into a step. Kept as close to the original drafts as possible rather than compressed to a summary.*
+
+### 20.1 Monetization Model, Distribution & Tier Transitions
+
+#### 20.1.1 Distribution: staying PWA, no native app store
+Erdkeller stays a PWA rather than migrating to native Android. Distribution is via a companion website (20.1.7) rather than an app store listing. This avoids Google Play's 15–30% cut on in-app purchases and the requirement to use Google Play Billing instead of Stripe. Android PWAs already support install-to-homescreen, push notifications, and full offline behavior, so nothing functional is lost by staying PWA. (Optional future consideration, not required: Trusted Web Activity wrapping for Play Store discoverability, which would reintroduce Google's billing cut for anything sold through that specific listing.)
+
+#### 20.1.2 Monetization model overview
+The app's usage pattern — infrastructure that sits quietly and is updated occasionally, not a daily-engagement app — makes a pure subscription a psychologically harder sell. The chosen model separates the app itself (one-time purchase) from multi-device sync (optional subscription), because sync is the piece with genuine ongoing hosting cost, while the core app has none once purchased.
+
+**Chosen structure:**
+1. **Thirty-day free trial** — full functionality, unlimited devices, full multi-device Firebase sync included (see 20.1.3 for why the trial shouldn't be artificially limited).
+2. **One-time purchase** (indicative: €20–30) — unlocks the core app permanently on a device: all local functionality, offline crisis checklists, full editing, no sync required. The permanent foundation every user eventually needs beyond the trial.
+3. **Optional monthly sync subscription** (indicative: ~€2/month) — unlocks multi-device Firebase sync, addable/removable independently of the one-time purchase at any point (immediately after purchase, or months later; cancellable and re-subscribable without losing the one-time unlock). Priced to cover Firebase's actual hosting/bandwidth cost, not as a profit-driving tier.
+
+The one-time purchase and the sync subscription are independent toggles, not a linear upgrade path: one-time-purchase-alone (solo, full editing, no sync) and one-time-purchase-plus-sync (full editing, multi-device) are both valid states, added/removed on their own timeline.
+
+#### 20.1.3 Trial scope: full sync, unlimited devices, no artificial caps
+During the 30-day trial, the app must **not** limit device count or restrict sync:
+- This is a family app — capping devices during the trial (e.g. 2 of 3 family members) gives an incomplete test and forces an awkward "who gets locked out" moment during the very trial meant to build trust.
+- Multi-device sync is one of the app's most compelling features — a family actually seeing a check-in on one phone appear instantly on another is far more convincing than describing it in marketing copy. Cutting it off mid-trial undersells the best feature instead of demonstrating it.
+- A full-featured, unlimited-device trial means one clean decision at day 30 (subscribe, purchase solo, or degrade — 20.1.4) instead of navigating a confusing combination of device-count and time constraints.
+
+#### 20.1.4 End-of-trial behavior: graceful degrade, not lockdown
+If a user takes no action at trial end, the app must **not** hard-lock or block access to their own data — that would contradict the core "your data is always safe and local" value proposition if payment lapse blocked access to that same data.
+
+**Required behavior**: the app drops to **read-only/view-only mode**, locally:
+- All existing data (stock, checklists, contacts, notes, recipes) stays fully visible on-device, sourced from the local IndexedDB mirror (20.2.2).
+- No further add/edit/check-in/check-out or other write actions permitted.
+- Firebase sync stops (20.1.5 covers the data hand-off at this transition).
+- A persistent but non-intrusive banner communicates the state, e.g. "your data is safe — unlock full editing with a one-time purchase, or continue syncing across devices for [price]/month," linking to the purchase/subscription flow.
+
+This preserves trust (data is never hidden or held hostage) while creating real, fair pressure to pay for the things that actually cost something: write access and ongoing sync.
+
+#### 20.1.5 Tier transition and data hand-off logic
+**Trial end without payment → read-only**: per 20.1.4. Local IndexedDB mirror remains the visible data source; nothing is deleted.
+
+**Cancelling the sync subscription (any time) → dropping from synced to solo**: at the moment sync is cancelled, live Firebase data must be pulled down into the local IndexedDB mirror one final time as the authoritative final copy, before sync access is revoked — ensuring the local mirror reflects the true combined final state across all devices, with nothing lost when dropping to solo/single-device operation. After hand-off, the local mirror becomes the sole data store for that device (per the one-time-purchase, solo-editing tier) until/unless sync is re-subscribed to.
+
+**Re-subscribing after a period of solo use**: needs a defined merge rule (not yet fully specified) for reconciling that device's local edits against the (potentially stale or diverged) Firebase state. Should reuse the same last-modified-timestamp-based conflict comparison as 20.2.4 (JSON backup import conflict handling) — compare per-record timestamps, never blindly overwrite newer data with older data, surface conflicts to the admin rather than silently resolving them.
+
+#### 20.1.6 Authentication: Google Sign-In serves both tiers, not just sync
+Google Sign-In should **not** be removed or bypassed for non-subscribing (solo, one-time-purchase-only) users, even though they aren't using multi-device sync. Sign-In serves two distinct purposes, easy to conflate:
+1. **Identity for sync** (current/existing use) — ties multiple devices to one shared family Firebase data set.
+2. **Identity for purchase verification** (new, from monetization) — even a solo, non-syncing user needs to be signed in so their one-time purchase is tied to an identity rather than a device. Without this, a user who gets a new phone has no way to prove they already paid and restore full editing.
+
+So Google Sign-In stays in the flow for both tiers; what changes is how much Firebase is actually used for data (fully, for sync users; minimally or not at all, for solo users relying on the local IndexedDB mirror per 20.2).
+
+#### 20.1.7 Payment mechanics: Stripe, and the role of a companion website
+Payment (one-time purchase and recurring subscription) can be triggered directly from within the app via Stripe Checkout or Stripe's payment elements — this doesn't strictly require a separate website for the transaction mechanics themselves.
+
+However, a minimal companion website is the practical, expected complement, for three reasons:
+1. Stripe Checkout typically redirects to a hosted payment page and back to a success/cancel URL — a brief moment of leaving the in-app view even if it feels seamless.
+2. Users need somewhere to access receipts, invoice history, and manage/cancel a subscription without going through the app itself — Stripe's Customer Portal handles this well but needs a link/page to reach it.
+3. For trust and legitimacy with a paying audience — especially an app touching family data and crisis planning — a real webpage describing the product, pricing, and a privacy policy is expected, not optional.
+
+Recommended minimal scope: a single page covering what the app does, pricing (one-time purchase price, sync subscription price), a link into the Stripe Customer Portal, plus a basic privacy policy.
+
+### 20.2 Local Persistence, Offline Guarantee, Export/Backup & Sync Conflict Handling
+
+#### 20.2.1 Architecture principle: Firebase remains the single source of truth
+Firebase/Firestore remains the authoritative backend, exactly as currently designed: real-time multi-user sync, Google Sign-In per family member, shared data across all devices, with each signed-in user acting as themselves (admin or member) per the existing role rules (Section 3).
+
+This is explicitly **not** a local-first architecture where each device's local database is its own independent source of truth requiring peer-to-peer conflict resolution — that was considered and rejected: it would give up the multi-user real-time sync that already works well, in exchange for problems (independently-writable local databases needing reconciliation across devices) that outweigh the benefit.
+
+#### 20.2.2 Guaranteed local persistence layer (explicit IndexedDB mirror)
+In addition to Firestore's default built-in offline cache (somewhat opaque, and prunable by the SDK under storage pressure — the "e.g." mentioned in Section 13's current offline note), the app should maintain an **explicit, app-controlled local mirror** of Firestore data in IndexedDB (e.g. via Dexie or equivalent).
+
+Key properties:
+- Written to deliberately by the app on every sync, not just relied upon as an incidental SDK cache.
+- The app requests persistent storage permission from the browser so this data isn't subject to casual eviction under disk pressure.
+- Crisis checklists specifically must be guaranteed present in this local mirror from first load — the one section where offline access is mission-critical, not just convenient (already the intent behind Section 13's crisis-checklist pre-cache guarantee; this is the persistence layer that guarantee actually depends on).
+- Storage location (for documentation/support purposes): on Android, this data lives in the browser's or installed PWA's private, sandboxed app-data directory — not browsable via a normal file manager, not visible to the user directly, and not cleared by normal app backgrounding or device reboot. Only cleared by the user manually clearing app storage or uninstalling the PWA — which is why installing to the home screen (rather than a loose browser tab) matters for the persistence guarantee.
+
+#### 20.2.3 Export feature: two distinct formats for two distinct use cases
+Export should read from the local IndexedDB mirror (not a fresh Firebase call), so export always works offline too, consistent with the crisis-app design philosophy.
+
+Two separate export options, not one format serving both purposes:
+
+1. **CSV export (per-section)** — for opening/editing data in a spreadsheet (e.g. reviewing/editing stock or contacts). Already specified (Section 14). Good fit since CSV is human-readable and universally spreadsheet-compatible.
+2. **Full JSON export/backup** — for faithful backup, restore, or device-to-device transfer. CSV is a poor fit here because Erdkeller's data is relational (stock items reference products, products reference taxonomy, checklists have nested steps, contacts have nested detail fields) — CSV can't represent this across linked tables without fragile manual reassembly on import. JSON mirrors Firestore's own document structure one-to-one, so export is close to a direct dump and import close to a direct restore, with no lossy flattening.
+
+Import (an end-game/Phase-4 feature per Section 14) should only need to support JSON, not CSV — restoring a hand-edited CSV back into a relational structure is the fragile direction and not a real requirement.
+
+#### 20.2.4 Conflict handling on JSON backup import (critical safety rule)
+Scenario: a user exports a local backup, time passes, Firebase continues to be edited normally by the family (e.g. for a week), and that old backup gets reimported on some device. Naive import risks silently overwriting a week of genuine changes with stale data, because the *write* happens now even though the *content* is old.
+
+**Required rule**: every record carries its own last-modified timestamp as a stored data field (distinct from when a write physically occurs — also useful as a "last edited by/at" transparency field; turns out to be load-bearing for this conflict-handling requirement, not merely cosmetic).
+
+Import logic must compare, per document, whether the backup's stored timestamp is newer than the currently-live Firebase version, and must not blindly overwrite newer live data with older backup data.
+
+Given import is already a rare, deliberate, admin-only action, and the family is small, the recommended behavior is conservative rather than automatic silent merging: before committing an import, show a comparison — e.g. "this backup would overwrite N items that have changed since [date]" — so the admin explicitly confirms before anything is overwritten, rather than the app silently resolving conflicts on its own.
+
+#### 20.2.5 Monetization/platform note
+Context for why 20.2 matters commercially: if Erdkeller is ever sold (20.1), staying PWA rather than migrating to native Android is the recommended path — Google Play would take a 15–30% cut on any in-app purchase/subscription and require Google Play Billing instead of Stripe, whereas the PWA path keeps full control of billing (Stripe + Firebase Auth gating access per household) with no store review process.
+
+The guaranteed local persistence layer (20.2.2) is also a genuine product/marketing point for a crisis-preparedness app: data is confirmed to survive on-device even without connectivity — a claim that can be made accurately rather than assumed.

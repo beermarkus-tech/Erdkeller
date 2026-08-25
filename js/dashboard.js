@@ -22,11 +22,11 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=62';
+import { db } from './firebase-init.js?v=63';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory } from './stock-table.js?v=62';
+import { openFilteredBySubcategory } from './stock-table.js?v=63';
 
 const unitToggleButtons = document.querySelectorAll('#dash-unit-toggle .select-mode-btn');
 const heroEl = document.getElementById('dash-hero');
