@@ -11,23 +11,32 @@
 //
 // Completion model — deliberately NOT the classic "nextDue rolls forward
 // from whenever you last completed it" scheduler. Markus's real workflow
-// is a single once-a-month sitting working through everything due, not a
-// per-item rolling timer, so each item just carries a `frequency` and a
+// is a single sitting working through everything due, not a per-item
+// rolling timer, so each item just carries a `frequency` and a
 // `lastCompletedAt` timestamp; "done for the current period" is *derived*
-// by comparing the calendar period (week/month/quarter/year) of
-// lastCompletedAt against the current one — the same "compute a period-
-// bucket integer, compare current vs. stored" shape js/dashboard.js's MHD
-// alerts already use for month-index comparisons. Ticking a box sets
-// lastCompletedAt to now; the box silently resets unchecked the moment the
-// calendar rolls into a new period, whether or not it was ever checked in
-// the period that just ended — no rescheduling logic, no drift.
+// by comparing lastCompletedAt against the most recent scheduled
+// occurrence for that frequency. Ticking a box sets lastCompletedAt to
+// now; the box silently resets unchecked once the schedule rolls past
+// that occurrence again — no rescheduling logic, no drift.
+//
+// Reset-boundary scheduling (Build 74) — "monatlich"/"vierteljährlich"/etc.
+// mean "since the most recent admin-configured weekday" (Settings →
+// Erinnerungen → Checklisten, js/notifications.js writes /config/
+// notifications), not a plain calendar month/quarter/year. Markus: monthly
+// = pick an occurrence (1st-4th) + weekday, e.g. "2nd Saturday of the
+// month"; quarterly/half-yearly = the same rule repeating every 3/6 months
+// from a chosen anchor month; yearly = the same rule within one fixed
+// month; weekly = just a weekday. This only computes the boundary — still
+// a pure derived comparison against item.lastCompletedAt, no wipe action,
+// no new infra. Actually *sending* a reminder at that date/time is
+// Step 17 (push notifications), not built yet.
 //
 // No "einmalig" (one-time) frequency — every item gets a real recurring
 // cadence (Markus: "even one-time topics need to be checked occasionally
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=73';
+import { db } from './firebase-init.js?v=74';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
@@ -53,9 +62,15 @@ const crisisReferenceTitleEl = document.getElementById('crisis-reference-title')
 const crisisReferenceStepsEl = document.getElementById('crisis-reference-steps');
 
 const maintenanceEditViewEl = document.getElementById('maintenance-edit-view');
-const maintenanceEditorEl = document.getElementById('maintenance-editor');
+const maintenanceManageListEl = document.getElementById('maintenance-manage-list');
 const addMaintenanceListBtn = document.getElementById('add-maintenance-list-btn');
 const importMaintenanceBtn = document.getElementById('import-maintenance-btn');
+const maintenanceSearchInput = document.getElementById('maintenance-search-input');
+const maintenanceListFiltersEl = document.getElementById('maintenance-list-filters');
+const maintenanceFreqFiltersEl = document.getElementById('maintenance-freq-filters');
+const maintenanceStatusToggleEl = document.getElementById('maintenance-status-toggle');
+const maintenanceFlatListEl = document.getElementById('maintenance-flat-list');
+const addMaintenanceItemBtn = document.getElementById('add-maintenance-item-btn');
 const crisisEditViewEl = document.getElementById('crisis-edit-view');
 const crisisEditorEl = document.getElementById('crisis-editor');
 const addCrisisTypeBtn = document.getElementById('add-crisis-type-btn');
@@ -63,6 +78,7 @@ const statusEl = document.getElementById('checklists-status');
 
 const maintenanceRef = doc(db, 'config', 'checklists');
 const crisisRef = doc(db, 'config', 'crisisTypes');
+const notificationsRef = doc(db, 'config', 'notifications');
 
 const RECIPIENT_OPTIONS = [
   { id: 'markus', label: 'Markus' },
@@ -71,17 +87,37 @@ const RECIPIENT_OPTIONS = [
 ];
 
 const FREQ_LABELS = {
-  weekly: 'Wöchentlich', monthly: 'Monatlich', quarterly: 'Vierteljährlich', yearly: 'Jährlich',
+  weekly: 'Wöchentlich', monthly: 'Monatlich', quarterly: 'Vierteljährlich', halfYearly: 'Halbjährlich', yearly: 'Jährlich',
 };
+
+// Kept in sync with js/notifications.js's defaultChecklists() — same
+// duplicated-small-helper convention as everywhere else in this app; this
+// file only ever reads the config, js/notifications.js is the only writer.
+function defaultNotificationsChecklists() {
+  return {
+    weekly: { weekday: 1 },
+    monthly: { weekOfMonth: 1, weekday: 1 },
+    quarterly: { anchorMonth: 1, weekOfMonth: 1, weekday: 1 },
+    halfYearly: { anchorMonth: 1, weekOfMonth: 1, weekday: 1 },
+    yearly: { month: 1, weekOfMonth: 1, weekday: 1 },
+    hour: 9,
+  };
+}
 
 let maintenance = { lists: [] };
 let crisis = { types: [] };
+let notifications = { checklists: defaultNotificationsChecklists() };
 // Same data-integrity guard as taxonomy.js/storage-locations.js.
 let loadOk = false;
-let maintenanceFilter = 'due'; // 'due' | 'all'
+let maintenanceFilter = 'due'; // 'due' | 'all' — live view (unchanged)
 // One flag for both tabs — whichever tab is active shows its editor while
 // this is true, so switching tabs mid-edit stays in edit mode.
 let editMode = false;
+// Edit-view flat list filtering state.
+let maintenanceSearch = '';
+let selectedListFilters = new Set();
+let selectedFreqFilters = new Set();
+let maintenanceStatusFilter = 'open'; // 'open' | 'done' — binary, no "show all"
 
 function genId() {
   return crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
@@ -95,9 +131,13 @@ function escapeAttr(str) {
 
 async function loadAll() {
   try {
-    const [mSnap, cSnap] = await Promise.all([getDoc(maintenanceRef), getDoc(crisisRef)]);
+    const [mSnap, cSnap, nSnap] = await Promise.all([
+      getDoc(maintenanceRef), getDoc(crisisRef), getDoc(notificationsRef),
+    ]);
     maintenance = mSnap.exists() && Array.isArray(mSnap.data().lists) ? mSnap.data() : { lists: [] };
     crisis = cSnap.exists() && Array.isArray(cSnap.data().types) ? cSnap.data() : { types: [] };
+    notifications = nSnap.exists() ? nSnap.data() : { checklists: defaultNotificationsChecklists() };
+    if (!notifications.checklists) notifications.checklists = defaultNotificationsChecklists();
     loadOk = true;
   } catch (err) {
     loadOk = false;
@@ -137,27 +177,79 @@ async function saveCrisis() {
   }
 }
 
-// --- Period-bucket completion model --------------------------------------
+// --- Reset-boundary completion model ---------------------------------------
+//
+// "Done for the current period" = lastCompletedAt is on or after the most
+// recent scheduled occurrence for that frequency (per Settings →
+// Erinnerungen). Still a pure derived comparison, same shape as the old
+// calendar-bucket version, just with a real date as the boundary instead
+// of an integer bucket.
 
-// Not true ISO-8601 week numbering — just a stable, monotonically
-// increasing bucket that changes roughly weekly. That's all a household
-// chore tracker needs; exact Mon-Sun calendar alignment isn't worth the
-// extra code.
-function weekBucket(d) {
-  const epochDays = Math.floor(d.getTime() / 86400000);
-  return Math.floor(epochDays / 7);
+// weekday1to7: ISO-style, 1=Monday..7=Sunday (matches Date#getDay()'s
+// 0=Sunday..6=Saturday via the `=== 0 ? 7 : ...` conversions below).
+function nthWeekdayOfMonth(year, month1based, weekOfMonth, weekday1to7) {
+  const first = new Date(year, month1based - 1, 1);
+  const firstWeekdayIso = first.getDay() === 0 ? 7 : first.getDay();
+  let offset = weekday1to7 - firstWeekdayIso;
+  if (offset < 0) offset += 7;
+  const day = 1 + offset + (weekOfMonth - 1) * 7;
+  return new Date(year, month1based - 1, day);
 }
 
-function periodBucket(frequency, d) {
-  if (frequency === 'weekly') return 'w' + weekBucket(d);
-  if (frequency === 'monthly') return 'm' + (d.getFullYear() * 12 + d.getMonth());
-  if (frequency === 'quarterly') return 'q' + (d.getFullYear() * 4 + Math.floor(d.getMonth() / 3));
-  return 'y' + d.getFullYear();
+function mostRecentWeeklyOccurrence(cfg, now) {
+  const nowIso = now.getDay() === 0 ? 7 : now.getDay();
+  let diff = nowIso - cfg.weekday;
+  if (diff < 0) diff += 7;
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff);
+  return d;
+}
+
+function mostRecentMonthlyOccurrence(cfg, now) {
+  const thisMonth = nthWeekdayOfMonth(now.getFullYear(), now.getMonth() + 1, cfg.weekOfMonth, cfg.weekday);
+  if (thisMonth <= now) return thisMonth;
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return nthWeekdayOfMonth(prev.getFullYear(), prev.getMonth() + 1, cfg.weekOfMonth, cfg.weekday);
+}
+
+// Shared by quarterly (every 3 months) and half-yearly (every 6 months)
+// from a chosen anchor month, e.g. anchor=January+quarterly fires
+// Jan/Apr/Jul/Oct. Uses a linear (year*12+month) index rather than
+// looping within each calendar year, so an anchor month that makes the
+// cycle cross a year boundary (e.g. anchor=November, quarterly →
+// Nov/Feb/May/Aug) still lines up correctly — a per-year loop would
+// silently miss the Feb/May firings for that anchor.
+function mostRecentCyclicOccurrence(cfg, now, intervalMonths) {
+  const nowIdx = now.getFullYear() * 12 + now.getMonth(); // 0-based month index
+  const anchor0based = cfg.anchorMonth - 1;
+  let best = null;
+  for (let idx = nowIdx; idx >= nowIdx - intervalMonths * 2; idx--) {
+    const month0based = ((idx % 12) + 12) % 12;
+    if ((((month0based - anchor0based) % intervalMonths) + intervalMonths) % intervalMonths !== 0) continue;
+    const year = Math.floor(idx / 12);
+    const occ = nthWeekdayOfMonth(year, month0based + 1, cfg.weekOfMonth, cfg.weekday);
+    if (occ <= now && (!best || occ > best)) best = occ;
+  }
+  return best;
+}
+
+function mostRecentYearlyOccurrence(cfg, now) {
+  const thisYear = nthWeekdayOfMonth(now.getFullYear(), cfg.month, cfg.weekOfMonth, cfg.weekday);
+  if (thisYear <= now) return thisYear;
+  return nthWeekdayOfMonth(now.getFullYear() - 1, cfg.month, cfg.weekOfMonth, cfg.weekday);
+}
+
+function mostRecentOccurrence(frequency, now) {
+  const c = notifications.checklists || defaultNotificationsChecklists();
+  if (frequency === 'weekly') return mostRecentWeeklyOccurrence(c.weekly, now);
+  if (frequency === 'monthly') return mostRecentMonthlyOccurrence(c.monthly, now);
+  if (frequency === 'quarterly') return mostRecentCyclicOccurrence(c.quarterly, now, 3);
+  if (frequency === 'halfYearly') return mostRecentCyclicOccurrence(c.halfYearly, now, 6);
+  return mostRecentYearlyOccurrence(c.yearly, now);
 }
 
 function isDoneThisPeriod(item) {
   if (!item.lastCompletedAt) return false;
-  return periodBucket(item.frequency, new Date(item.lastCompletedAt)) === periodBucket(item.frequency, new Date());
+  return new Date(item.lastCompletedAt) >= mostRecentOccurrence(item.frequency, new Date());
 }
 
 function formatLastDone(iso) {
@@ -292,8 +384,12 @@ function focusFirstInput(container) {
   }
 }
 
-function renderMaintenanceEditor() {
-  maintenanceEditorEl.innerHTML = '';
+// Structural checklist management (rename/recipients/delete/add) — no
+// items nested here any more, those live in the flat filterable list
+// below. Same .checklist-edit-group/.checklist-edit-head/.checklist-
+// recipients markup as before, just without the per-list items loop.
+function renderMaintenanceManageList() {
+  maintenanceManageListEl.innerHTML = '';
   maintenance.lists.forEach((list) => {
     const group = document.createElement('div');
     group.className = 'checklist-edit-group';
@@ -312,7 +408,9 @@ function renderMaintenanceEditor() {
       if (!confirm(`Checkliste "${list.name}" inkl. aller Einträge löschen?`)) return;
       maintenance.lists = maintenance.lists.filter((l) => l.id !== list.id);
       saveMaintenance();
-      renderMaintenanceEditor();
+      renderMaintenanceManageList();
+      renderMaintenanceFilters();
+      renderMaintenanceFlatList();
     });
     group.appendChild(head);
 
@@ -335,51 +433,7 @@ function renderMaintenanceEditor() {
     });
     group.appendChild(recipients);
 
-    (list.items || []).forEach((item) => {
-      const row = document.createElement('div');
-      row.className = 'checklist-edit-item-row';
-      row.innerHTML = `
-        <input class="tax-name-input" value="${escapeAttr(item.text)}" placeholder="Eintrag">
-        <select class="checklist-freq-select">
-          <option value="weekly"${item.frequency === 'weekly' ? ' selected' : ''}>Wöchentlich</option>
-          <option value="monthly"${item.frequency === 'monthly' ? ' selected' : ''}>Monatlich</option>
-          <option value="quarterly"${item.frequency === 'quarterly' ? ' selected' : ''}>Vierteljährlich</option>
-          <option value="yearly"${item.frequency === 'yearly' ? ' selected' : ''}>Jährlich</option>
-        </select>
-        <button class="tax-del" title="Eintrag löschen">✕</button>
-      `;
-      row.querySelector('.tax-name-input').addEventListener('change', (e) => {
-        item.text = e.target.value.trim();
-        saveMaintenance();
-      });
-      row.querySelector('.checklist-freq-select').addEventListener('change', (e) => {
-        item.frequency = e.target.value;
-        saveMaintenance();
-      });
-      row.querySelector('.tax-del').addEventListener('click', () => {
-        list.items = list.items.filter((it) => it.id !== item.id);
-        saveMaintenance();
-        renderMaintenanceEditor();
-      });
-      group.appendChild(row);
-    });
-
-    const addItemBtn = document.createElement('button');
-    addItemBtn.type = 'button';
-    addItemBtn.className = 'add-row-btn small';
-    addItemBtn.textContent = '+ Eintrag hinzufügen';
-    addItemBtn.addEventListener('click', () => {
-      if (!list.items) list.items = [];
-      list.items.push({
-        id: genId(), text: 'Neuer Eintrag', frequency: 'yearly', lastCompletedAt: null,
-      });
-      saveMaintenance();
-      renderMaintenanceEditor();
-      focusFirstInput(group);
-    });
-    group.appendChild(addItemBtn);
-
-    maintenanceEditorEl.appendChild(group);
+    maintenanceManageListEl.appendChild(group);
   });
 }
 
@@ -388,7 +442,164 @@ addMaintenanceListBtn.addEventListener('click', () => {
     id: genId(), name: 'Neue Checkliste', recipients: ['markus'], items: [],
   });
   saveMaintenance();
-  renderMaintenanceEditor();
+  renderMaintenanceManageList();
+  renderMaintenanceFilters();
+});
+
+// --- Flat, filterable item list (Build 74) ---------------------------------
+//
+// One row per item across every checklist, rather than nested per-
+// checklist blocks — with ~113 real items this is the only way to make
+// "just the monthly ones" or "just this one checklist" fast to find.
+// Same .filter-chip/renderChips shape as js/stock-table.js's admin table.
+
+function flattenMaintenanceItems() {
+  const flat = [];
+  maintenance.lists.forEach((list) => {
+    (list.items || []).forEach((item) => flat.push({ item, list }));
+  });
+  return flat;
+}
+
+function filteredFlatItems() {
+  const q = maintenanceSearch.trim().toLowerCase();
+  return flattenMaintenanceItems().filter(({ item, list }) => {
+    if (selectedListFilters.size && !selectedListFilters.has(list.name)) return false;
+    if (selectedFreqFilters.size && !selectedFreqFilters.has(FREQ_LABELS[item.frequency] || item.frequency)) return false;
+    const done = isDoneThisPeriod(item);
+    if (maintenanceStatusFilter === 'open' && done) return false;
+    if (maintenanceStatusFilter === 'done' && !done) return false;
+    if (q && !item.text.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderChips(container, values, selectedSet, onChange) {
+  container.innerHTML = '';
+  values.forEach((v) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'filter-chip' + (selectedSet.has(v) ? ' active' : '');
+    chip.textContent = v;
+    chip.addEventListener('click', () => {
+      if (selectedSet.has(v)) selectedSet.delete(v);
+      else selectedSet.add(v);
+      renderChips(container, values, selectedSet, onChange);
+      onChange();
+    });
+    container.appendChild(chip);
+  });
+}
+
+function renderMaintenanceFilters() {
+  const listNames = maintenance.lists.map((l) => l.name);
+  const freqLabels = Object.values(FREQ_LABELS);
+  renderChips(maintenanceListFiltersEl, listNames, selectedListFilters, renderMaintenanceFlatList);
+  renderChips(maintenanceFreqFiltersEl, freqLabels, selectedFreqFilters, renderMaintenanceFlatList);
+}
+
+function renderMaintenanceFlatList() {
+  maintenanceFlatListEl.innerHTML = '';
+  const rows = filteredFlatItems();
+
+  rows.forEach(({ item, list }) => {
+    const row = document.createElement('div');
+    row.className = 'checklist-flat-row';
+    row.dataset.itemId = item.id;
+
+    const main = document.createElement('div');
+    main.className = 'checklist-flat-row-main';
+    main.innerHTML = `
+      <input type="checkbox" class="checklist-item-check" ${isDoneThisPeriod(item) ? 'checked' : ''}>
+      <input class="tax-name-input" value="${escapeAttr(item.text)}" placeholder="Eintrag">
+      <button class="tax-del" title="Eintrag löschen">✕</button>
+    `;
+    main.querySelector('.checklist-item-check').addEventListener('change', () => {
+      toggleItemDone(item);
+      renderMaintenanceFlatList();
+    });
+    main.querySelector('.tax-name-input').addEventListener('change', (e) => {
+      item.text = e.target.value.trim();
+      saveMaintenance();
+    });
+    main.querySelector('.tax-del').addEventListener('click', () => {
+      list.items = list.items.filter((it) => it.id !== item.id);
+      saveMaintenance();
+      renderMaintenanceFlatList();
+    });
+    row.appendChild(main);
+
+    const meta = document.createElement('div');
+    meta.className = 'checklist-flat-row-meta';
+    meta.innerHTML = `
+      <select class="checklist-freq-select">
+        ${Object.entries(FREQ_LABELS).map(([key, label]) => `<option value="${key}"${item.frequency === key ? ' selected' : ''}>${label}</option>`).join('')}
+      </select>
+      <select class="checklist-move-select">
+        ${maintenance.lists.map((l) => `<option value="${l.id}"${l.id === list.id ? ' selected' : ''}>${escapeAttr(l.name)}</option>`).join('')}
+      </select>
+    `;
+    meta.querySelector('.checklist-freq-select').addEventListener('change', (e) => {
+      item.frequency = e.target.value;
+      saveMaintenance();
+      renderMaintenanceFilters();
+      renderMaintenanceFlatList();
+    });
+    meta.querySelector('.checklist-move-select').addEventListener('change', (e) => {
+      const targetList = maintenance.lists.find((l) => l.id === e.target.value);
+      if (!targetList || targetList.id === list.id) return;
+      list.items = list.items.filter((it) => it.id !== item.id);
+      targetList.items = targetList.items || [];
+      targetList.items.push(item);
+      saveMaintenance();
+      renderMaintenanceFlatList();
+    });
+    row.appendChild(meta);
+
+    maintenanceFlatListEl.appendChild(row);
+  });
+
+  if (!rows.length) {
+    const p = document.createElement('p');
+    p.className = 'screen-placeholder';
+    p.textContent = maintenanceStatusFilter === 'open'
+      ? 'Nichts offen für diese Auswahl.'
+      : 'Nichts Erledigtes für diese Auswahl.';
+    maintenanceFlatListEl.appendChild(p);
+  }
+}
+
+maintenanceSearchInput.addEventListener('input', (e) => {
+  maintenanceSearch = e.target.value;
+  renderMaintenanceFlatList();
+});
+
+maintenanceStatusToggleEl.querySelectorAll('.select-mode-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    maintenanceStatusFilter = btn.dataset.status;
+    maintenanceStatusToggleEl.querySelectorAll('.select-mode-btn').forEach((b) => b.classList.toggle('active', b === btn));
+    renderMaintenanceFlatList();
+  });
+});
+
+addMaintenanceItemBtn.addEventListener('click', () => {
+  if (!maintenance.lists.length) {
+    statusEl.textContent = 'Zuerst eine Checkliste anlegen ("+ Neue Checkliste").';
+    return;
+  }
+  const targetList = selectedListFilters.size === 1
+    ? maintenance.lists.find((l) => selectedListFilters.has(l.name)) || maintenance.lists[0]
+    : maintenance.lists[0];
+  if (!targetList.items) targetList.items = [];
+  const newItem = { id: genId(), text: 'Neuer Eintrag', frequency: 'yearly', lastCompletedAt: null };
+  targetList.items.push(newItem);
+  saveMaintenance();
+  renderMaintenanceFlatList();
+  const newRow = maintenanceFlatListEl.querySelector(`[data-item-id="${newItem.id}"] .tax-name-input`);
+  if (newRow) {
+    newRow.focus();
+    newRow.select();
+  }
 });
 
 // --- Inline editor: Krise -----------------------------------------------
@@ -585,7 +796,9 @@ importMaintenanceBtn.addEventListener('click', () => {
     });
   });
   saveMaintenance();
-  renderMaintenanceEditor();
+  renderMaintenanceManageList();
+  renderMaintenanceFilters();
+  renderMaintenanceFlatList();
 });
 
 // --- Entry point -----------------------------------------------------------
@@ -593,7 +806,9 @@ importMaintenanceBtn.addEventListener('click', () => {
 function render() {
   renderMaintenanceList();
   renderCrisisList();
-  renderMaintenanceEditor();
+  renderMaintenanceManageList();
+  renderMaintenanceFilters();
+  renderMaintenanceFlatList();
   renderCrisisEditor();
 }
 

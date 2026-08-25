@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=73">
-<link rel="icon" href="icons/icon-192.png?v=73">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=73">
+<link rel="manifest" href="manifest.json?v=74">
+<link rel="icon" href="icons/icon-192.png?v=74">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=74">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=73">
+<link rel="stylesheet" href="css/styles.css?v=74">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 73</div>
+<div id="build-tag" class="build-tag">Build 74</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -311,9 +311,28 @@
           <div id="maintenance-list"></div>
         </div>
         <div class="checklist-edit-view hidden" id="maintenance-edit-view">
-          <div id="maintenance-editor"></div>
+          <div class="section-label">Checklisten verwalten</div>
+          <div id="maintenance-manage-list"></div>
           <button class="add-row-btn" id="add-maintenance-list-btn">+ Neue Checkliste</button>
           <button class="add-row-btn small" id="import-maintenance-btn">Bekannte Checkliste importieren (einmalig)</button>
+
+          <div class="section-label">Einträge</div>
+          <div class="search-bar"><span>🔍</span><input placeholder="Suchen…" id="maintenance-search-input"></div>
+          <div class="filter-section">
+            <div class="filter-label">Checkliste</div>
+            <div class="filter-chip-row" id="maintenance-list-filters"></div>
+          </div>
+          <div class="filter-section">
+            <div class="filter-label">Häufigkeit</div>
+            <div class="filter-chip-row" id="maintenance-freq-filters"></div>
+          </div>
+          <div class="tax-expand-row" id="maintenance-status-toggle">
+            <button type="button" class="select-mode-btn active" data-status="open">Offen</button>
+            <button type="button" class="select-mode-btn" data-status="done">Erledigt</button>
+          </div>
+
+          <div id="maintenance-flat-list"></div>
+          <button class="add-row-btn" id="add-maintenance-item-btn">+ Eintrag hinzufügen</button>
         </div>
       </div>
 
@@ -356,6 +375,11 @@
         <div class="settings-card" data-target="people">
           <span class="sym">👥</span>
           <div class="sc-text"><div class="sc-title">Personen</div><div class="sc-sub">Rollen verwalten — Schritt 14</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="settings-card" data-target="notifications">
+          <span class="sym">🔔</span>
+          <div class="sc-text"><div class="sc-title">Erinnerungen</div><div class="sc-sub">Wann Checklisten-Erinnerungen fällig sind</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="planning">
@@ -531,6 +555,181 @@
           </div>
         </div>
         <p class="screen-placeholder">Rollenverwaltung — wird in Schritt 14 gebaut.</p>
+      </div>
+
+      <div class="settings-panel hidden" id="settings-panel-notifications">
+        <div class="sticky-panel-header">
+          <div class="panel-header-row">
+            <button class="panel-back-btn" data-back type="button">‹ Erinnerungen</button>
+          </div>
+        </div>
+
+        <div class="section-label">Checklisten</div>
+        <p class="settings-note">Legt fest, an welchem Tag jede Checklisten-Häufigkeit zurückgesetzt wird und (sobald Push-Benachrichtigungen in Schritt 17 gebaut sind) wann die Erinnerung verschickt wird — vorerst fix um 9:00 Uhr.</p>
+
+        <div class="form-group">
+          <label>Wöchentlich — Wochentag</label>
+          <select id="notif-weekly-weekday">
+            <option value="1">Montag</option>
+            <option value="2">Dienstag</option>
+            <option value="3">Mittwoch</option>
+            <option value="4">Donnerstag</option>
+            <option value="5">Freitag</option>
+            <option value="6">Samstag</option>
+            <option value="7">Sonntag</option>
+          </select>
+        </div>
+
+        <div class="tax-planning-row">
+          <div class="tax-planning-field">
+            <label>Monatlich — Woche</label>
+            <select id="notif-monthly-week">
+              <option value="1">1. Woche</option>
+              <option value="2">2. Woche</option>
+              <option value="3">3. Woche</option>
+              <option value="4">4. Woche</option>
+            </select>
+          </div>
+          <div class="tax-planning-field">
+            <label>Wochentag</label>
+            <select id="notif-monthly-weekday">
+              <option value="1">Montag</option>
+              <option value="2">Dienstag</option>
+              <option value="3">Mittwoch</option>
+              <option value="4">Donnerstag</option>
+              <option value="5">Freitag</option>
+              <option value="6">Samstag</option>
+              <option value="7">Sonntag</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="tax-planning-row">
+          <div class="tax-planning-field">
+            <label>Vierteljährlich — Startmonat</label>
+            <select id="notif-quarterly-month">
+              <option value="1">Januar</option>
+              <option value="2">Februar</option>
+              <option value="3">März</option>
+              <option value="4">April</option>
+              <option value="5">Mai</option>
+              <option value="6">Juni</option>
+              <option value="7">Juli</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Dezember</option>
+            </select>
+          </div>
+          <div class="tax-planning-field">
+            <label>Woche</label>
+            <select id="notif-quarterly-week">
+              <option value="1">1. Woche</option>
+              <option value="2">2. Woche</option>
+              <option value="3">3. Woche</option>
+              <option value="4">4. Woche</option>
+            </select>
+          </div>
+          <div class="tax-planning-field">
+            <label>Wochentag</label>
+            <select id="notif-quarterly-weekday">
+              <option value="1">Montag</option>
+              <option value="2">Dienstag</option>
+              <option value="3">Mittwoch</option>
+              <option value="4">Donnerstag</option>
+              <option value="5">Freitag</option>
+              <option value="6">Samstag</option>
+              <option value="7">Sonntag</option>
+            </select>
+          </div>
+        </div>
+        <p class="settings-note">Feuert alle 3 Monate ab dem Startmonat, z. B. Startmonat Januar → Januar, April, Juli, Oktober.</p>
+
+        <div class="tax-planning-row">
+          <div class="tax-planning-field">
+            <label>Halbjährlich — Startmonat</label>
+            <select id="notif-halfyearly-month">
+              <option value="1">Januar</option>
+              <option value="2">Februar</option>
+              <option value="3">März</option>
+              <option value="4">April</option>
+              <option value="5">Mai</option>
+              <option value="6">Juni</option>
+              <option value="7">Juli</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Dezember</option>
+            </select>
+          </div>
+          <div class="tax-planning-field">
+            <label>Woche</label>
+            <select id="notif-halfyearly-week">
+              <option value="1">1. Woche</option>
+              <option value="2">2. Woche</option>
+              <option value="3">3. Woche</option>
+              <option value="4">4. Woche</option>
+            </select>
+          </div>
+          <div class="tax-planning-field">
+            <label>Wochentag</label>
+            <select id="notif-halfyearly-weekday">
+              <option value="1">Montag</option>
+              <option value="2">Dienstag</option>
+              <option value="3">Mittwoch</option>
+              <option value="4">Donnerstag</option>
+              <option value="5">Freitag</option>
+              <option value="6">Samstag</option>
+              <option value="7">Sonntag</option>
+            </select>
+          </div>
+        </div>
+        <p class="settings-note">Feuert alle 6 Monate ab dem Startmonat, z. B. Startmonat März → März, September.</p>
+
+        <div class="tax-planning-row">
+          <div class="tax-planning-field">
+            <label>Jährlich — Monat</label>
+            <select id="notif-yearly-month">
+              <option value="1">Januar</option>
+              <option value="2">Februar</option>
+              <option value="3">März</option>
+              <option value="4">April</option>
+              <option value="5">Mai</option>
+              <option value="6">Juni</option>
+              <option value="7">Juli</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Dezember</option>
+            </select>
+          </div>
+          <div class="tax-planning-field">
+            <label>Woche</label>
+            <select id="notif-yearly-week">
+              <option value="1">1. Woche</option>
+              <option value="2">2. Woche</option>
+              <option value="3">3. Woche</option>
+              <option value="4">4. Woche</option>
+            </select>
+          </div>
+          <div class="tax-planning-field">
+            <label>Wochentag</label>
+            <select id="notif-yearly-weekday">
+              <option value="1">Montag</option>
+              <option value="2">Dienstag</option>
+              <option value="3">Mittwoch</option>
+              <option value="4">Donnerstag</option>
+              <option value="5">Freitag</option>
+              <option value="6">Samstag</option>
+              <option value="7">Sonntag</option>
+            </select>
+          </div>
+        </div>
+
+        <p id="notifications-status" class="taxonomy-status"></p>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-targets">
@@ -764,23 +963,24 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=73"></script>
-<script type="module" src="js/auth.js?v=73"></script>
-<script type="module" src="js/app-shell.js?v=73"></script>
-<script type="module" src="js/account-menu.js?v=73"></script>
-<script type="module" src="js/refresh-button.js?v=73"></script>
-<script type="module" src="js/settings-nav.js?v=73"></script>
-<script type="module" src="js/data-tabs.js?v=73"></script>
-<script type="module" src="js/taxonomy.js?v=73"></script>
-<script type="module" src="js/storage-locations.js?v=73"></script>
-<script type="module" src="js/year-colors.js?v=73"></script>
-<script type="module" src="js/stock-checkin.js?v=73"></script>
-<script type="module" src="js/stock-checkout.js?v=73"></script>
-<script type="module" src="js/stock-table.js?v=73"></script>
-<script type="module" src="js/dashboard.js?v=73"></script>
-<script type="module" src="js/targets.js?v=73"></script>
-<script type="module" src="js/planning.js?v=73"></script>
-<script type="module" src="js/checklists.js?v=73"></script>
-<script type="module" src="js/admin-log.js?v=73"></script>
+<script src="js/app.js?v=74"></script>
+<script type="module" src="js/auth.js?v=74"></script>
+<script type="module" src="js/app-shell.js?v=74"></script>
+<script type="module" src="js/account-menu.js?v=74"></script>
+<script type="module" src="js/refresh-button.js?v=74"></script>
+<script type="module" src="js/settings-nav.js?v=74"></script>
+<script type="module" src="js/data-tabs.js?v=74"></script>
+<script type="module" src="js/taxonomy.js?v=74"></script>
+<script type="module" src="js/storage-locations.js?v=74"></script>
+<script type="module" src="js/year-colors.js?v=74"></script>
+<script type="module" src="js/stock-checkin.js?v=74"></script>
+<script type="module" src="js/stock-checkout.js?v=74"></script>
+<script type="module" src="js/stock-table.js?v=74"></script>
+<script type="module" src="js/dashboard.js?v=74"></script>
+<script type="module" src="js/targets.js?v=74"></script>
+<script type="module" src="js/planning.js?v=74"></script>
+<script type="module" src="js/notifications.js?v=74"></script>
+<script type="module" src="js/checklists.js?v=74"></script>
+<script type="module" src="js/admin-log.js?v=74"></script>
 </body>
 </html>

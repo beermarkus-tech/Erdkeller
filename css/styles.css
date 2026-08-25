@@ -2559,7 +2559,8 @@ nav.bottomnav button .icon {
   flex: 2;
 }
 
-.checklist-freq-select {
+.checklist-freq-select,
+.checklist-move-select {
   flex: 1;
   min-width: 96px;
   border: 1px solid var(--stone-dark);
@@ -2571,4 +2572,35 @@ nav.bottomnav button .icon {
 
 .crisis-edit-steps {
   padding-left: 4px;
+}
+
+/* Wartung's flat, filterable item editor (Build 74) — one row per item
+   across every checklist rather than nested per-checklist blocks, so the
+   Checkliste/Häufigkeit filter chips and search box (same .filter-chip-row
+   and .search-bar as the admin stock table) can narrow ~100+ items at
+   once. Two lines per row (checkbox+text+delete, then frequency+move
+   selects below) rather than cramming five controls onto one line. */
+.checklist-flat-row {
+  border-top: 1px solid var(--stone-dark);
+  padding: 10px 0;
+}
+.checklist-flat-row:first-of-type {
+  border-top: none;
+}
+
+.checklist-flat-row-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.checklist-flat-row-main .tax-name-input {
+  flex: 1;
+}
+
+.checklist-flat-row-meta {
+  display: flex;
+  gap: 8px;
+  padding-left: 26px;
 }
