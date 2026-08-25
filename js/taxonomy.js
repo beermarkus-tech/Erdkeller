@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=59';
+import { db } from './firebase-init.js?v=60';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -112,6 +112,13 @@ async function saveTaxonomy() {
   try {
     await setDoc(ref, taxonomy);
     statusEl.textContent = '';
+    // Every other module that reads taxonomy (Ziele, Planung, Übersicht,
+    // the Bestand type/category/subcategory tile grids) caches it in
+    // memory and only reloads on this event — without it, a symbol
+    // change, a new subcategory, etc. is invisible everywhere but here
+    // until a manual refresh or full reload (same bug class as the
+    // stock-checkin/-checkout/-table fix; see their write handlers).
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
     console.error(err);
