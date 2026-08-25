@@ -22,11 +22,11 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=69';
+import { db } from './firebase-init.js?v=70';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=69';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=70';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -327,7 +327,7 @@ function alertSeverity(idx, nowIdx) {
   return 'none';
 }
 
-function computeAlerts(horizonEndIdx) {
+function computeAlerts(minIdx, maxIdx) {
   const nowIdx = nowMonthIndex();
   return allBatches
     .filter((b) => b.bestBefore)
@@ -335,7 +335,7 @@ function computeAlerts(horizonEndIdx) {
       const [mm, yyyy] = b.bestBefore.split('/');
       return { batch: b, idx: monthIndex(mm, yyyy) };
     })
-    .filter(({ idx }) => idx <= horizonEndIdx)
+    .filter(({ idx }) => idx >= minIdx && idx <= maxIdx)
     .sort((a, b) => a.idx - b.idx)
     .map(({ batch, idx }) => ({
       batch,
@@ -345,12 +345,23 @@ function computeAlerts(horizonEndIdx) {
     .filter((a) => a.product);
 }
 
-function horizonEndForMonths(months) {
-  return nowMonthIndex() + months;
-}
-
 function horizonEndForYearEnd() {
   return new Date().getFullYear() * 12 + 12;
+}
+
+// Each button is its own exclusive band, not "everything up to here" —
+// picking 1 Monat should never re-show what MHD erreicht already covers.
+// "Bis Jahresende" is the one exception to a clean ladder: since it's a
+// calendar cutoff (not a duration), from July on fewer than 6 months
+// remain in the year, so its band can end up empty (year-end already
+// falls inside the 6-Monate band above it) — correct, if occasionally
+// unsatisfying, rather than re-showing months 6-Monate already listed.
+function alertsRange(horizon) {
+  const nowIdx = nowMonthIndex();
+  if (horizon === 'reached') return { min: -Infinity, max: nowIdx };
+  if (horizon === '1') return { min: nowIdx + 1, max: nowIdx + 1 };
+  if (horizon === '6') return { min: nowIdx + 2, max: nowIdx + 6 };
+  return { min: nowIdx + 7, max: horizonEndForYearEnd() };
 }
 
 // --- Einkaufsliste (shopping list) ---------------------------------------
@@ -670,10 +681,11 @@ dashTabBtns.forEach((btn) => {
 
 // --- Alerts rendering --------------------------------------------------
 
-function renderAlertsList(horizonEndIdx) {
+function renderAlertsList(horizon) {
   alertsFullListEl.innerHTML = '';
   if (!loadOk) return;
-  const alerts = computeAlerts(horizonEndIdx);
+  const { min, max } = alertsRange(horizon);
+  const alerts = computeAlerts(min, max);
   if (alerts.length === 0) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
@@ -693,24 +705,13 @@ function renderAlertsList(horizonEndIdx) {
   });
 }
 
-// 'reached' reuses computeAlerts' own "<= horizonEnd, no lower bound"
-// filter with horizonEnd pinned to the current month — computeAlerts
-// already includes overdue batches in every horizon (that's what makes
-// them 'danger'-tinted there), so capping the horizon at "now" is exactly
-// "due this month or already passed", i.e. MHD erreicht — no separate
-// filter needed.
-function alertsHorizonEnd(horizon) {
-  if (horizon === 'reached') return nowMonthIndex();
-  return horizon === 'year' ? horizonEndForYearEnd() : horizonEndForMonths(Number(horizon));
-}
-
 let currentAlertsHorizon = '1';
 
 alertsHorizonButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
     currentAlertsHorizon = btn.dataset.horizon;
     alertsHorizonButtons.forEach((b) => b.classList.toggle('active', b === btn));
-    renderAlertsList(alertsHorizonEnd(currentAlertsHorizon));
+    renderAlertsList(currentAlertsHorizon);
   });
 });
 
@@ -756,7 +757,7 @@ function render() {
   renderHero(rows);
   renderHeroWater(waterCurrentLiters(subStock), waterGlobalLiters());
   renderCategoryList(rows);
-  renderAlertsList(alertsHorizonEnd(currentAlertsHorizon));
+  renderAlertsList(currentAlertsHorizon);
   renderShoppingList(loadOk ? computeShoppingList(subStock, rows) : []);
 }
 
