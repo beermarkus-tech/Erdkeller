@@ -6,8 +6,10 @@
 //     manual (flat kg/Stk, or Personen×Tage) — click the badge, edit, save.
 //     Kalorien categories sharing a macro (Kohlenhydrate/Protein/Fett) split
 //     that macro's global kcal target between them via a ±5% stepper (see
-//     stepSplit below); Diversität categories and the Wasser category
-//     (assigned in Planung) compute independently, no stepper.
+//     stepSplit below); Diversität categories compute independently, no
+//     stepper. Wasser-classed types don't appear here at all — water has
+//     exactly one global target (Planung's rate), no per-category split,
+//     see js/dashboard.js's water hero.
 //   - Unterkategorien: every subcategory's target, grouped by parent
 //     category. Manual under an "Aus" parent; split off the parent's
 //     computed total (same ±5% stepper) under a computed parent.
@@ -15,7 +17,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=57';
+import { db } from './firebase-init.js?v=58';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -93,9 +95,7 @@ let targets = {
   categories: {}, subcategories: {}, products: {}, macroSplits: {}, subSplits: {},
 };
 let household = { members: [] };
-let planning = {
-  autonomyDays: null, macroSplit: {}, waterLitersPerPersonDay: null, waterCategoryId: '',
-};
+let planning = { autonomyDays: null, macroSplit: {} };
 let loadOk = false;
 
 // Which categories currently feed each macro's split (planningMode
@@ -137,8 +137,6 @@ async function loadAll() {
     planning = {
       autonomyDays: p.autonomyDays ?? null,
       macroSplit: p.macroSplit || {},
-      waterLitersPerPersonDay: p.waterLitersPerPersonDay ?? null,
-      waterCategoryId: p.waterCategoryId || '',
     };
     loadOk = true;
   } catch (err) {
@@ -166,8 +164,14 @@ async function saveTargets() {
 
 // --- Same 3-way mode as js/taxonomy.js ---------------------------------
 
+// See js/taxonomy.js's typeClass for the fallback-derivation rationale.
+function typeClass(type) {
+  if (type.typeClass) return type.typeClass;
+  return type.isFoodType ? 'food' : 'other';
+}
+
 function categoryPlanningMode(type, cat) {
-  if (!type.isFoodType) return 'off';
+  if (typeClass(type) !== 'food') return 'off';
   if (cat.planningMode) return cat.planningMode;
   if (cat.kcalPerKg != null || !!cat.macroType) return 'calorie';
   if (cat.diversityFloorGramsPerPersonDay != null) return 'diversity';
@@ -200,7 +204,7 @@ function findSubcategoryContext(subcategoryId) {
 // silently dropping the target from both lists.
 function productIsFood(product) {
   const ctx = findSubcategoryContext(product.subcategoryId);
-  return ctx ? !!ctx.type.isFoodType : true;
+  return ctx ? typeClass(ctx.type) === 'food' : true;
 }
 
 function computeMacroGroups() {
@@ -235,16 +239,10 @@ function autonomyDaysVal() {
 // showing 20/30 for it. Fall back to the same defaults here so Ziele always
 // matches what Planung displays, saved or not.
 const DEFAULT_MACRO_SPLIT = { kohlenhydrat: 50, protein: 20, fett: 30 };
-const DEFAULT_WATER_RATE = 3;
 
 function macroGlobalKcal(macro) {
   const pct = planning.macroSplit?.[macro] != null ? Number(planning.macroSplit[macro]) : DEFAULT_MACRO_SPLIT[macro];
   return totalDailyKcal() * autonomyDaysVal() * (pct || 0) / 100;
-}
-
-function waterGlobalKg() {
-  const rate = planning.waterLitersPerPersonDay != null ? Number(planning.waterLitersPerPersonDay) : DEFAULT_WATER_RATE;
-  return rate * peopleCount() * autonomyDaysVal();
 }
 
 // --- Split percentages (macro→category, category→subcategory) ---------
@@ -394,12 +392,13 @@ function renderManualSubRow(sub) {
   return makeRow(sub.sym, sub.name, targets.subcategories[sub.id], 'subcategories', sub.id, 'kg');
 }
 
-// --- Computed category (Kalorien / Diversität / Wasser) ------------------
+// --- Computed category (Kalorien / Diversität) ---------------------------
+// Wasser-classed types never reach this — they're filtered out before the
+// Kategorien/Unterkategorien sections render at all (see includeFoodTypes
+// callers below), since water has one global target, not a per-category
+// one. See js/dashboard.js for where that global figure actually lives.
 
 function categoryTargetSource(type, cat) {
-  if (planning.waterCategoryId && cat.id === planning.waterCategoryId) {
-    return { kind: 'water', kg: waterGlobalKg() };
-  }
   const mode = categoryPlanningMode(type, cat);
   if (mode === 'calorie') {
     if (!cat.macroType || cat.kcalPerKg == null || cat.kcalPerKg <= 0) return { kind: 'calorie', kg: null };
@@ -552,16 +551,18 @@ function renderDiversitySection() {
   return frag;
 }
 
-// includeFoodTypes selects which side of the Lebensmittel-Typ gate to
-// render — every category here is always 'off' on the Sonstiges side
-// (non-food types never reach 'calorie'/'diversity', see
-// categoryPlanningMode), so this is the entire Sonstiges Kategorien
-// content, not just a fallback group.
-function renderManualCategoriesGroup(includeFoodTypes) {
+// wantClass selects which tab to render — 'food' for Lebensmittel, 'other'
+// for Sonstiges. Wasser-classed types are never included in either: every
+// category here is always 'off' on the Sonstiges side anyway (non-food
+// types never reach 'calorie'/'diversity', see categoryPlanningMode), so
+// this is the entire Sonstiges Kategorien content, not just a fallback
+// group — and Wasser has no per-category content at all (see
+// categoryTargetSource above).
+function renderManualCategoriesGroup(wantClass) {
   const frag = document.createDocumentFragment();
   let any = false;
   taxonomy.types.forEach((type) => {
-    if (!!type.isFoodType !== includeFoodTypes) return;
+    if (typeClass(type) !== wantClass) return;
     const manualCats = (type.categories || []).filter((cat) => categoryTargetSource(type, cat).kind === 'off');
     if (manualCats.length === 0) return;
     any = true;
@@ -588,7 +589,7 @@ function renderCategoriesSection() {
     p.textContent = 'Haushalt und Autonomiedauer in Planung eingeben, um berechnete Ziele zu sehen — manuelle Kategorien stehen unten.';
     categoriesListEl.appendChild(p);
   }
-  const manualGroup = renderManualCategoriesGroup(true);
+  const manualGroup = renderManualCategoriesGroup('food');
   if (manualGroup) categoriesListEl.appendChild(manualGroup);
   if (!categoriesListEl.children.length) {
     const empty = document.createElement('p');
@@ -598,7 +599,7 @@ function renderCategoriesSection() {
   }
 
   nonfoodCategoriesListEl.innerHTML = '';
-  const nonfoodGroup = renderManualCategoriesGroup(false);
+  const nonfoodGroup = renderManualCategoriesGroup('other');
   if (nonfoodGroup) {
     nonfoodCategoriesListEl.appendChild(nonfoodGroup);
   } else {
@@ -640,11 +641,11 @@ function renderSubcategoryGroupFor(type, cat) {
   return frag;
 }
 
-function renderSubcategoriesSection(listEl, includeFoodTypes) {
+function renderSubcategoriesSection(listEl, wantClass) {
   listEl.innerHTML = '';
   let any = false;
   taxonomy.types.forEach((type) => {
-    if (!!type.isFoodType !== includeFoodTypes) return;
+    if (typeClass(type) !== wantClass) return;
     (type.categories || []).forEach((cat) => {
       const group = renderSubcategoryGroupFor(type, cat);
       if (group) {
@@ -722,8 +723,8 @@ function render() {
   computeMacroGroups();
   syncUnitToggle();
   renderCategoriesSection();
-  renderSubcategoriesSection(subcategoriesListEl, true);
-  renderSubcategoriesSection(nonfoodSubcategoriesListEl, false);
+  renderSubcategoriesSection(subcategoriesListEl, 'food');
+  renderSubcategoriesSection(nonfoodSubcategoriesListEl, 'other');
   renderProductTargets();
 }
 
@@ -733,7 +734,7 @@ function flatSubcategories() {
   const list = [];
   taxonomy.types.forEach((type) => (type.categories || []).forEach((cat) => (cat.subcategories || []).forEach((sub) => {
     list.push({
-      id: sub.id, label: `${type.name} › ${cat.name} › ${sub.name}`, isFood: !!type.isFoodType,
+      id: sub.id, label: `${type.name} › ${cat.name} › ${sub.name}`, isFood: typeClass(type) === 'food',
     });
   })));
   return list;

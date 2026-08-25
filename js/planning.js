@@ -1,10 +1,13 @@
 // Planung (SPEC.md Section 7) — household roster, autonomy duration, macro
-// split, and water rate/category. Collects the inputs and shows only the
-// resulting global numbers (kcal per macro, kg for water); the actual
-// per-category/subcategory split lives in Ziele (js/targets.js), which
-// reads /config/household and /config/planning directly and recomputes
-// live — there is deliberately no "apply" step here.
-import { db } from './firebase-init.js?v=57';
+// split, and water rate. Collects the inputs and shows only the resulting
+// global numbers (kcal per macro, liters for water); the actual per-
+// category/subcategory split lives in Ziele (js/targets.js), which reads
+// /config/household and /config/planning directly and recomputes live —
+// there is deliberately no "apply" step here. Water no longer needs a
+// category picker: which stock counts as water is now a whole Taxonomie
+// type tagged Wasser (js/taxonomy.js), summed globally in the Übersicht
+// (js/dashboard.js) rather than assigned to one hand-picked category here.
+import { db } from './firebase-init.js?v=58';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const planningCard = document.querySelector('.settings-card[data-target="planning"]');
@@ -18,7 +21,6 @@ const macroKohlenhydratInput = document.getElementById('planning-macro-kohlenhyd
 const macroProteinInput = document.getElementById('planning-macro-protein');
 const macroFettInput = document.getElementById('planning-macro-fett');
 const waterRateInput = document.getElementById('planning-water-rate');
-const waterCategorySelect = document.getElementById('planning-water-category');
 const statusEl = document.getElementById('planning-status');
 const computedEl = document.getElementById('planning-computed');
 
@@ -26,24 +28,21 @@ const MACRO_LABELS = { kohlenhydrat: 'Kohlenhydrate', protein: 'Protein', fett: 
 
 let taxonomy = { types: [] };
 let household = { members: [] };
-let planning = { autonomyDays: null, macroSplit: {}, waterLitersPerPersonDay: null, waterCategoryId: '' };
+let planning = { autonomyDays: null, macroSplit: {}, waterLitersPerPersonDay: null };
 let loadOk = false;
 
 function genId() {
   return crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
 }
 
-// Only categories under a food-tagged type (Taxonomie's Lebensmittel-Typ
-// checkbox, SPEC.md Section 7) are eligible as the water category — the
-// water calculator is part of the same human-consumption pipeline as
-// Kalorien/Diversität, so a Werkzeug category shouldn't be assignable here.
-function foodCategories() {
-  const list = [];
-  taxonomy.types.forEach((type) => {
-    if (!type.isFoodType) return;
-    (type.categories || []).forEach((cat) => list.push({ id: cat.id, name: cat.name, cat }));
-  });
-  return list;
+// See js/taxonomy.js's typeClass for the fallback-derivation rationale.
+function typeClass(type) {
+  if (type.typeClass) return type.typeClass;
+  return type.isFoodType ? 'food' : 'other';
+}
+
+function hasWaterType() {
+  return taxonomy.types.some((type) => typeClass(type) === 'water');
 }
 
 // --- Data loading -----------------------------------------------------
@@ -64,7 +63,6 @@ async function loadAll() {
       autonomyDays: p.autonomyDays ?? null,
       macroSplit: p.macroSplit || {},
       waterLitersPerPersonDay: p.waterLitersPerPersonDay ?? null,
-      waterCategoryId: p.waterCategoryId || '',
     };
     loadOk = true;
   } catch (err) {
@@ -180,22 +178,6 @@ function syncPlanningFields() {
   waterRateInput.value = planning.waterLitersPerPersonDay ?? 3;
 }
 
-function renderWaterCategoryOptions() {
-  const current = planning.waterCategoryId || '';
-  waterCategorySelect.innerHTML = '';
-  const emptyOpt = document.createElement('option');
-  emptyOpt.value = '';
-  emptyOpt.textContent = '– Kategorie wählen –';
-  waterCategorySelect.appendChild(emptyOpt);
-  foodCategories().forEach((c) => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = c.name;
-    waterCategorySelect.appendChild(opt);
-  });
-  waterCategorySelect.value = current;
-}
-
 autonomyDaysInput.addEventListener('input', renderComputedOutput);
 autonomyDaysInput.addEventListener('change', () => {
   planning.autonomyDays = autonomyDaysInput.value === '' ? null : Number(autonomyDaysInput.value);
@@ -214,12 +196,6 @@ waterRateInput.addEventListener('input', renderComputedOutput);
 waterRateInput.addEventListener('change', () => {
   planning.waterLitersPerPersonDay = waterRateInput.value === '' ? null : Number(waterRateInput.value);
   savePlanning();
-});
-
-waterCategorySelect.addEventListener('change', () => {
-  planning.waterCategoryId = waterCategorySelect.value;
-  savePlanning();
-  renderComputedOutput();
 });
 
 // --- Global computed output -----------------------------------------------
@@ -287,9 +263,9 @@ function renderComputedOutput() {
     computedEl.appendChild(makeComputedRow(MACRO_LABELS[macro], `${Math.round(macroKcal).toLocaleString('de-DE')} kcal`));
   });
 
-  const waterKg = currentWaterRate() * people * days;
-  const waterLabel = planning.waterCategoryId ? 'Wasser' : 'Wasser (keine Kategorie zugewiesen)';
-  computedEl.appendChild(makeComputedRow(waterLabel, `${Math.round(waterKg * 100) / 100} kg`));
+  const waterLiters = currentWaterRate() * people * days;
+  const waterLabel = hasWaterType() ? 'Wasser' : 'Wasser (kein Wasser-Typ in der Taxonomie markiert)';
+  computedEl.appendChild(makeComputedRow(waterLabel, `${Math.round(waterLiters * 100) / 100} L`));
 }
 
 // --- Entry point -----------------------------------------------------------
@@ -297,7 +273,6 @@ function renderComputedOutput() {
 function render() {
   renderHousehold();
   syncPlanningFields();
-  renderWaterCategoryOptions();
   renderComputedOutput();
 }
 

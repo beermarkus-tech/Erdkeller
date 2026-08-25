@@ -1,6 +1,9 @@
-// Übersicht (Dashboard, Step 10) — Totals/Gaps view, Lebensmittel only.
+// Übersicht (Dashboard, Step 10) — Totals/Gaps view, Lebensmittel + Wasser.
 // Sonstiges has no autonomy-duration/kcal framing (a screwdriver doesn't
-// "last N weeks"), so it isn't part of this view.
+// "last N weeks"), so it isn't part of this view. Wasser gets its own
+// simple hero card next to the Lebensmittel one (renderHeroWater) rather
+// than joining the Kategorien list — it has exactly one global target
+// (Planung's rate), no per-category breakdown, so there's nothing to list.
 //
 // Reads the same computation graph as Ziele (js/targets.js) — taxonomy,
 // /config/targets, /config/household, /config/planning — duplicated here
@@ -19,14 +22,15 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=57';
+import { db } from './firebase-init.js?v=58';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory } from './stock-table.js?v=57';
+import { openFilteredBySubcategory } from './stock-table.js?v=58';
 
 const unitToggleButtons = document.querySelectorAll('#dash-unit-toggle .select-mode-btn');
 const heroEl = document.getElementById('dash-hero');
+const heroWaterEl = document.getElementById('dash-hero-water');
 const categoryListEl = document.getElementById('dash-category-list');
 const legendEl = document.getElementById('dash-legend');
 
@@ -35,9 +39,7 @@ let targetsDoc = {
   categories: {}, subcategories: {}, macroSplits: {}, subSplits: {},
 };
 let household = { members: [] };
-let planning = {
-  autonomyDays: null, macroSplit: {}, waterLitersPerPersonDay: null, waterCategoryId: '',
-};
+let planning = { autonomyDays: null, macroSplit: {}, waterLitersPerPersonDay: null };
 let allProducts = [];
 let productIndex = new Map();
 let allBatches = [];
@@ -75,7 +77,6 @@ async function loadAll() {
       autonomyDays: p.autonomyDays ?? null,
       macroSplit: p.macroSplit || {},
       waterLitersPerPersonDay: p.waterLitersPerPersonDay ?? null,
-      waterCategoryId: p.waterCategoryId || '',
     };
     allProducts = productsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     productIndex = new Map(allProducts.map((prod) => [prod.id, prod]));
@@ -90,8 +91,14 @@ async function loadAll() {
 
 // --- Same target math as js/targets.js (see file header) ----------------
 
+// See js/taxonomy.js's typeClass for the fallback-derivation rationale.
+function typeClass(type) {
+  if (type.typeClass) return type.typeClass;
+  return type.isFoodType ? 'food' : 'other';
+}
+
 function categoryPlanningMode(type, cat) {
-  if (!type.isFoodType) return 'off';
+  if (typeClass(type) !== 'food') return 'off';
   if (cat.planningMode) return cat.planningMode;
   if (cat.kcalPerKg != null || !!cat.macroType) return 'calorie';
   if (cat.diversityFloorGramsPerPersonDay != null) return 'diversity';
@@ -130,9 +137,20 @@ function macroGlobalKcal(macro) {
   return totalDailyKcal() * autonomyDaysVal() * (pct || 0) / 100;
 }
 
-function waterGlobalKg() {
+// Water's one global target — no per-category split, unlike Kalorien/
+// Diversität (see js/planning.js's file header for why the old category
+// picker is gone). Tracked natively in liters, not kg: a stock batch's
+// content is parsed unit-agnostically anyway (see parseContentGrams
+// below), and 1 L of water weighs ~1 kg, so the same numeric pipeline
+// that sums Lebensmittel's kg also sums water's liters with zero changes.
+function waterGlobalLiters() {
+  if (peopleCount() === 0 || autonomyDaysVal() <= 0) return null;
   const rate = planning.waterLitersPerPersonDay != null ? Number(planning.waterLitersPerPersonDay) : DEFAULT_WATER_RATE;
   return rate * peopleCount() * autonomyDaysVal();
+}
+
+function hasWaterType() {
+  return taxonomy.types.some((type) => typeClass(type) === 'water');
 }
 
 function equalSplit(ids) {
@@ -168,12 +186,10 @@ function computeAmount(target) {
   return Math.round((target.ratePerPersonDay || 0) * (target.people || 0) * (target.days || 0) * 100) / 100;
 }
 
-// { kind: 'water'|'calorie'|'diversity'|'off', kg: number|null }
+// { kind: 'calorie'|'diversity'|'off', kg: number|null }
+// Wasser-classed types never reach this — buildCategoryRows only walks
+// food-classed types; water gets its own hero (see renderHeroWater).
 function categoryTargetSource(type, cat) {
-  if (planning.waterCategoryId && cat.id === planning.waterCategoryId) {
-    if (peopleCount() === 0 || autonomyDaysVal() <= 0) return { kind: 'water', kg: null };
-    return { kind: 'water', kg: waterGlobalKg() };
-  }
   const mode = categoryPlanningMode(type, cat);
   if (mode === 'calorie') {
     if (peopleCount() === 0 || autonomyDaysVal() <= 0) return { kind: 'calorie', kg: null };
@@ -247,6 +263,22 @@ function computeSubcategoryStock() {
   return stock;
 }
 
+// Sums the same subcategory stock map across every Wasser-classed type's
+// subcategories — numerically kg and liters are the same number here (see
+// waterGlobalLiters), so this reuses computeSubcategoryStock() unchanged.
+function waterCurrentLiters(subStock) {
+  let sum = 0;
+  taxonomy.types.forEach((type) => {
+    if (typeClass(type) !== 'water') return;
+    (type.categories || []).forEach((cat) => {
+      (cat.subcategories || []).forEach((sub) => {
+        sum += subStock.get(sub.id) || 0;
+      });
+    });
+  });
+  return sum;
+}
+
 // --- Formatting ------------------------------------------------------------
 
 function round2(n) {
@@ -293,11 +325,10 @@ function weeksOfCoverage(currentKg, targetKg) {
 
 // --- Build the row model -----------------------------------------------
 
-function buildCategoryRows() {
-  const subStock = computeSubcategoryStock();
+function buildCategoryRows(subStock) {
   const rows = [];
   taxonomy.types.forEach((type) => {
-    if (!type.isFoodType) return;
+    if (typeClass(type) !== 'food') return;
     (type.categories || []).forEach((cat) => {
       const source = categoryTargetSource(type, cat);
       const targetKg = categoryDisplayTarget(cat, source);
@@ -378,6 +409,56 @@ function renderHero(rows) {
   heroEl.appendChild(hero);
 }
 
+// Own card next to the Lebensmittel hero — one global figure (current vs.
+// Planung's rate × people × days), no per-category breakdown, since a
+// Wasser type has no per-category target to break down (see
+// js/planning.js and js/targets.js's file-header comments).
+function renderHeroWater(current, target) {
+  heroWaterEl.innerHTML = '';
+  heroWaterEl.classList.toggle('hidden', !hasWaterType());
+  if (!hasWaterType()) return;
+
+  if (target == null) {
+    const p = document.createElement('p');
+    p.className = 'screen-placeholder';
+    p.textContent = 'Haushalt und Autonomiedauer in Planung eingeben, um das Wasserziel zu sehen.';
+    heroWaterEl.appendChild(p);
+    return;
+  }
+
+  const p = pct(current, target);
+  const people = peopleCount();
+  const days = autonomyDaysVal();
+  const weeks = weeksOfCoverage(current, target);
+  const weeksTarget = days > 0 ? days / 7 : null;
+
+  let currentText;
+  let targetText;
+  if (displayUnit === 'kgpd' && people > 0 && days > 0) {
+    currentText = `${Math.round((current / people / days) * 1000) / 1000}`;
+    targetText = `/ ${Math.round((target / people / days) * 1000) / 1000} L/P/T`;
+  } else {
+    currentText = `${round2(current)}`;
+    targetText = `/ ${round2(target)} L`;
+  }
+
+  const hero = document.createElement('div');
+  hero.className = 'dash-hero water';
+  hero.innerHTML = `
+    <div class="dash-hero-label">Wasser gesamt</div>
+    <div class="dash-hero-figures">
+      <span class="dash-hero-current">${currentText}</span>
+      <span class="dash-hero-target">${targetText}</span>
+    </div>
+    <div class="dash-hero-bar-track"><div class="dash-hero-bar-fill" style="width:${Math.min(100, p)}%"></div></div>
+    <div class="dash-hero-meta">
+      <span>${Math.round(p)} % gedeckt</span>
+      <span>${weeks != null && weeksTarget != null ? `reicht ca. <b>${round2(Math.min(weeks, 999))}</b> von ${round2(weeksTarget)} Wochen` : ''}</span>
+    </div>
+  `;
+  heroWaterEl.appendChild(hero);
+}
+
 function renderCategoryList(rows) {
   categoryListEl.innerHTML = '';
   legendEl.classList.toggle('hidden', rows.length === 0);
@@ -455,8 +536,10 @@ unitToggleButtons.forEach((btn) => {
 function render() {
   macroGroupIds = computeMacroGroups();
   syncUnitToggle();
-  const rows = loadOk ? buildCategoryRows() : [];
+  const subStock = loadOk ? computeSubcategoryStock() : new Map();
+  const rows = loadOk ? buildCategoryRows(subStock) : [];
   renderHero(rows);
+  renderHeroWater(waterCurrentLiters(subStock), waterGlobalLiters());
   renderCategoryList(rows);
 }
 

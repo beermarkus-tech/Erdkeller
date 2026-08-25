@@ -443,6 +443,14 @@ nav.bottomnav button .icon {
   border-color: #8faa8a;
 }
 
+/* Wasser-classed type — its stock feeds the Übersicht's dedicated water
+   total instead of the Kalorien/Diversität calculator, so it gets its own
+   blue tint to read as a distinct group from Lebensmittel/Sonstiges. */
+.tax-type.water-type {
+  background: #d3e3ee;
+  border-color: #86a8bf;
+}
+
 .tax-type-head {
   display: flex;
   align-items: center;
@@ -1883,12 +1891,30 @@ nav.bottomnav button .icon {
   margin-bottom: 18px;
 }
 
+.dash-hero-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.dash-hero-row > * {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
 .dash-hero {
   background: var(--cellar);
   color: var(--paper);
   border-radius: 18px;
   padding: 20px 20px 18px;
-  margin-bottom: 22px;
+}
+
+/* Wasser's own hero card (js/dashboard.js's renderHeroWater) — same shape
+   as the Lebensmittel hero, blue bar-fill to match Taxonomie's Wasser tint
+   (.tax-type.water-type) instead of the green Lebensmittel one. */
+.dash-hero.water .dash-hero-bar-fill {
+  background: #6FA8D9;
 }
 
 .dash-hero-label {

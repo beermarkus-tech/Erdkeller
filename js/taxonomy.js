@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=57';
+import { db } from './firebase-init.js?v=58';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -12,26 +12,40 @@ let taxonomy = { types: [] };
 const openTypes = new Set(); // UI-only expand/collapse state, not persisted
 const openCats = new Set(); // same, one level down (category → subcategories)
 
+// A type's class: 'food' | 'water' | 'other', exclusive. Persisted as
+// type.typeClass; for types saved before this field existed we derive it
+// from the old boolean type.isFoodType (true -> 'food', missing/false ->
+// 'other') rather than migrating Firestore. That fallback only works
+// because there were exactly two buckets before — the moment a fourth
+// class is introduced, "not food and not water" stops having one single
+// meaning and every type needs typeClass written explicitly (a one-time
+// backfill), since this inference can no longer tell the new class apart
+// from plain 'other'.
+function typeClass(type) {
+  if (type.typeClass) return type.typeClass;
+  return type.isFoodType ? 'food' : 'other';
+}
+
 // Which Planung path a category is on: 'off' | 'calorie' | 'diversity'.
-// Gated first by the parent TYPE's isFoodType flag — a type not tagged as
-// a food type (Ausrüstung, Tiernahrung, …) never offers Kalorien/
+// Gated first by the parent TYPE's class — only a food-classed type
+// (Ausrüstung, Wasser, Tiernahrung, … all excluded) offers Kalorien/
 // Diversität at all, its categories are always 'off', full stop. This is
-// deliberately a boolean tag on the type rather than a name match ("is
-// this literally called Lebensmittel"), since a taxonomy can have more
-// than one food type, and Tiernahrung is food but not *human* food, so it
+// deliberately a tag on the type rather than a name match ("is this
+// literally called Lebensmittel"), since a taxonomy can have more than
+// one food type, and Tiernahrung is food but not *human* food, so it
 // stays untagged even though it's food in the everyday sense.
 // Below that gate, mode is persisted as its own field (cat.planningMode)
 // rather than derived from whether kcal/macro/diversity data happens to be
-// present — switching modes (or toggling the type's food tag) must not
-// delete the other mode's data, only stop it from being used, so
-// switching back brings the same numbers straight back. Categories saved
-// before this field existed (or before Kalorien/Diversität were split
-// into an exclusive choice) have no planningMode key at all; for those we
-// infer from whatever data is present, preferring Kalorien if a category
+// present — switching modes (or the type's class) must not delete the
+// other mode's data, only stop it from being used, so switching back
+// brings the same numbers straight back. Categories saved before this
+// field existed (or before Kalorien/Diversität were split into an
+// exclusive choice) have no planningMode key at all; for those we infer
+// from whatever data is present, preferring Kalorien if a category
 // somehow has both (pre-existing edge case from the old single-checkbox
 // model).
 function categoryPlanningMode(type, cat) {
-  if (!type.isFoodType) return 'off';
+  if (typeClass(type) !== 'food') return 'off';
   if (cat.planningMode) return cat.planningMode;
   if (cat.kcalPerKg != null || !!cat.macroType) return 'calorie';
   if (cat.diversityFloorGramsPerPersonDay != null) return 'diversity';
@@ -162,7 +176,8 @@ function render() {
 
 function renderType(type) {
   const wrap = document.createElement('div');
-  wrap.className = 'tax-type' + (type.isFoodType ? ' food-type' : '');
+  const cls = typeClass(type);
+  wrap.className = 'tax-type' + (cls === 'food' ? ' food-type' : cls === 'water' ? ' water-type' : '');
   wrap.dataset.id = type.id;
 
   const head = document.createElement('div');
@@ -200,23 +215,31 @@ function renderType(type) {
     render();
   });
 
-  // Gates whether ANY category under this type can offer Kalorien/
-  // Diversität at all (see categoryPlanningMode) — a Werkzeug or
-  // Tiernahrung type has no business showing a calorie toggle on its
-  // categories. Unchecking never deletes a category's kcal/macro/
-  // diversity data, only stops the calculator from using it.
-  const foodToggle = document.createElement('label');
-  foodToggle.className = 'tax-planning-toggle';
-  foodToggle.innerHTML = `
-    <input type="checkbox" class="tax-food-checkbox"${type.isFoodType ? ' checked' : ''}>
-    Lebensmittel-Typ (ermöglicht Kalorien-/Diversitätsplanung für seine Kategorien)
+  // Classifies the whole type as exactly one of Lebensmittel / Wasser /
+  // Sonstiges. Lebensmittel gates whether ANY category under this type can
+  // offer Kalorien/Diversität at all (see categoryPlanningMode) — a
+  // Werkzeug or Tiernahrung type has no business showing a calorie toggle
+  // on its categories. Wasser opts the type into the Übersicht's dedicated
+  // water total (js/dashboard.js) instead — its stock is summed globally,
+  // not planned per category. Switching class never deletes a category's
+  // kcal/macro/diversity data, only stops the calculator from using it.
+  const classToggle = document.createElement('div');
+  classToggle.className = 'tax-expand-row tax-planning-toggle';
+  const cls = typeClass(type);
+  classToggle.innerHTML = `
+    <button type="button" class="select-mode-btn${cls === 'food' ? ' active' : ''}" data-class="food">Lebensmittel</button>
+    <button type="button" class="select-mode-btn${cls === 'water' ? ' active' : ''}" data-class="water">Wasser</button>
+    <button type="button" class="select-mode-btn${cls === 'other' ? ' active' : ''}" data-class="other">Sonstiges</button>
   `;
-  body.appendChild(foodToggle);
+  body.appendChild(classToggle);
 
-  foodToggle.querySelector('.tax-food-checkbox').addEventListener('change', (e) => {
-    type.isFoodType = e.target.checked;
-    saveTaxonomy();
-    render();
+  classToggle.querySelectorAll('.select-mode-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      type.typeClass = btn.dataset.class;
+      delete type.isFoodType;
+      saveTaxonomy();
+      render();
+    });
   });
 
   const catList = document.createElement('div');
@@ -298,7 +321,7 @@ function renderCategory(type, cat) {
   // parent type is tagged as a food type (see the Lebensmittel-Typ
   // checkbox in renderType) — a Werkzeug category has no business offering
   // Kalorien/Diversität.
-  if (type.isFoodType) {
+  if (typeClass(type) === 'food') {
     const modeToggle = document.createElement('div');
     modeToggle.className = 'tax-expand-row tax-mode-toggle';
     const mode = categoryPlanningMode(type, cat);
