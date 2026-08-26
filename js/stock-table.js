@@ -1,9 +1,9 @@
-import { db } from './firebase-init.js?v=96';
-import { PALETTE } from './year-colors.js?v=96';
-import { openAddFlow } from './stock-checkin.js?v=96';
-import { switchTabWithoutReset } from './app-shell.js?v=96';
+import { db } from './firebase-init.js?v=97';
+import { PALETTE } from './year-colors.js?v=97';
+import { openAddFlow } from './stock-checkin.js?v=97';
+import { switchTabWithoutReset } from './app-shell.js?v=97';
 import {
-  doc, getDoc, collection, getDocs, deleteDoc, updateDoc,
+  doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const stocktableCard = document.querySelector('.settings-card[data-target="stocktable"]');
@@ -67,6 +67,7 @@ const COLOR_HEX = Object.fromEntries(PALETTE.map((c) => [c.name, c.hex]));
 let taxonomy = { types: [] };
 let storageLocations = [];
 let yearColorMap = { none: 'white' };
+let targets = { products: {} };
 let allProducts = [];
 let allBatches = [];
 let productIndex = new Map();
@@ -106,16 +107,19 @@ let months = [];
 
 async function loadConfig() {
   try {
-    const [taxSnap, storeSnap, colorSnap, productsSnap, batchesSnap] = await Promise.all([
+    const [taxSnap, storeSnap, colorSnap, targetsSnap, productsSnap, batchesSnap] = await Promise.all([
       getDoc(doc(db, 'config', 'taxonomy')),
       getDoc(doc(db, 'config', 'storageLocations')),
       getDoc(doc(db, 'config', 'yearColorMap')),
+      getDoc(doc(db, 'config', 'targets')),
       getDocs(collection(db, 'products')),
       getDocs(collection(db, 'stockItems')),
     ]);
     taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
     storageLocations = storeSnap.exists() && Array.isArray(storeSnap.data().locations) ? storeSnap.data().locations : [];
     yearColorMap = colorSnap.exists() && colorSnap.data() ? colorSnap.data() : { none: 'white' };
+    targets = targetsSnap.exists() && targetsSnap.data() ? targetsSnap.data() : { products: {} };
+    if (!targets.products) targets.products = {};
     allProducts = productsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     allBatches = batchesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     productIndex = new Map(allProducts.map((p) => [p.id, p]));
@@ -166,17 +170,32 @@ function findSubcategoryContext(subcategoryId) {
   return null;
 }
 
-// --- Products without any stock (Build 96) ---------------------------------
+// --- Products without any stock, but with an active target (Build 97) -----
 // filteredBatches() below shows these as synthetic rows alongside real
-// batches — this used to be a real gap: a product that only ever exists in
-// the catalog (created via Ziele's Produktziele picker but never actually
-// bought, or an orphaned/stray entry) had no batch and so was invisible in
-// Bestandsliste entirely, even though this is meant to be *the* admin place
-// to see every product. type/category/subcategory are resolved live from
-// Taxonomie via the product's own subcategoryId — unlike a real batch,
-// which freezes those as plain text at check-in time — so a product whose
-// subcategory no longer exists shows that honestly instead of just not
-// appearing anywhere.
+// batches. A product that simply runs out via Entnehmen just disappears —
+// that's the expected, unsurprising behavior — *unless* it still carries a
+// Ziele product target, in which case it needs to stay visible precisely
+// because it's the one an admin needs to notice and restock (this is also
+// what still surfaces a stray/orphaned targeted product, e.g. the earlier
+// ghost Wasser entry, for cleanup via "Produkt löschen" below). A zero-stock
+// product with no target is not shown at all. type/category/subcategory are
+// resolved live from Taxonomie via the product's own subcategoryId — unlike
+// a real batch, which freezes those as plain text at check-in time — so a
+// product whose subcategory no longer exists shows that honestly instead of
+// silently defaulting somewhere.
+function unitLabelForTarget(unit) {
+  if (unit === 'kg' || unit === 'l') return unit;
+  if (unit === 'stueck') return 'Stk';
+  return unit || 'kg';
+}
+
+// Product targets are always mode:'flat' (see js/targets.js) — no
+// Personen×Tage variant to branch on here.
+function targetLabel(target) {
+  if (!target) return '';
+  return `${target.amount || 0} ${unitLabelForTarget(target.unit)}`;
+}
+
 function phantomBatchFor(product) {
   const ctx = findSubcategoryContext(product.subcategoryId);
   return {
@@ -191,12 +210,15 @@ function phantomBatchFor(product) {
     type: ctx ? ctx.type.name : '',
     category: ctx ? ctx.cat.name : '',
     subcategory: ctx ? ctx.sub.name : (product.subcategoryId ? '⚠️ Unterkategorie fehlt' : ''),
+    target: targets.products[product.id] || null,
   };
 }
 
 function allRows() {
   const withStock = new Set(allBatches.map((b) => b.productId));
-  const phantoms = allProducts.filter((p) => !withStock.has(p.id)).map(phantomBatchFor);
+  const phantoms = allProducts
+    .filter((p) => !withStock.has(p.id) && targets.products[p.id])
+    .map(phantomBatchFor);
   return allBatches.concat(phantoms);
 }
 
@@ -455,7 +477,7 @@ function renderRow(batch) {
 
   const metaEl = document.createElement('span');
   metaEl.className = 'pmeta';
-  metaEl.textContent = isPhantom ? 'Kein Bestand' : batchMetaLine(batch);
+  metaEl.textContent = isPhantom ? `Kein Bestand · Ziel: ${targetLabel(batch.target)}` : batchMetaLine(batch);
 
   const subEl = document.createElement('span');
   subEl.className = 'table-row-sub';
@@ -715,11 +737,19 @@ editDeleteBtn.addEventListener('click', async () => {
   // catalog itself (there's no stockItem doc to delete) — this is what
   // actually lets a stray/orphaned catalog entry (see Ziele's Produktziele
   // picker context labels) get cleaned up, which nothing in the app could
-  // do before this.
+  // do before this. Since a zero-stock row only ever shows here because it
+  // still has a Ziele product target (see allRows() above), its target
+  // entry is deleted along with it — otherwise it'd be a dangling reference
+  // in /config/targets pointing at a product that no longer exists, same
+  // shape as the "Aus"/clearBtn path in js/targets.js itself.
   if (editingBatch.id === null) {
     if (!confirm(`Produkt "${productName(editingBatch.productId)}" endgültig aus dem Katalog löschen?`)) return;
     try {
       await deleteDoc(doc(db, 'products', editingBatch.productId));
+      if (targets.products[editingBatch.productId]) {
+        delete targets.products[editingBatch.productId];
+        await setDoc(doc(db, 'config', 'targets'), targets);
+      }
       allProducts = allProducts.filter((p) => p.id !== editingBatch.productId);
       productIndex.delete(editingBatch.productId);
       closeEdit();
