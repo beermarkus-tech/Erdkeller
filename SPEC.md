@@ -345,6 +345,7 @@ Tablet: same guided-flow pattern, just with more tiles per row / more breathing 
 
 ### 5. Settings (admin-only)
 - Grouped into sub-sections rather than one flat list:
+  - Every sub-panel's back button reads the generic **"‹ Zurück"** (Build 88 — previously each named its own panel, e.g. "‹ Daten", "‹ Bestandsliste"), matching the wording already used by the guided flows' and crisis reference's back buttons.
   - **Data**: taxonomy management — **nested list editor** (Type → Category → Subcategory) with add/rename/delete **and drag-to-reorder** at each level; symbol field; the exclusive Aus/Kalorien/Diversität category planning mode (Section 7); storage locations list; year color map
   - **People**: **role toggle per existing signed-in user** — since sign-in is Google-based and self-provisioning (Julia/Sophia already have Google accounts), there's no invite-by-email flow needed; admin just flips a member's role between Admin/Member once they've signed in at least once
   - **Erinnerungen** (Build 74): scheduling only — which weekday/occurrence/month each checklist frequency resets on (Section 12). Checklist *content* editing (maintenance + crisis management, reminder recipients) is deliberately not here — it moved inline onto the Checklisten screen itself (Section 15's Checklists sub-screen, Build 73) once a submenu proved to be an unnecessary hop for something edited far more often than the reminder schedule is.
