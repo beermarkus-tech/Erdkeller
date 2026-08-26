@@ -1,5 +1,6 @@
-import { db } from './firebase-init.js?v=84';
-import { PALETTE } from './year-colors.js?v=84';
+import { db } from './firebase-init.js?v=85';
+import { PALETTE } from './year-colors.js?v=85';
+import { openAddFlow } from './stock-checkin.js?v=85';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -8,6 +9,7 @@ const stocktableCard = document.querySelector('.settings-card[data-target="stock
 const settingsPanelStocktable = document.getElementById('settings-panel-stocktable');
 
 const selectModeBtn = document.getElementById('table-select-mode-btn');
+const addBtn = document.getElementById('table-add-btn');
 const searchInput = document.getElementById('table-search-input');
 const subcatFilterBanner = document.getElementById('table-subcat-filter-banner');
 const subcatFilterLabel = document.getElementById('table-subcat-filter-label');
@@ -56,8 +58,6 @@ const COLUMNS = [
 ];
 
 const COLOR_HEX = Object.fromEntries(PALETTE.map((c) => [c.name, c.hex]));
-const ITEM_HEIGHT = 36;
-const PICKER_PAD = 72; // matches .picker-highlight top offset — see css/styles.css
 
 let taxonomy = { types: [] };
 let storageLocations = [];
@@ -81,9 +81,16 @@ let sortDir = 'asc';
 let selectMode = false;
 let selectedIds = new Set();
 let editingBatch = null;
+// Set only by openFilteredBySubcategory/openFilteredByProductSearch (tap-
+// throughs from Übersicht, Step 10) — tells the panel's own back button
+// where to return to instead of the generic "Admin main menu" default.
+// Cleared whenever the panel is opened the normal way (tapping the
+// Bestandsliste card itself).
+let returnTarget = null;
 let pendingMonthIndex = 0;
 let pendingYearIndex = 0;
 let years = [];
+let months = [];
 
 // --- Data loading ---------------------------------------------------------
 
@@ -361,6 +368,8 @@ searchInput.addEventListener('input', () => {
 
 // --- Select mode & bulk delete ------------------------------------------
 
+addBtn.addEventListener('click', () => openAddFlow());
+
 selectModeBtn.addEventListener('click', () => {
   selectMode = !selectMode;
   selectModeBtn.classList.toggle('active', selectMode);
@@ -530,30 +539,35 @@ editDeleteBtn.addEventListener('click', async () => {
 
 // --- Date picker modal (mirrors stock-checkin.js) ------------------------
 
-function buildPickerColumn(colEl, items, selectedIndex) {
+function buildPickerColumn(colEl, items, selectedIndex, onPick) {
   colEl.innerHTML = '';
-  const topPad = document.createElement('div');
-  topPad.style.height = PICKER_PAD + 'px';
-  colEl.appendChild(topPad);
-  items.forEach((label) => {
+  items.forEach((label, idx) => {
     const item = document.createElement('div');
-    item.className = 'picker-item';
+    item.className = 'picker-item' + (idx === selectedIndex ? ' selected' : '');
     item.textContent = label;
+    item.addEventListener('click', () => onPick(idx));
     colEl.appendChild(item);
   });
-  const bottomPad = document.createElement('div');
-  bottomPad.style.height = PICKER_PAD + 'px';
-  colEl.appendChild(bottomPad);
-  colEl.scrollTop = selectedIndex * ITEM_HEIGHT;
+  const activeEl = colEl.children[selectedIndex];
+  if (activeEl) activeEl.scrollIntoView({ block: 'center' });
 }
 
-function readCenteredIndex(colEl, max) {
-  const idx = Math.round(colEl.scrollTop / ITEM_HEIGHT);
-  return Math.min(Math.max(idx, 0), max - 1);
+function renderMonthColumn() {
+  buildPickerColumn(monthCol, months, pendingMonthIndex, (idx) => {
+    pendingMonthIndex = idx;
+    renderMonthColumn();
+  });
+}
+
+function renderYearColumn() {
+  buildPickerColumn(yearCol, years.map(String), pendingYearIndex, (idx) => {
+    pendingYearIndex = idx;
+    renderYearColumn();
+  });
 }
 
 function openDateModal() {
-  const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+  months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   const nowYear = new Date().getFullYear();
   years = Array.from({ length: 21 }, (_, i) => nowYear - 1 + i);
 
@@ -569,20 +583,11 @@ function openDateModal() {
   pendingMonthIndex = monthIdx;
   pendingYearIndex = yearIdx >= 0 ? yearIdx : 0;
 
-  buildPickerColumn(monthCol, months, pendingMonthIndex);
-  buildPickerColumn(yearCol, years.map(String), pendingYearIndex);
+  renderMonthColumn();
+  renderYearColumn();
 
   dateModal.classList.add('show');
 }
-
-let scrollDebounce;
-function onPickerScroll(colEl, max, setter) {
-  clearTimeout(scrollDebounce);
-  scrollDebounce = setTimeout(() => setter(readCenteredIndex(colEl, max)), 100);
-}
-
-monthCol.addEventListener('scroll', () => onPickerScroll(monthCol, 12, (i) => { pendingMonthIndex = i; }));
-yearCol.addEventListener('scroll', () => onPickerScroll(yearCol, years.length || 21, (i) => { pendingYearIndex = i; }));
 
 editBestBeforeDisplay.addEventListener('click', openDateModal);
 
@@ -609,10 +614,29 @@ stocktableCard.addEventListener('click', () => {
   selectModeBtn.textContent = 'Auswählen';
   activeSubcategoryFilter = null;
   activeSubcategoryFilterName = '';
+  returnTarget = null;
   closeEdit();
   renderFilters();
   renderSortBar();
   renderRows();
+});
+
+// The panel's own back button already gets a generic handler from
+// settings-nav.js (return to the Admin main menu) — this listener is
+// attached afterwards (script tag order) and runs second within the same
+// click, so when a returnTarget is set it overrides the final visible
+// screen by switching away to Dashboard entirely. back-nav.js's hardware-
+// back handling already delegates to a real .click() on this exact
+// button, so this also covers that path with no changes there.
+const stocktableBackBtn = document.querySelector('#settings-panel-stocktable [data-back]');
+stocktableBackBtn.addEventListener('click', () => {
+  if (!returnTarget) return;
+  const target = returnTarget;
+  returnTarget = null;
+  document.querySelector('.nav-btn[data-tab="dashboard"]').click();
+  if (target === 'dashboard-mhd') {
+    document.querySelector('.seg-btn[data-dash-tab="mhd"]').click();
+  }
 });
 
 // Tap-through from Übersicht (Step 10, js/dashboard.js): reuses the same
@@ -622,6 +646,7 @@ stocktableCard.addEventListener('click', () => {
 export function openFilteredBySubcategory(subcategoryId, subcategoryName) {
   document.querySelector('.nav-btn[data-tab="settings"]').click();
   stocktableCard.click();
+  returnTarget = 'dashboard-stock';
   activeSubcategoryFilter = subcategoryId;
   activeSubcategoryFilterName = subcategoryName;
   renderRows();
@@ -634,6 +659,7 @@ export function openFilteredBySubcategory(subcategoryId, subcategoryName) {
 export function openFilteredByProductSearch(productName) {
   document.querySelector('.nav-btn[data-tab="settings"]').click();
   stocktableCard.click();
+  returnTarget = 'dashboard-mhd';
   searchText = productName;
   searchInput.value = productName;
   renderRows();

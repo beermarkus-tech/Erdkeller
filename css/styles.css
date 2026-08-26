@@ -390,6 +390,12 @@ nav.bottomnav button .icon {
   margin-bottom: 18px;
 }
 
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* The whole "‹ Title" control is one big tap target, not just a tiny
    chevron — same look/feel as the guided-flow .flow-back-btn, sized up
    to double as the panel's own heading. */
@@ -1391,7 +1397,7 @@ nav.bottomnav button .icon {
 
 .picker-row {
   display: flex;
-  height: 180px;
+  height: 216px;
   border-top: 1px solid var(--stone-dark);
   border-bottom: 1px solid var(--stone-dark);
   position: relative;
@@ -1399,9 +1405,12 @@ nav.bottomnav button .icon {
 
 .picker-col {
   flex: 1;
-  overflow-y: scroll;
-  scroll-snap-type: y mandatory;
+  overflow-y: auto;
   text-align: center;
+}
+
+.picker-col + .picker-col {
+  border-left: 1px solid var(--stone-dark);
 }
 
 .picker-col::-webkit-scrollbar {
@@ -1409,24 +1418,23 @@ nav.bottomnav button .icon {
 }
 
 .picker-item {
-  scroll-snap-align: center;
   padding: 14px 0;
   font-size: 17px;
   color: #9a9788;
   height: 36px;
   box-sizing: border-box;
+  cursor: pointer;
+  user-select: none;
 }
 
-.picker-highlight {
-  position: absolute;
-  top: 72px;
-  left: 0;
-  right: 0;
-  height: 36px;
-  background: rgba(46, 64, 52, 0.06);
-  pointer-events: none;
-  border-top: 1px solid var(--stone-dark);
-  border-bottom: 1px solid var(--stone-dark);
+.picker-item:active {
+  background: rgba(46, 64, 52, 0.08);
+}
+
+.picker-item.selected {
+  background: rgba(46, 64, 52, 0.1);
+  color: var(--cellar);
+  font-weight: 700;
 }
 
 .modal-actions {

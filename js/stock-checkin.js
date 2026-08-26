@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=84';
-import { renderRecentLog } from './stock-log.js?v=84';
-import { renderResultLines } from './format-batch.js?v=84';
+import { db } from './firebase-init.js?v=85';
+import { renderRecentLog } from './stock-log.js?v=85';
+import { renderResultLines } from './format-batch.js?v=85';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -60,9 +60,6 @@ const undoToast = document.getElementById('undo-toast');
 const undoToastText = document.getElementById('undo-toast-text');
 const undoBtn = document.getElementById('undo-btn');
 
-const ITEM_HEIGHT = 36;
-const PICKER_PAD = 72; // matches .picker-highlight top offset — see css/styles.css
-
 let taxonomy = { types: [] };
 let storageLocations = [];
 let yearColorMap = { none: 'white' };
@@ -82,6 +79,7 @@ let undoTimer = null;
 let pendingMonthIndex = 0;
 let pendingYearIndex = 0;
 let years = [];
+let months = [];
 
 function currentUnitType() {
   return selection.isNewProduct ? selection.newProductUnit : (selection.product ? selection.product.unitType : 'kg');
@@ -472,30 +470,35 @@ storageSelect.addEventListener('change', () => { selection.storage = storageSele
 
 // --- Date picker modal ---------------------------------------------------
 
-function buildPickerColumn(colEl, items, selectedIndex) {
+function buildPickerColumn(colEl, items, selectedIndex, onPick) {
   colEl.innerHTML = '';
-  const topPad = document.createElement('div');
-  topPad.style.height = PICKER_PAD + 'px';
-  colEl.appendChild(topPad);
-  items.forEach((label) => {
+  items.forEach((label, idx) => {
     const item = document.createElement('div');
-    item.className = 'picker-item';
+    item.className = 'picker-item' + (idx === selectedIndex ? ' selected' : '');
     item.textContent = label;
+    item.addEventListener('click', () => onPick(idx));
     colEl.appendChild(item);
   });
-  const bottomPad = document.createElement('div');
-  bottomPad.style.height = PICKER_PAD + 'px';
-  colEl.appendChild(bottomPad);
-  colEl.scrollTop = selectedIndex * ITEM_HEIGHT;
+  const activeEl = colEl.children[selectedIndex];
+  if (activeEl) activeEl.scrollIntoView({ block: 'center' });
 }
 
-function readCenteredIndex(colEl, max) {
-  const idx = Math.round(colEl.scrollTop / ITEM_HEIGHT);
-  return Math.min(Math.max(idx, 0), max - 1);
+function renderMonthColumn() {
+  buildPickerColumn(monthCol, months, pendingMonthIndex, (idx) => {
+    pendingMonthIndex = idx;
+    renderMonthColumn();
+  });
+}
+
+function renderYearColumn() {
+  buildPickerColumn(yearCol, years.map(String), pendingYearIndex, (idx) => {
+    pendingYearIndex = idx;
+    renderYearColumn();
+  });
 }
 
 function openDateModal() {
-  const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+  months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   const nowYear = new Date().getFullYear();
   years = Array.from({ length: 21 }, (_, i) => nowYear - 1 + i);
 
@@ -511,20 +514,11 @@ function openDateModal() {
   pendingMonthIndex = monthIdx;
   pendingYearIndex = yearIdx >= 0 ? yearIdx : 0;
 
-  buildPickerColumn(monthCol, months, pendingMonthIndex);
-  buildPickerColumn(yearCol, years.map(String), pendingYearIndex);
+  renderMonthColumn();
+  renderYearColumn();
 
   dateModal.classList.add('show');
 }
-
-let scrollDebounce;
-function onPickerScroll(colEl, max, setter) {
-  clearTimeout(scrollDebounce);
-  scrollDebounce = setTimeout(() => setter(readCenteredIndex(colEl, max)), 100);
-}
-
-monthCol.addEventListener('scroll', () => onPickerScroll(monthCol, 12, (i) => { pendingMonthIndex = i; }));
-yearCol.addEventListener('scroll', () => onPickerScroll(yearCol, years.length || 21, (i) => { pendingYearIndex = i; }));
 
 bestbeforeDisplay.addEventListener('click', openDateModal);
 
@@ -656,10 +650,22 @@ undoBtn.addEventListener('click', async () => {
   returnHome();
 });
 
+// Set only by openAddFlow (a tap-through from the Bestandsliste's own "+"
+// button, js/stock-table.js) — tells returnHome() to land back on the
+// Bestandsliste instead of this screen's own home once the flow ends,
+// however it ends (confirm-then-"zurück", or cancelling all the way out).
+let launchedFromStocktable = false;
+
 function returnHome() {
   hideUndoToast();
   stockFlowEl.classList.add('hidden');
   stockHomeEl.classList.remove('hidden');
+  if (launchedFromStocktable) {
+    launchedFromStocktable = false;
+    backHomeBtn.textContent = 'Zurück zur Übersicht';
+    document.querySelector('.nav-btn[data-tab="settings"]').click();
+    document.querySelector('.settings-card[data-target="stocktable"]').click();
+  }
 }
 
 backHomeBtn.addEventListener('click', returnHome);
@@ -677,13 +683,29 @@ startCheckinBtn.addEventListener('click', () => {
   goToStep('type');
 });
 
+// Tap-through from the Bestandsliste's "+" button (js/stock-table.js) —
+// reuses this exact guided flow (taxonomy drilldown or search, then new-
+// or-existing product, then batch details) rather than building a second,
+// bespoke add form; see returnHome() for the matching return trip.
+export function openAddFlow() {
+  launchedFromStocktable = true;
+  backHomeBtn.textContent = 'Zurück zur Bestandsliste';
+  document.querySelector('.nav-btn[data-tab="stock"]').click();
+  startCheckinBtn.click();
+}
+
 window.addEventListener('erdkeller:signedin', () => loadConfig());
 window.addEventListener('erdkeller:refresh', () => loadConfig());
 
 // Tapping the Bestand nav icon (even while already on it) always returns
-// to the two big buttons, regardless of how deep this flow was.
+// to the two big buttons, regardless of how deep this flow was — and, if
+// the add-from-Bestandsliste flow was abandoned by switching tabs rather
+// than tapping its own back arrow, clears that stale flag/label so a
+// later *normal* Einlagern run doesn't misfire back into Admin.
 window.addEventListener('erdkeller:navreset', (e) => {
   if (e.detail.tab !== 'stock') return;
   stockFlowEl.classList.add('hidden');
   stockHomeEl.classList.remove('hidden');
+  launchedFromStocktable = false;
+  backHomeBtn.textContent = 'Zurück zur Übersicht';
 });
