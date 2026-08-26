@@ -1350,6 +1350,14 @@ nav.bottomnav button .icon {
   touch-action: pan-y;
 }
 
+/* Ziele's Sonstiges unit picker (Build 93) stacks a <select> directly
+   above a free-text input within one .form-group — without this they'd
+   sit flush against each other, since .form-group's own spacing is only
+   between whole form-groups, not between two controls sharing one. */
+#target-nonfood-unit-select {
+  margin-bottom: 8px;
+}
+
 /* Notizen's Text field (Build 92) — the app's first multi-line field, for
    freeform note bodies ("how to clean the water tank" can run to several
    sentences). Same look as the type="text" rule above it, just taller and

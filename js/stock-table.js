@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=92';
-import { PALETTE } from './year-colors.js?v=92';
-import { openAddFlow } from './stock-checkin.js?v=92';
-import { switchTabWithoutReset } from './app-shell.js?v=92';
+import { db } from './firebase-init.js?v=93';
+import { PALETTE } from './year-colors.js?v=93';
+import { openAddFlow } from './stock-checkin.js?v=93';
+import { switchTabWithoutReset } from './app-shell.js?v=93';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -434,8 +434,13 @@ function openEditModal(batch) {
 
   editDetailsInput.value = batch.details || '';
 
-  const isKg = !product || product.unitType === 'kg';
-  editContentGroup.classList.toggle('hidden', !isKg);
+  // kg/l are the only "fractional" units (content-string-parsed) — every
+  // other unit (legacy 'stueck', or an open Sonstiges unit like Flaschen/
+  // Säcke/custom) tracks by plain integer quantity instead, no content
+  // field needed. See js/dashboard.js's isFractionalUnit for the same
+  // distinction driving the stock-summing math.
+  const isFractional = !product || product.unitType === 'kg' || product.unitType === 'l';
+  editContentGroup.classList.toggle('hidden', !isFractional);
   editContentInput.value = batch.content || '';
 
   editBestBeforeInput.value = batch.bestBefore || '';
@@ -493,12 +498,12 @@ editModal.addEventListener('click', (e) => {
 
 editSaveBtn.addEventListener('click', async () => {
   if (!editingBatch) return;
-  const isKg = !editContentGroup.classList.contains('hidden');
+  const isFractional = !editContentGroup.classList.contains('hidden');
   const newName = editNameInput.value.trim();
   const updated = {
     quantity: editQty,
     details: editDetailsInput.value.trim(),
-    content: isKg ? normalizeContent(editContentInput.value) : (editContentInput.value.trim() || ''),
+    content: isFractional ? normalizeContent(editContentInput.value) : (editContentInput.value.trim() || ''),
     bestBefore: editBestBeforeInput.value || '',
     yearColor: yearColorFor(editBestBeforeInput.value),
     storage: editStorageSelect.value,

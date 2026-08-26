@@ -22,11 +22,11 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=92';
+import { db } from './firebase-init.js?v=93';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=92';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=93';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -252,9 +252,17 @@ function parseContentGrams(content) {
   return parseFloat(match[1].replace(',', '.'));
 }
 
+// kg and l are the only "fractional" units (content-string-parsed, 1L≈1kg
+// per SPEC.md Section 5) — every other unit (legacy 'stueck', or any of
+// the open Sonstiges units: Stück, Flaschen, Dosen, Säcke, a custom one)
+// is tracked as a plain integer count instead, see productCurrentAmount().
+function isFractionalUnit(unit) {
+  return unit === 'kg' || unit === 'l';
+}
+
 function batchKg(batch) {
   const product = productIndex.get(batch.productId);
-  if (!product || product.unitType !== 'kg') return 0;
+  if (!product || !isFractionalUnit(product.unitType)) return 0;
   const grams = parseContentGrams(batch.content);
   if (grams == null) return 0;
   return (batch.quantity || 0) * (grams / 1000);
@@ -296,10 +304,10 @@ function waterCurrentLiters(subStock) {
 // "Stück has no kg conversion" gap entirely rather than hitting it.
 function productCurrentAmount(product) {
   const batches = allBatches.filter((b) => b.productId === product.id);
-  if (product.unitType === 'stueck') {
-    return batches.reduce((s, b) => s + (b.quantity || 0), 0);
+  if (isFractionalUnit(product.unitType)) {
+    return batches.reduce((s, b) => s + batchKg(b), 0);
   }
-  return batches.reduce((s, b) => s + batchKg(b), 0);
+  return batches.reduce((s, b) => s + (b.quantity || 0), 0);
 }
 
 // --- Bald ablaufend (best-before alerts) ---------------------------------
@@ -403,9 +411,11 @@ function computeShoppingList(subStock, rows) {
 }
 
 function formatShoppingNeed(item) {
-  if (item.unit === 'stueck') return `${Math.ceil(item.need)} Stk`;
-  if (item.unit === 'L') return `${round2(item.need)} L`;
-  return formatAmount(item.need, item.kcalPerKg ?? null);
+  if (item.unit === 'kg') return formatAmount(item.need, item.kcalPerKg ?? null);
+  if (item.unit === 'l') return `${round2(item.need)} l`;
+  if (item.unit === 'L') return `${round2(item.need)} L`; // the synthetic Wasser-global entry, not a real product unit
+  if (item.unit === 'stueck') return `${Math.ceil(item.need)} Stk`; // legacy value
+  return `${Math.ceil(item.need)} ${item.unit}`; // open Sonstiges units: Stück, Flaschen, Dosen, Säcke, custom
 }
 
 // --- Formatting ------------------------------------------------------------

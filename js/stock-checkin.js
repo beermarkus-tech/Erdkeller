@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=92';
-import { renderRecentLog } from './stock-log.js?v=92';
-import { renderResultLines } from './format-batch.js?v=92';
+import { db } from './firebase-init.js?v=93';
+import { renderRecentLog } from './stock-log.js?v=93';
+import { renderResultLines } from './format-batch.js?v=93';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -83,6 +83,17 @@ let months = [];
 
 function currentUnitType() {
   return selection.isNewProduct ? selection.newProductUnit : (selection.product ? selection.product.unitType : 'kg');
+}
+
+// kg/l are the only "fractional" units (content-string-parsed) — every
+// other unit (legacy 'stueck', or an open Sonstiges unit like Flaschen/
+// Säcke/custom, settable via Ziele's Sonstiges product-target picker)
+// tracks by plain integer quantity instead, no content field needed. See
+// js/dashboard.js's isFractionalUnit for the same distinction driving the
+// stock-summing math.
+function isCurrentUnitFractional() {
+  const u = currentUnitType();
+  return u === 'kg' || u === 'l';
 }
 
 // --- Data loading -----------------------------------------------------
@@ -422,7 +433,7 @@ function prepareDetailStep() {
   selection.bestBefore = '';
   bestbeforeInput.value = '';
 
-  contentFieldGroup.classList.toggle('hidden', currentUnitType() !== 'kg');
+  contentFieldGroup.classList.toggle('hidden', !isCurrentUnitFractional());
 
   storageSelect.innerHTML = '';
   storageLocations.forEach((loc) => {
@@ -567,7 +578,7 @@ checkinConfirmBtn.addEventListener('click', async () => {
       productId,
       details: selection.details || '',
       quantity: selection.qty,
-      content: currentUnitType() === 'kg' ? normalizeContent(selection.content) : (selection.content || ''),
+      content: isCurrentUnitFractional() ? normalizeContent(selection.content) : (selection.content || ''),
       bestBefore: selection.bestBefore || '',
       yearColor: yearColorFor(selection.bestBefore),
       storage: selection.storage || '',

@@ -17,7 +17,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=92';
+import { db } from './firebase-init.js?v=93';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -27,8 +27,6 @@ const panelEl = document.getElementById('settings-panel-targets');
 const unitToggleButtons = document.querySelectorAll('#targets-unit-toggle .select-mode-btn');
 const categoriesListEl = document.getElementById('targets-categories-list');
 const subcategoriesListEl = document.getElementById('targets-subcategories-list');
-const nonfoodCategoriesListEl = document.getElementById('targets-nonfood-categories-list');
-const nonfoodSubcategoriesListEl = document.getElementById('targets-nonfood-subcategories-list');
 const statusEl = document.getElementById('targets-status');
 const productTargetsList = document.getElementById('product-targets-list');
 const addProductTargetBtn = document.getElementById('add-product-target-btn');
@@ -69,6 +67,20 @@ const newProductUnitButtons = document.querySelectorAll('#target-new-product-uni
 const newProductSubcategorySelect = document.getElementById('target-new-product-subcategory');
 const newProductCreateBtn = document.getElementById('target-new-product-create-btn');
 let newProductUnit = 'kg';
+
+// Sonstiges' own "+ Neues Produkt anlegen" — a separate modal (not the
+// Lebensmittel form above expanded in place), since it also folds in the
+// target amount itself (one save instead of create-then-auto-open-the-
+// edit-modal) and offers the open Stück/Flaschen/Dosen/Säcke/custom unit
+// picker instead of the fixed Kilogramm/Stück toggle.
+const BASE_UNITS = ['kg', 'l', 'Stück', 'Flaschen', 'Dosen', 'Säcke'];
+const nonfoodNewProductModal = document.getElementById('target-new-product-nonfood-modal');
+const nonfoodNewNameInput = document.getElementById('target-nonfood-new-name');
+const nonfoodUnitSelect = document.getElementById('target-nonfood-unit-select');
+const nonfoodUnitCustomInput = document.getElementById('target-nonfood-unit-custom');
+const nonfoodNewAmountInput = document.getElementById('target-nonfood-new-amount');
+const nonfoodNewSubcategorySelect = document.getElementById('target-nonfood-new-subcategory');
+const nonfoodNewCreateBtn = document.getElementById('target-nonfood-new-create-btn');
 
 const editModal = document.getElementById('target-edit-modal');
 const editTitle = document.getElementById('target-edit-title');
@@ -354,8 +366,16 @@ function computeAmount(target) {
   return Math.round((target.ratePerPersonDay || 0) * (target.people || 0) * (target.days || 0) * 100) / 100;
 }
 
+// Only kg/l are "fractional" (content-string-parsed) units — every other
+// unit (legacy 'stueck', or any of the new open Sonstiges units: Stück,
+// Flaschen, Dosen, Säcke, a custom one) is a plain integer count, and is
+// shown exactly as stored rather than mapped through a fixed label table
+// — see js/dashboard.js/js/stock-table.js/js/stock-checkin.js for the
+// matching kg/l-vs-count branches this same distinction drives elsewhere.
 function unitLabel(unit) {
-  return unit === 'stueck' ? 'Stk' : 'kg';
+  if (unit === 'kg' || unit === 'l') return unit;
+  if (unit === 'stueck') return 'Stk';
+  return unit || 'kg';
 }
 
 function formatTargetLabel(target) {
@@ -555,18 +575,14 @@ function renderDiversitySection() {
   return frag;
 }
 
-// wantClass selects which tab to render — 'food' for Lebensmittel, 'other'
-// for Sonstiges. Wasser-classed types are never included in either: every
-// category here is always 'off' on the Sonstiges side anyway (non-food
-// types never reach 'calorie'/'diversity', see categoryPlanningMode), so
-// this is the entire Sonstiges Kategorien content, not just a fallback
-// group — and Wasser has no per-category content at all (see
-// categoryTargetSource above).
-function renderManualCategoriesGroup(wantClass) {
+// Lebensmittel-only (Sonstiges categories/subcategories no longer carry
+// their own targets at all — Sonstiges targets live purely at the product
+// level now, see renderNonfoodProductTargets below).
+function renderManualCategoriesGroup() {
   const frag = document.createDocumentFragment();
   let any = false;
   taxonomy.types.forEach((type) => {
-    if (typeClass(type) !== wantClass) return;
+    if (typeClass(type) !== 'food') return;
     const manualCats = (type.categories || []).filter((cat) => categoryTargetSource(type, cat).kind === 'off');
     if (manualCats.length === 0) return;
     any = true;
@@ -593,24 +609,13 @@ function renderCategoriesSection() {
     p.textContent = 'Haushalt und Autonomiedauer in Planung eingeben, um berechnete Ziele zu sehen — manuelle Kategorien stehen unten.';
     categoriesListEl.appendChild(p);
   }
-  const manualGroup = renderManualCategoriesGroup('food');
+  const manualGroup = renderManualCategoriesGroup();
   if (manualGroup) categoriesListEl.appendChild(manualGroup);
   if (!categoriesListEl.children.length) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
     empty.textContent = 'Keine Kategorien vorhanden.';
     categoriesListEl.appendChild(empty);
-  }
-
-  nonfoodCategoriesListEl.innerHTML = '';
-  const nonfoodGroup = renderManualCategoriesGroup('other');
-  if (nonfoodGroup) {
-    nonfoodCategoriesListEl.appendChild(nonfoodGroup);
-  } else {
-    const empty = document.createElement('p');
-    empty.className = 'screen-placeholder';
-    empty.textContent = 'Keine Kategorien vorhanden.';
-    nonfoodCategoriesListEl.appendChild(empty);
   }
 }
 
@@ -645,11 +650,13 @@ function renderSubcategoryGroupFor(type, cat) {
   return frag;
 }
 
-function renderSubcategoriesSection(listEl, wantClass) {
+// Lebensmittel-only — Sonstiges subcategories no longer carry their own
+// targets (see renderNonfoodProductTargets below).
+function renderSubcategoriesSection(listEl) {
   listEl.innerHTML = '';
   let any = false;
   taxonomy.types.forEach((type) => {
-    if (typeClass(type) !== wantClass) return;
+    if (typeClass(type) !== 'food') return;
     (type.categories || []).forEach((cat) => {
       const group = renderSubcategoryGroupFor(type, cat);
       if (group) {
@@ -668,6 +675,25 @@ function renderSubcategoriesSection(listEl, wantClass) {
 
 // --- Produktziele section ----------------------------------------------
 
+function makeProductTargetRow(productId) {
+  const product = productIndex.get(productId);
+  const name = product ? product.name : '(unbekanntes Produkt)';
+  const unit = product ? product.unitType : 'kg';
+  const row = document.createElement('div');
+  row.className = 'stock-product-row';
+  const nameEl = document.createElement('span');
+  nameEl.className = 'pname';
+  nameEl.textContent = name;
+  const badge = document.createElement('button');
+  badge.type = 'button';
+  badge.className = 'target-badge has-target';
+  badge.textContent = formatTargetLabel(targets.products[productId]);
+  badge.addEventListener('click', () => openEdit('products', productId, name, unit));
+  row.appendChild(nameEl);
+  row.appendChild(badge);
+  return row;
+}
+
 function renderProductTargetList(listEl, ids) {
   listEl.innerHTML = '';
   if (ids.length === 0) {
@@ -677,24 +703,78 @@ function renderProductTargetList(listEl, ids) {
     listEl.appendChild(empty);
     return;
   }
+  ids.forEach((productId) => listEl.appendChild(makeProductTargetRow(productId)));
+}
+
+// Sonstiges no longer has its own Kategorien/Unterkategorien targets (see
+// renderManualCategoriesGroup/renderSubcategoriesSection above, both
+// Lebensmittel-only now) — this is the only place a Sonstiges target lives
+// at all, so it's grouped by category → subcategory, reusing the exact
+// same .targets-subgroup-label header those sections used to show, rather
+// than left as one flat list. A product whose subcategory no longer
+// resolves (deleted in Taxonomie since the target was set) still shows,
+// under a fallback group, rather than silently vanishing from view.
+function renderNonfoodProductTargets(ids) {
+  nonfoodProductTargetsList.innerHTML = '';
+  if (ids.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'screen-placeholder';
+    empty.textContent = 'Keine Produktziele.';
+    nonfoodProductTargetsList.appendChild(empty);
+    return;
+  }
+
+  const groups = new Map(); // categoryId -> { cat, subs: Map<subId, { sub, productIds }> }
+  const fallback = [];
   ids.forEach((productId) => {
     const product = productIndex.get(productId);
-    const name = product ? product.name : '(unbekanntes Produkt)';
-    const unit = product ? product.unitType : 'kg';
-    const row = document.createElement('div');
-    row.className = 'stock-product-row';
-    const nameEl = document.createElement('span');
-    nameEl.className = 'pname';
-    nameEl.textContent = name;
-    const badge = document.createElement('button');
-    badge.type = 'button';
-    badge.className = 'target-badge has-target';
-    badge.textContent = formatTargetLabel(targets.products[productId]);
-    badge.addEventListener('click', () => openEdit('products', productId, name, unit));
-    row.appendChild(nameEl);
-    row.appendChild(badge);
-    listEl.appendChild(row);
+    const ctx = product ? findSubcategoryContext(product.subcategoryId) : null;
+    if (!ctx) {
+      fallback.push(productId);
+      return;
+    }
+    const { cat, sub } = ctx;
+    if (!groups.has(cat.id)) groups.set(cat.id, { cat, subs: new Map() });
+    const group = groups.get(cat.id);
+    if (!group.subs.has(sub.id)) group.subs.set(sub.id, { sub, productIds: [] });
+    group.subs.get(sub.id).productIds.push(productId);
   });
+
+  const byName = (a, b) => a.localeCompare(b, 'de');
+  Array.from(groups.values())
+    .sort((a, b) => byName(a.cat.name, b.cat.name))
+    .forEach(({ cat, subs }) => {
+      const catHeader = document.createElement('div');
+      catHeader.className = 'targets-subgroup-label';
+      catHeader.textContent = cat.name;
+      nonfoodProductTargetsList.appendChild(catHeader);
+
+      Array.from(subs.values())
+        .sort((a, b) => byName(a.sub.name, b.sub.name))
+        .forEach(({ sub, productIds }) => {
+          // A Wasser subcategory's name mirrors its category (js/taxonomy.js's
+          // ensureWaterSubcategory) — skip the redundant sub-header rather
+          // than showing "Trinkwasser — Trinkwasser".
+          if (sub.name !== cat.name) {
+            const subHeader = document.createElement('div');
+            subHeader.className = 'targets-subgroup-label';
+            subHeader.textContent = sub.name;
+            nonfoodProductTargetsList.appendChild(subHeader);
+          }
+          productIds
+            .slice()
+            .sort((a, b) => byName(productIndex.get(a)?.name || '', productIndex.get(b)?.name || ''))
+            .forEach((productId) => nonfoodProductTargetsList.appendChild(makeProductTargetRow(productId)));
+        });
+    });
+
+  if (fallback.length > 0) {
+    const header = document.createElement('div');
+    header.className = 'targets-subgroup-label';
+    header.textContent = 'Ohne Kategorie';
+    nonfoodProductTargetsList.appendChild(header);
+    fallback.forEach((productId) => nonfoodProductTargetsList.appendChild(makeProductTargetRow(productId)));
+  }
 }
 
 // Every product target is unambiguously Lebensmittel or Sonstiges via its
@@ -709,7 +789,7 @@ function renderProductTargets() {
     (product && !productIsFood(product) ? nonfoodIds : foodIds).push(id);
   });
   renderProductTargetList(productTargetsList, foodIds);
-  renderProductTargetList(nonfoodProductTargetsList, nonfoodIds);
+  renderNonfoodProductTargets(nonfoodIds);
 }
 
 function syncUnitToggle() {
@@ -727,8 +807,7 @@ function render() {
   computeMacroGroups();
   syncUnitToggle();
   renderCategoriesSection();
-  renderSubcategoriesSection(subcategoriesListEl, 'food');
-  renderSubcategoriesSection(nonfoodSubcategoriesListEl, 'other');
+  renderSubcategoriesSection(subcategoriesListEl);
   renderProductTargets();
 }
 
@@ -761,6 +840,31 @@ function renderNewProductSubcategoryOptions() {
 function renderPickerList(filterText) {
   pickerList.innerHTML = '';
   const q = filterText.trim().toLowerCase();
+
+  // Right below the search bar rather than after the match list — an
+  // admin adding something new shouldn't have to scroll past every
+  // existing product first to find it.
+  const addRow = document.createElement('div');
+  addRow.className = 'stock-product-row add-new';
+  addRow.textContent = '+ Neues Produkt anlegen';
+  addRow.addEventListener('click', () => {
+    if (pickerFoodClass === 'nonfood') {
+      // Sonstiges gets its own separate, cleaner modal — not this same
+      // picker modal expanded in place — that also folds the target
+      // amount itself in, saving the create-then-auto-open-the-edit-modal
+      // hop the Lebensmittel path below still does.
+      pickerModal.classList.remove('show');
+      openNonfoodNewProductModal(filterText);
+      return;
+    }
+    newProductNameInput.value = filterText || '';
+    newProductUnit = 'kg';
+    newProductUnitButtons.forEach((b) => b.classList.toggle('active', b.dataset.unit === 'kg'));
+    renderNewProductSubcategoryOptions();
+    newProductForm.classList.remove('hidden');
+  });
+  pickerList.appendChild(addRow);
+
   const matches = allProducts
     .filter((p) => productIsFood(p) === (pickerFoodClass === 'food'))
     .filter((p) => !q || p.name.toLowerCase().includes(q))
@@ -788,17 +892,6 @@ function renderPickerList(filterText) {
     pickerList.appendChild(row);
   });
 
-  const addRow = document.createElement('div');
-  addRow.className = 'stock-product-row add-new';
-  addRow.textContent = '+ Neues Produkt anlegen';
-  addRow.addEventListener('click', () => {
-    newProductNameInput.value = filterText || '';
-    newProductUnit = 'kg';
-    newProductUnitButtons.forEach((b) => b.classList.toggle('active', b.dataset.unit === 'kg'));
-    renderNewProductSubcategoryOptions();
-    newProductForm.classList.remove('hidden');
-  });
-  pickerList.appendChild(addRow);
 }
 
 function openPicker(foodClass) {
@@ -820,6 +913,97 @@ pickerSearch.addEventListener('input', () => {
 
 pickerModal.addEventListener('click', (e) => {
   if (e.target === pickerModal) pickerModal.classList.remove('show');
+});
+
+// --- Sonstiges: new product + folded-in target ---------------------------
+
+// The dropdown always offers the 6 base units, plus whatever custom units
+// are already in use on other Sonstiges/Wasser products — no separate
+// "known units" list is persisted anywhere; a freshly-typed custom unit
+// (via the free-text box below) simply starts showing up here itself once
+// it's actually been used on a real product.
+function populateNonfoodUnitSelect() {
+  const used = new Set();
+  allProducts.forEach((p) => {
+    if (p.unitType && !productIsFood(p) && p.unitType !== 'stueck' && !BASE_UNITS.includes(p.unitType)) {
+      used.add(p.unitType);
+    }
+  });
+  nonfoodUnitSelect.innerHTML = '';
+  [...BASE_UNITS, ...Array.from(used).sort((a, b) => a.localeCompare(b, 'de'))].forEach((unit) => {
+    const opt = document.createElement('option');
+    opt.value = unit;
+    opt.textContent = unit;
+    nonfoodUnitSelect.appendChild(opt);
+  });
+}
+
+// Sonstiges AND Wasser subcategories — same filter the Lebensmittel-side
+// inline form already uses for its own 'nonfood' picker instance
+// (renderNewProductSubcategoryOptions above); a Wasser product can want an
+// open unit just as much as a Sonstiges one (e.g. "60 Flaschen Wasser").
+function renderNonfoodNewSubcategoryOptions() {
+  nonfoodNewSubcategorySelect.innerHTML = '';
+  flatSubcategories()
+    .filter((s) => !s.isFood)
+    .forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.label;
+      nonfoodNewSubcategorySelect.appendChild(opt);
+    });
+}
+
+function openNonfoodNewProductModal(filterText) {
+  nonfoodNewNameInput.value = filterText || '';
+  populateNonfoodUnitSelect();
+  nonfoodUnitSelect.value = 'kg';
+  nonfoodUnitCustomInput.value = '';
+  nonfoodNewAmountInput.value = '';
+  renderNonfoodNewSubcategoryOptions();
+  nonfoodNewProductModal.classList.add('show');
+}
+
+nonfoodNewProductModal.addEventListener('click', (e) => {
+  if (e.target === nonfoodNewProductModal) nonfoodNewProductModal.classList.remove('show');
+});
+
+nonfoodNewCreateBtn.addEventListener('click', async () => {
+  const name = nonfoodNewNameInput.value.trim();
+  const unit = nonfoodUnitCustomInput.value.trim() || nonfoodUnitSelect.value;
+  const subcategoryId = nonfoodNewSubcategorySelect.value;
+  const amount = Number(nonfoodNewAmountInput.value);
+  if (!name) {
+    alert('Bitte einen Produktnamen eingeben.');
+    return;
+  }
+  if (!subcategoryId) {
+    alert('Bitte eine Unterkategorie wählen.');
+    return;
+  }
+  if (nonfoodNewAmountInput.value === '' || Number.isNaN(amount)) {
+    alert('Bitte eine Ziel-Menge eingeben.');
+    return;
+  }
+  nonfoodNewCreateBtn.disabled = true;
+  try {
+    const newDoc = await addDoc(collection(db, 'products'), { name, subcategoryId, unitType: unit });
+    const product = { id: newDoc.id, name, subcategoryId, unitType: unit };
+    allProducts.push(product);
+    productIndex.set(product.id, product);
+    targets.products[product.id] = { mode: 'flat', amount, unit };
+    nonfoodNewProductModal.classList.remove('show');
+    await saveTargets();
+    // saveTargets() already dispatches erdkeller:refresh (which reloads
+    // the product catalog everywhere else too), so nothing further needed
+    // here beyond re-rendering this screen's own state.
+    render();
+  } catch (err) {
+    alert('Fehler beim Anlegen: ' + err.message);
+    console.error(err);
+  } finally {
+    nonfoodNewCreateBtn.disabled = false;
+  }
 });
 
 newProductUnitButtons.forEach((btn) => {
