@@ -303,7 +303,7 @@ Two entry points, each a **guided step-by-step flow** rather than a single brows
 3. **Detail screen**: quantity stepper, best-before, storage, plus one of:
    - **kg-tracked product**: a content field (weight/volume, e.g. "500g", "800ml") — parsed directly into kg, no conversion factor (Section 5)
    - **Stück-tracked product**: no content field needed — the quantity stepper alone is the tracked total
-   - **Best-before field**: tapping it opens a **modal date picker** with two scrollable columns — months (1–12) on the left, years (2026–2040, extendable) on the right
+   - **Best-before field**: tapping it opens a **modal date picker** with two columns — months (1–12) on the left, years (extendable window) on the right; month and year are each picked by **tapping the item directly** (Build 85 — originally scroll-and-snap-to-center, which the admin found hard to hit precisely on a touchscreen), not by scrolling to align it with a center highlight. The selected item in each column is marked/highlighted; a column still scrolls if its content overflows the visible height, but that's incidental browsing, not how a value gets picked.
    - No color-badge dot shown at this stage — the badge is derived from the best-before year once the batch exists, so it doesn't apply yet during check-in (only appears afterward in stock lists)
 4. Confirm → success screen → back to the two big buttons
 
@@ -323,6 +323,8 @@ Tablet: same guided-flow pattern, just with more tiles per row / more breathing 
 - **Multi-select bulk actions**: checkboxes per row enable bulk operations (e.g. deleting several expired batches at once)
 - Tap a single row (outside multi-select mode) → same detail/edit view used elsewhere (quantity, content, best-before via the date-picker modal, storage, details, delete)
 - This view is for admin-style bulk review and cleanup — the guided Einlagern/Entnehmen flow remains the primary daily-use path for everyone else
+- **Adding a product/batch (Build 85)**: a **"+ Hinzufügen"** button in the panel header (next to "Auswählen") reuses the guided Einlagern flow itself rather than a second, bespoke add form — it switches to the Bestand tab and launches the same Type → Category → Subcategory → Product (existing or "+ Neues Produkt") → Detail sequence described above. The only difference from a normal Einlagern run: however it ends — confirming and tapping "Zurück" on the success screen, or cancelling all the way back out — it returns to the Bestandsliste instead of the Bestand tab's two big buttons, since that's where the admin actually started from.
+- **Tap-through back navigation (Build 85)**: reaching this view via a tap-through from the Dashboard — tapping a product row in the MHD/best-before alert list, or a subcategory row under a Dashboard category card — sets where the panel's own back button (and the hardware/gesture back button, which delegates to it) should return to. From the MHD list, back returns to that same MHD tab on the Dashboard; from a category's subcategory row, back returns to the Dashboard's Bestand tab. Opening the Bestandsliste normally (tapping its own card in Admin) clears this, so its back button falls back to the generic "Admin main menu" behavior shared by every other Settings panel.
 
 ### 3. Checklists (Maintenance / Crisis sub-tabs)
 **Maintenance** *(as built — see Section 8 for the deviations from the original plan below)*:
