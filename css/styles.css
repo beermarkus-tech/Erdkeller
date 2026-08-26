@@ -1185,6 +1185,68 @@ nav.bottomnav button .icon {
   border-style: dashed;
 }
 
+/* Kontakte (Step 13) — rows reuse .stock-product-row/.pname/.pmeta as-is
+   (name + role subtitle, same card shape); these are just the two trailing
+   icons a contact row adds on top. Both stop propagation so tapping either
+   doesn't also trigger the row's own tap-to-open-detail handler. */
+.contact-call-btn,
+.contact-edit-icon {
+  flex-shrink: 0;
+  font-size: 18px;
+  padding: 4px 6px;
+  text-decoration: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* The pinned emergency section reuses the same danger tint already defined
+   for MHD alerts/overdue rows elsewhere, rather than inventing a new
+   "urgent" color. */
+#contacts-emergency-section {
+  background: var(--danger-bg);
+  border-radius: var(--radius);
+  padding: 4px 14px 14px;
+  margin-bottom: 10px;
+}
+
+#contacts-emergency-section .section-label {
+  margin-top: 14px;
+}
+
+.contact-detail-row {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--stone-dark);
+  font-size: 14px;
+}
+
+.contact-detail-row:last-child {
+  border-bottom: none;
+}
+
+.contact-detail-label {
+  flex-shrink: 0;
+  width: 90px;
+  color: #6b6a5f;
+  font-weight: 600;
+}
+
+.contact-detail-phone-link {
+  color: var(--cellar);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.contact-emergency-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 18px;
+}
+
 .form-group {
   margin-bottom: 18px;
 }
@@ -2370,6 +2432,12 @@ nav.bottomnav button .icon {
 /* Checklisten (Step 12) — same .checklists-tab.hidden pattern as
    .dash-tab/.data-tab elsewhere for the Wartung/Krise segmented tabs. */
 .checklists-tab.hidden {
+  display: none;
+}
+
+/* Info (Step 13) — same .segmented/.hidden pattern for its Kontakte/
+   Notizen/Rezepte tabs. */
+.info-tab.hidden {
   display: none;
 }
 

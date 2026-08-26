@@ -88,6 +88,16 @@ service cloud.firestore {
       allow read, create, delete: if isSignedIn();
     }
 
+    // Step 13: /contacts — SPEC.md Section 9 has adding/editing contacts as
+    // admin-only ("same model as checklists" for permissions, unlike
+    // /config/checklists' member-writable content); any signed-in family
+    // member can read. /notes and /recipes will get the identical shape
+    // when their own pieces of Step 13 land.
+    match /contacts/{contactId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
     // Everything else stays locked down until its own build step wires up
     // real rules (checklists in Step 12, etc.).
     match /{document=**} {
