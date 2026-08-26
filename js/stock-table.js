@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=99';
-import { PALETTE } from './year-colors.js?v=99';
-import { openAddFlow } from './stock-checkin.js?v=99';
-import { switchTabWithoutReset } from './app-shell.js?v=99';
+import { db } from './firebase-init.js?v=100';
+import { PALETTE } from './year-colors.js?v=100';
+import { openAddFlow } from './stock-checkin.js?v=100';
+import { switchTabWithoutReset } from './app-shell.js?v=100';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -55,15 +55,18 @@ const monthCol = document.getElementById('table-month-col');
 const yearCol = document.getElementById('table-year-col');
 const dateModalConfirmBtn = document.getElementById('table-date-modal-confirm');
 
+// Sortable columns shown as tap-to-sort badges above the list (Build 100:
+// Subcategory/Category/Type/Storage dropped — those already have their own
+// dedicated filter chips, sorting by them added little beyond what the
+// filters already do). sortValue()/compareBatches() below still resolve
+// all eight batch fields regardless — this only trims which ones the admin
+// can pick as the *explicit* sort column; the multi-key fallback sort when
+// none is picked is unaffected.
 const COLUMNS = [
   { key: 'product', label: 'Produkt' },
-  { key: 'subcategory', label: 'Unterkat.' },
-  { key: 'category', label: 'Kategorie' },
-  { key: 'type', label: 'Typ' },
   { key: 'quantity', label: 'Menge' },
   { key: 'content', label: 'Inhalt' },
   { key: 'bestBefore', label: 'MHD' },
-  { key: 'storage', label: 'Lagerort' },
 ];
 
 const COLOR_HEX = Object.fromEntries(PALETTE.map((c) => [c.name, c.hex]));
