@@ -1873,6 +1873,45 @@ nav.bottomnav button .icon {
   color: var(--paper);
 }
 
+/* Bestandsliste filter controls (Build 99): on mobile the Typ/Kategorie/
+   Unterkategorie/Lagerort chip rows live in a full-screen slide-in panel
+   instead of stacked inline above the list — .filters-sidebar below is
+   mobile's version, undone back to plain inline flow on tablet (see the
+   min-width:900px override next to .stocktable-layout). Both sizes get
+   this same "Filter"/"Zurücksetzen" row right under the search bar; on
+   tablet only Zurücksetzen ends up visible since Filter/Anwenden only
+   make sense with something to open/close. */
+.stocktable-filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+#table-filters-toggle-btn.active {
+  background: var(--cellar);
+  color: var(--paper);
+  border-color: var(--cellar);
+}
+
+.filters-sidebar {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--paper);
+  padding: 20px;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+}
+
+.filters-sidebar.show {
+  transform: translateX(0);
+}
+
+.filters-sidebar-header {
+  margin-bottom: 16px;
+}
+
 .sort-bar {
   display: flex;
   gap: 6px;
@@ -2018,6 +2057,31 @@ nav.bottomnav button .icon {
     flex-shrink: 0;
     position: sticky;
     top: var(--tablet-header-stack, 56px);
+  }
+
+  /* Tablet keeps the badges inline above the list (Build 96) rather than
+     mobile's slide-in panel (Build 99) — undo every mobile-only piece of
+     .filters-sidebar back to plain flow, and hide the two controls that
+     only make sense with a panel to open/close. Zurücksetzen (added
+     Build 99) still shows in .stocktable-filter-bar on both sizes. */
+  #table-filters-toggle-btn,
+  #table-filters-apply-btn {
+    display: none;
+  }
+
+  .filters-sidebar {
+    position: static;
+    inset: auto;
+    z-index: auto;
+    background: none;
+    padding: 0;
+    overflow: visible;
+    transform: none;
+    transition: none;
+  }
+
+  .filters-sidebar-header {
+    display: none;
   }
 
   #table-edit-modal {

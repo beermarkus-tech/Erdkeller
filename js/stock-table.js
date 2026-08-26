@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=98';
-import { PALETTE } from './year-colors.js?v=98';
-import { openAddFlow } from './stock-checkin.js?v=98';
-import { switchTabWithoutReset } from './app-shell.js?v=98';
+import { db } from './firebase-init.js?v=99';
+import { PALETTE } from './year-colors.js?v=99';
+import { openAddFlow } from './stock-checkin.js?v=99';
+import { switchTabWithoutReset } from './app-shell.js?v=99';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -15,6 +15,10 @@ const searchInput = document.getElementById('table-search-input');
 const subcatFilterBanner = document.getElementById('table-subcat-filter-banner');
 const subcatFilterLabel = document.getElementById('table-subcat-filter-label');
 const subcatFilterClearBtn = document.getElementById('table-subcat-filter-clear');
+const filtersToggleBtn = document.getElementById('table-filters-toggle-btn');
+const filtersResetBtn = document.getElementById('table-filters-reset-btn');
+const filtersPanel = document.getElementById('table-filters-panel');
+const filtersApplyBtn = document.getElementById('table-filters-apply-btn');
 const typeFilterRow = document.getElementById('table-type-filters');
 const categoryFilterRow = document.getElementById('table-category-filters');
 const subcategoryFilterRow = document.getElementById('table-subcategory-filters');
@@ -521,8 +525,37 @@ subcatFilterClearBtn.addEventListener('click', () => {
   renderRows();
 });
 
+// --- Filter panel: mobile full-screen sidebar / tablet inline (Build 99) -
+// The Typ/Kategorie/Unterkategorie/Lagerort chip rows themselves render
+// into #table-filters-panel regardless of layout — only the CSS repositions
+// that panel between a slide-in sidebar (mobile) and plain inline flow
+// (tablet, see the min-width:900px override), so none of the chip-rendering
+// functions above need to know which layout is active.
+filtersToggleBtn.addEventListener('click', () => {
+  filtersPanel.classList.add('show');
+});
+
+filtersApplyBtn.addEventListener('click', () => {
+  filtersPanel.classList.remove('show');
+});
+
+filtersResetBtn.addEventListener('click', () => {
+  selectedTypes.clear();
+  selectedCategories.clear();
+  selectedSubcategories.clear();
+  selectedStorages.clear();
+  renderFilters();
+  renderRows();
+});
+
+function updateFiltersToggleState() {
+  const anyActive = selectedTypes.size || selectedCategories.size || selectedSubcategories.size || selectedStorages.size;
+  filtersToggleBtn.classList.toggle('active', Boolean(anyActive));
+}
+
 function renderRows() {
   renderSubcatFilterBanner();
+  updateFiltersToggleState();
   rowListEl.innerHTML = '';
   const rows = filteredBatches().sort(compareBatches);
   if (rows.length === 0) {
@@ -855,6 +888,7 @@ stocktableCard.addEventListener('click', () => {
   activeSubcategoryFilterName = '';
   returnTarget = null;
   closeEdit();
+  filtersPanel.classList.remove('show');
   renderFilters();
   renderSortBar();
   renderRows();
