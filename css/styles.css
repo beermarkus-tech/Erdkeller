@@ -624,7 +624,16 @@ nav.bottomnav button .icon {
 }
 
 /* Planung (Step 11c) — household roster row reuses .tax-sub-row/.tax-name-input/
-   .tax-del from the taxonomy editor, plus a dedicated kcal input. */
+   .tax-del from the taxonomy editor, plus a dedicated kcal input and a
+   fixed "person" icon (not a symbol picker like taxonomy's .tax-sym-input —
+   every member gets the same 👤, it's not per-person configurable). */
+.household-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  width: 22px;
+  text-align: center;
+}
+
 .household-kcal-input {
   width: 80px;
   flex-shrink: 0;
