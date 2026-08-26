@@ -17,7 +17,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=94';
+import { db } from './firebase-init.js?v=95';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -686,21 +686,57 @@ function renderSubcategoriesSection(listEl) {
 
 // --- Produktziele section ----------------------------------------------
 
-function makeProductTargetRow(productId) {
+// A product whose subcategory no longer resolves (deleted/renamed in
+// Taxonomie, or genuinely orphaned data) shows a visible warning instead
+// of silently blank context — this is exactly the signal that surfaced a
+// stale "Wasser" product landing in the Lebensmittel picker (its
+// subcategoryId pointed nowhere, so productTypeClass()'s safe-default
+// fallback put it there) rather than being invisible until reported.
+function productContextLabel(product) {
+  const ctx = findSubcategoryContext(product.subcategoryId);
+  if (!ctx) return '⚠️ Unterkategorie fehlt (verwaiste Daten)';
+  const { cat, sub } = ctx;
+  const catPart = cat.sym ? `${cat.sym} ${cat.name}` : cat.name;
+  // A Wasser subcategory's name mirrors its category (js/taxonomy.js's
+  // ensureWaterSubcategory) — skip the redundant repeat.
+  if (sub.name === cat.name) return catPart;
+  const subPart = sub.sym ? `${sub.sym} ${sub.name}` : sub.name;
+  return `${catPart} › ${subPart}`;
+}
+
+// showContext is on for the flat Lebensmittel list (renderProductTargetList
+// below) — the Sonstiges list is already grouped by category/subcategory
+// via its own headers (renderNonfoodProductTargets), so repeating the same
+// text per row there would just be noise.
+function makeProductTargetRow(productId, { showContext = false } = {}) {
   const product = productIndex.get(productId);
   const name = product ? product.name : '(unbekanntes Produkt)';
   const unit = product ? product.unitType : 'kg';
   const row = document.createElement('div');
   row.className = 'stock-product-row';
+
+  const textWrap = document.createElement('span');
+  textWrap.style.display = 'flex';
+  textWrap.style.flexDirection = 'column';
+  textWrap.style.flex = '1';
+  textWrap.style.minWidth = '0';
   const nameEl = document.createElement('span');
   nameEl.className = 'pname';
   nameEl.textContent = name;
+  textWrap.appendChild(nameEl);
+  if (showContext) {
+    const metaEl = document.createElement('span');
+    metaEl.className = 'pmeta';
+    metaEl.textContent = product ? productContextLabel(product) : '⚠️ Produkt nicht gefunden';
+    textWrap.appendChild(metaEl);
+  }
+
   const badge = document.createElement('button');
   badge.type = 'button';
   badge.className = 'target-badge has-target';
   badge.textContent = formatTargetLabel(targets.products[productId]);
   badge.addEventListener('click', () => openEdit('products', productId, name, unit));
-  row.appendChild(nameEl);
+  row.appendChild(textWrap);
   row.appendChild(badge);
   return row;
 }
@@ -714,7 +750,7 @@ function renderProductTargetList(listEl, ids) {
     listEl.appendChild(empty);
     return;
   }
-  ids.forEach((productId) => listEl.appendChild(makeProductTargetRow(productId)));
+  ids.forEach((productId) => listEl.appendChild(makeProductTargetRow(productId, { showContext: true })));
 }
 
 // Sonstiges no longer has its own Kategorien/Unterkategorien targets (see
@@ -901,10 +937,20 @@ function renderPickerList(filterText) {
   matches.forEach((p) => {
     const row = document.createElement('div');
     row.className = 'stock-product-row';
+    const textWrap = document.createElement('span');
+    textWrap.style.display = 'flex';
+    textWrap.style.flexDirection = 'column';
+    textWrap.style.flex = '1';
+    textWrap.style.minWidth = '0';
     const nameEl = document.createElement('span');
     nameEl.className = 'pname';
     nameEl.textContent = p.name;
-    row.appendChild(nameEl);
+    textWrap.appendChild(nameEl);
+    const metaEl = document.createElement('span');
+    metaEl.className = 'pmeta';
+    metaEl.textContent = productContextLabel(p);
+    textWrap.appendChild(metaEl);
+    row.appendChild(textWrap);
     row.addEventListener('click', () => {
       pickerModal.classList.remove('show');
       openEdit('products', p.id, p.name, p.unitType);
