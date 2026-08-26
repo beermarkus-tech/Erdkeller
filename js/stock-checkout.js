@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=97';
-import { PALETTE } from './year-colors.js?v=97';
-import { renderRecentLog } from './stock-log.js?v=97';
-import { renderResultLines } from './format-batch.js?v=97';
+import { db } from './firebase-init.js?v=98';
+import { PALETTE } from './year-colors.js?v=98';
+import { renderRecentLog } from './stock-log.js?v=98';
+import { renderResultLines } from './format-batch.js?v=98';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -51,6 +51,7 @@ const COLOR_HEX = Object.fromEntries(PALETTE.map((c) => [c.name, c.hex]));
 let taxonomy = { types: [] };
 let allProducts = [];
 let allBatches = [];
+let targets = { products: {} };
 let productIndex = new Map(); // productId -> product
 let subcategoryIndex = new Map(); // subcategoryId -> { type, category, subcategory }
 let configLoadOk = false;
@@ -60,20 +61,28 @@ let selection = { type: null, category: null, subcategory: null, batch: null, re
 let lastCheckoutId = null;
 let lastCheckoutOriginal = null;
 let lastLogId = null;
+// Set only when this checkout auto-deleted the product's catalog entry too
+// (see confirmBtn below) — restored by Rückgängig alongside the batch so
+// undo doesn't leave a restored stockItem pointing at a product that no
+// longer exists.
+let lastDeletedProduct = null;
 let undoTimer = null;
 
 // --- Data loading -----------------------------------------------------
 
 async function loadConfig() {
   try {
-    const [taxSnap, productsSnap, batchesSnap] = await Promise.all([
+    const [taxSnap, productsSnap, batchesSnap, targetsSnap] = await Promise.all([
       getDoc(doc(db, 'config', 'taxonomy')),
       getDocs(collection(db, 'products')),
       getDocs(collection(db, 'stockItems')),
+      getDoc(doc(db, 'config', 'targets')),
     ]);
     taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
     allProducts = productsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     allBatches = batchesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    targets = targetsSnap.exists() && targetsSnap.data() ? targetsSnap.data() : { products: {} };
+    if (!targets.products) targets.products = {};
     productIndex = new Map(allProducts.map((p) => [p.id, p]));
     buildSubcategoryIndex();
     configLoadOk = true;
@@ -473,10 +482,29 @@ confirmBtn.addEventListener('click', async () => {
     const ref = doc(db, 'stockItems', batch.id);
     const originalData = { ...batch };
     delete originalData.id;
+    lastDeletedProduct = null;
 
     if (selection.removeQty >= batch.quantity) {
       await deleteDoc(ref);
       allBatches = allBatches.filter((b) => b.id !== batch.id);
+
+      // Checking a product's last batch out to zero deletes it from the
+      // catalog too, not just the batch — otherwise it's exactly the kind
+      // of orphaned /products doc (no stock, invisible everywhere, never
+      // cleaned up) Bestandsliste's zero-stock rows exist to catch. The one
+      // exception: a product with an active Ziele target stays in the
+      // catalog (and shows up there with zero stock) since it's still
+      // meant to be restocked.
+      const stillStocked = allBatches.some((b) => b.productId === batch.productId);
+      if (!stillStocked && !targets.products[batch.productId]) {
+        const product = productIndex.get(batch.productId);
+        if (product) {
+          await deleteDoc(doc(db, 'products', batch.productId));
+          lastDeletedProduct = { ...product };
+          allProducts = allProducts.filter((p) => p.id !== batch.productId);
+          productIndex.delete(batch.productId);
+        }
+      }
     } else {
       const updated = { ...originalData, quantity: batch.quantity - selection.removeQty, updatedAt: new Date().toISOString() };
       await setDoc(ref, updated);
@@ -530,6 +558,7 @@ function showUndoToast(text) {
     lastCheckoutId = null;
     lastCheckoutOriginal = null;
     lastLogId = null;
+    lastDeletedProduct = null;
   }, 5000);
 }
 
@@ -546,11 +575,19 @@ undoBtn.addEventListener('click', async () => {
   const idToRestore = lastCheckoutId;
   const dataToRestore = lastCheckoutOriginal;
   const logIdToDelete = lastLogId;
+  const productToRestore = lastDeletedProduct;
   lastCheckoutId = null;
   lastCheckoutOriginal = null;
   lastLogId = null;
+  lastDeletedProduct = null;
   hideUndoToast();
   try {
+    if (productToRestore) {
+      const { id: productId, ...productData } = productToRestore;
+      await setDoc(doc(db, 'products', productId), productData);
+      allProducts.push({ id: productId, ...productData });
+      productIndex.set(productId, { id: productId, ...productData });
+    }
     await setDoc(doc(db, 'stockItems', idToRestore), dataToRestore);
     const idx = allBatches.findIndex((b) => b.id === idToRestore);
     if (idx >= 0) allBatches[idx] = { id: idToRestore, ...dataToRestore };

@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=97';
-import { PALETTE } from './year-colors.js?v=97';
-import { openAddFlow } from './stock-checkin.js?v=97';
-import { switchTabWithoutReset } from './app-shell.js?v=97';
+import { db } from './firebase-init.js?v=98';
+import { PALETTE } from './year-colors.js?v=98';
+import { openAddFlow } from './stock-checkin.js?v=98';
+import { switchTabWithoutReset } from './app-shell.js?v=98';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -170,19 +170,22 @@ function findSubcategoryContext(subcategoryId) {
   return null;
 }
 
-// --- Products without any stock, but with an active target (Build 97) -----
+// --- Products without any stock (Build 96, revised Build 98) --------------
 // filteredBatches() below shows these as synthetic rows alongside real
-// batches. A product that simply runs out via Entnehmen just disappears —
-// that's the expected, unsurprising behavior — *unless* it still carries a
-// Ziele product target, in which case it needs to stay visible precisely
-// because it's the one an admin needs to notice and restock (this is also
-// what still surfaces a stray/orphaned targeted product, e.g. the earlier
-// ghost Wasser entry, for cleanup via "Produkt löschen" below). A zero-stock
-// product with no target is not shown at all. type/category/subcategory are
-// resolved live from Taxonomie via the product's own subcategoryId — unlike
-// a real batch, which freezes those as plain text at check-in time — so a
-// product whose subcategory no longer exists shows that honestly instead of
-// silently defaulting somewhere.
+// batches. Since Build 98, checking a product's last batch out to zero
+// (js/stock-checkout.js) already auto-deletes it from the catalog unless it
+// has an active Ziele target — so in the normal case a plain zero-stock
+// product never reaches here at all, it's just gone. These rows are for
+// what that auto-delete deliberately doesn't cover: a product still
+// tracked by a target (shown with that target inline, so it's clear why
+// it's here and what to restock), and any straggler that reached zero
+// stock some other way (a manual Bestandsliste batch delete, pre-Build-98
+// legacy data) — Bestandsliste stays the one place an admin can see and
+// clean up every product, no exceptions, via "Produkt löschen" below.
+// type/category/subcategory are resolved live from Taxonomie via the
+// product's own subcategoryId — unlike a real batch, which freezes those as
+// plain text at check-in time — so a product whose subcategory no longer
+// exists shows that honestly instead of silently defaulting somewhere.
 function unitLabelForTarget(unit) {
   if (unit === 'kg' || unit === 'l') return unit;
   if (unit === 'stueck') return 'Stk';
@@ -216,9 +219,7 @@ function phantomBatchFor(product) {
 
 function allRows() {
   const withStock = new Set(allBatches.map((b) => b.productId));
-  const phantoms = allProducts
-    .filter((p) => !withStock.has(p.id) && targets.products[p.id])
-    .map(phantomBatchFor);
+  const phantoms = allProducts.filter((p) => !withStock.has(p.id)).map(phantomBatchFor);
   return allBatches.concat(phantoms);
 }
 
@@ -477,7 +478,9 @@ function renderRow(batch) {
 
   const metaEl = document.createElement('span');
   metaEl.className = 'pmeta';
-  metaEl.textContent = isPhantom ? `Kein Bestand · Ziel: ${targetLabel(batch.target)}` : batchMetaLine(batch);
+  metaEl.textContent = isPhantom
+    ? (batch.target ? `Kein Bestand · Ziel: ${targetLabel(batch.target)}` : 'Kein Bestand')
+    : batchMetaLine(batch);
 
   const subEl = document.createElement('span');
   subEl.className = 'table-row-sub';
