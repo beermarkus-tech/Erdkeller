@@ -4,7 +4,7 @@
 // submenu — this is content you'd add while browsing, unlike structural
 // config). Same loadOk guard + erdkeller:refresh dispatch convention as
 // every other admin-editable module.
-import { db } from './firebase-init.js?v=90';
+import { db } from './firebase-init.js?v=91';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -200,6 +200,10 @@ function openContact(contact, { edit = false } = {}) {
 }
 
 addContactBtn.addEventListener('click', () => {
+  if (!loadOk) {
+    statusEl.textContent = 'Hinzufügen blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
+    return;
+  }
   editingContact = null;
   isNewContact = true;
   detailTitleEl.textContent = 'Neuer Kontakt';

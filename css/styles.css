@@ -1277,7 +1277,13 @@ nav.bottomnav button .icon {
   touch-action: pan-y;
 }
 
+/* Kontakte's Telefon field (Build 90) is type="tel" for the numeric-phone
+   keyboard on mobile — same unstyled-fallback bug as type="number" above,
+   just for a different input type; folded into this rule rather than
+   given its own block since it wants the identical look, not the compact
+   number-input style. */
 .form-group input[type="text"],
+.form-group input[type="tel"],
 .form-group select {
   width: 100%;
   padding: 13px 14px;
