@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=93';
-import { renderRecentLog } from './stock-log.js?v=93';
-import { renderResultLines } from './format-batch.js?v=93';
+import { db } from './firebase-init.js?v=94';
+import { renderRecentLog } from './stock-log.js?v=94';
+import { renderResultLines } from './format-batch.js?v=94';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -34,7 +34,16 @@ const productSearchInput = document.getElementById('product-search');
 const productListEl = document.getElementById('product-list');
 
 const newProductNameInput = document.getElementById('new-product-name');
-const unitButtons = document.querySelectorAll('.unit-btn');
+// Scoped to this screen's own toggle — the bare .unit-btn class is reused
+// by js/targets.js's own new-product-unit-toggle AND its unrelated
+// target-mode-toggle (Feste Menge/Personen×Tage), and since all
+// type="module" scripts run after the whole document is parsed, an
+// unscoped querySelectorAll('.unit-btn') here would have silently also
+// matched those two other elements and wired an unwanted second listener
+// onto them.
+const newProductUnitToggleEl = document.getElementById('new-product-unit-toggle');
+const newProductWaterNoteEl = document.getElementById('new-product-water-note');
+const unitButtons = newProductUnitToggleEl.querySelectorAll('.unit-btn');
 const newProductContinueBtn = document.getElementById('new-product-continue-btn');
 
 const detailProductName = document.getElementById('detail-product-name');
@@ -189,7 +198,17 @@ function goToStep(stepName) {
     renderProductList('');
   } else if (stepName === 'new-product') {
     newProductNameInput.value = '';
-    setUnitToggle('kg');
+    // Wasser products are always liter-tracked — they count toward the one
+    // global Wasser target (Planung's rate × people × days, Übersicht),
+    // never an individual override, so there's no unit choice to offer at
+    // all here. Anyone wanting a separately-tracked "always keep N bottles"
+    // target models that as an actual Sonstiges product instead (Ziele's
+    // own Sonstiges picker, js/targets.js) — same name as "water" in the
+    // everyday sense, but no link to this Taxonomie Wasser type.
+    const isWater = selection.type && typeClass(selection.type) === 'water';
+    newProductUnitToggleEl.classList.toggle('hidden', isWater);
+    newProductWaterNoteEl.classList.toggle('hidden', !isWater);
+    setUnitToggle(isWater ? 'l' : 'kg');
   } else if (stepName === 'detail') {
     prepareDetailStep();
   }

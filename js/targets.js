@@ -17,7 +17,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=93';
+import { db } from './firebase-init.js?v=94';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -218,9 +218,20 @@ function findSubcategoryContext(subcategoryId) {
 // subcategory no longer exists (e.g. deleted from Taxonomie while a target
 // still references it), default to the Lebensmittel tab rather than
 // silently dropping the target from both lists.
-function productIsFood(product) {
+// A product's type-class comes from its subcategory's parent type — if
+// that subcategory no longer exists (e.g. deleted from Taxonomie while a
+// target still references it), default to 'food' rather than silently
+// dropping the target from every list (same fallback as before this was
+// widened to three-way). Wasser products deliberately fall out of both
+// Ziele tabs entirely (see renderProductTargets below) — the Taxonomie
+// Wasser type exists purely to track toward the one global liter target
+// (Planung/Übersicht); an admin wanting "always keep N bottles separately"
+// models that as an actual Sonstiges product instead (e.g. Fluchtrucksack
+// › Getränke › Wasserflaschen) — same name as "water" in the everyday
+// sense, but no link at all to the Taxonomie Wasser type or its target.
+function productTypeClass(product) {
   const ctx = findSubcategoryContext(product.subcategoryId);
-  return ctx ? typeClass(ctx.type) === 'food' : true;
+  return ctx ? typeClass(ctx.type) : 'food';
 }
 
 function computeMacroGroups() {
@@ -777,16 +788,22 @@ function renderNonfoodProductTargets(ids) {
   }
 }
 
-// Every product target is unambiguously Lebensmittel or Sonstiges via its
-// own subcategory's parent type, so — unlike Kategorien/Unterkategorien,
-// which read the taxonomy tree directly — this splits the flat
-// targets.products map by looking each product up.
+// Every product target is unambiguously Lebensmittel, Wasser, or Sonstiges
+// via its own subcategory's parent type, so — unlike Kategorien/
+// Unterkategorien, which read the taxonomy tree directly — this splits the
+// flat targets.products map by looking each product up. A Wasser product
+// target (only ever possible as leftover data from before this three-way
+// split existed) is dropped from both lists rather than shown anywhere —
+// see productTypeClass's comment for why Wasser never gets one going
+// forward.
 function renderProductTargets() {
   const foodIds = [];
   const nonfoodIds = [];
   Object.keys(targets.products || {}).forEach((id) => {
     const product = productIndex.get(id);
-    (product && !productIsFood(product) ? nonfoodIds : foodIds).push(id);
+    const cls = product ? productTypeClass(product) : 'food';
+    if (cls === 'water') return;
+    (cls === 'other' ? nonfoodIds : foodIds).push(id);
   });
   renderProductTargetList(productTargetsList, foodIds);
   renderNonfoodProductTargets(nonfoodIds);
@@ -820,15 +837,18 @@ function flatSubcategories() {
     // ensureWaterSubcategory) — drop the redundant trailing segment
     // rather than showing "Wasser › Trinkwasser › Trinkwasser".
     const label = sub.name === cat.name ? `${type.name} › ${cat.name}` : `${type.name} › ${cat.name} › ${sub.name}`;
-    list.push({ id: sub.id, label, isFood: typeClass(type) === 'food' });
+    list.push({ id: sub.id, label, cls: typeClass(type) });
   })));
   return list;
 }
 
+// Only ever called for the Lebensmittel picker's own inline new-product
+// form (see the add-row handler below — Sonstiges branches to its own
+// separate modal/subcategory list, renderNonfoodNewSubcategoryOptions).
 function renderNewProductSubcategoryOptions() {
   newProductSubcategorySelect.innerHTML = '';
   flatSubcategories()
-    .filter((s) => s.isFood === (pickerFoodClass === 'food'))
+    .filter((s) => s.cls === 'food')
     .forEach((s) => {
       const opt = document.createElement('option');
       opt.value = s.id;
@@ -866,7 +886,7 @@ function renderPickerList(filterText) {
   pickerList.appendChild(addRow);
 
   const matches = allProducts
-    .filter((p) => productIsFood(p) === (pickerFoodClass === 'food'))
+    .filter((p) => productTypeClass(p) === (pickerFoodClass === 'food' ? 'food' : 'other'))
     .filter((p) => !q || p.name.toLowerCase().includes(q))
     .sort((a, b) => a.name.localeCompare(b.name, 'de'))
     .slice(0, 50);
@@ -918,14 +938,17 @@ pickerModal.addEventListener('click', (e) => {
 // --- Sonstiges: new product + folded-in target ---------------------------
 
 // The dropdown always offers the 6 base units, plus whatever custom units
-// are already in use on other Sonstiges/Wasser products — no separate
-// "known units" list is persisted anywhere; a freshly-typed custom unit
-// (via the free-text box below) simply starts showing up here itself once
-// it's actually been used on a real product.
+// are already in use on other Sonstiges products — no separate "known
+// units" list is persisted anywhere; a freshly-typed custom unit (via the
+// free-text box below) simply starts showing up here itself once it's
+// actually been used on a real product. Wasser products are excluded from
+// this scan (see productTypeClass's comment) — they're locked to 'l' at
+// creation time anyway (js/stock-checkin.js's own "+ Neues Produkt" step),
+// so they'd never contribute a custom unit worth surfacing here.
 function populateNonfoodUnitSelect() {
   const used = new Set();
   allProducts.forEach((p) => {
-    if (p.unitType && !productIsFood(p) && p.unitType !== 'stueck' && !BASE_UNITS.includes(p.unitType)) {
+    if (p.unitType && productTypeClass(p) === 'other' && p.unitType !== 'stueck' && !BASE_UNITS.includes(p.unitType)) {
       used.add(p.unitType);
     }
   });
@@ -938,14 +961,16 @@ function populateNonfoodUnitSelect() {
   });
 }
 
-// Sonstiges AND Wasser subcategories — same filter the Lebensmittel-side
-// inline form already uses for its own 'nonfood' picker instance
-// (renderNewProductSubcategoryOptions above); a Wasser product can want an
-// open unit just as much as a Sonstiges one (e.g. "60 Flaschen Wasser").
+// Genuinely Sonstiges subcategories only — Wasser is deliberately excluded
+// (see productTypeClass's comment above): the Taxonomie Wasser type tracks
+// only toward the one global liter target, never an individual product
+// override here. Wanting "60 Flaschen Wasser" as its own separate target
+// means modeling it as an actual Sonstiges product instead (e.g.
+// Fluchtrucksack › Getränke › Wasserflaschen).
 function renderNonfoodNewSubcategoryOptions() {
   nonfoodNewSubcategorySelect.innerHTML = '';
   flatSubcategories()
-    .filter((s) => !s.isFood)
+    .filter((s) => s.cls === 'other')
     .forEach((s) => {
       const opt = document.createElement('option');
       opt.value = s.id;
