@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=95';
-import { PALETTE } from './year-colors.js?v=95';
-import { openAddFlow } from './stock-checkin.js?v=95';
-import { switchTabWithoutReset } from './app-shell.js?v=95';
+import { db } from './firebase-init.js?v=96';
+import { PALETTE } from './year-colors.js?v=96';
+import { openAddFlow } from './stock-checkin.js?v=96';
+import { switchTabWithoutReset } from './app-shell.js?v=96';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -17,6 +17,7 @@ const subcatFilterLabel = document.getElementById('table-subcat-filter-label');
 const subcatFilterClearBtn = document.getElementById('table-subcat-filter-clear');
 const typeFilterRow = document.getElementById('table-type-filters');
 const categoryFilterRow = document.getElementById('table-category-filters');
+const subcategoryFilterRow = document.getElementById('table-subcategory-filters');
 const storageFilterRow = document.getElementById('table-storage-filters');
 const sortBarEl = document.getElementById('table-sort-bar');
 const rowListEl = document.getElementById('table-row-list');
@@ -29,6 +30,9 @@ const bulkDeleteBtn = document.getElementById('table-bulk-delete-btn');
 const editModal = document.getElementById('table-edit-modal');
 const editEmptyEl = document.getElementById('table-edit-empty');
 const editFormEl = document.getElementById('table-edit-form');
+const editTitleEl = document.getElementById('table-edit-title');
+const editBatchFieldsEl = document.getElementById('table-edit-batch-fields');
+const editNoStockNoteEl = document.getElementById('table-edit-no-stock-note');
 const editNameInput = document.getElementById('table-edit-name');
 const editQtyNumEl = document.getElementById('table-edit-qty-num');
 const editQtyMinusBtn = document.getElementById('table-edit-qty-minus');
@@ -76,6 +80,7 @@ let activeSubcategoryFilter = null;
 let activeSubcategoryFilterName = '';
 let selectedTypes = new Set();
 let selectedCategories = new Set();
+let selectedSubcategories = new Set();
 let selectedStorages = new Set();
 let sortColumn = null;
 let sortDir = 'asc';
@@ -144,14 +149,101 @@ function yearColorFor(bestBefore) {
   return (yearColorMap && yearColorMap[year]) || 'none';
 }
 
-function allTypeNames() {
-  return (taxonomy.types || []).map((t) => t.name);
+// See js/taxonomy.js's typeClass for the fallback-derivation rationale.
+function typeClass(type) {
+  if (type.typeClass) return type.typeClass;
+  return type.isFoodType ? 'food' : 'other';
 }
 
-function allCategoryNames() {
-  const set = new Set();
-  (taxonomy.types || []).forEach((t) => (t.categories || []).forEach((c) => set.add(c.name)));
-  return Array.from(set).sort((a, b) => a.localeCompare(b, 'de'));
+function findSubcategoryContext(subcategoryId) {
+  for (const type of taxonomy.types || []) {
+    for (const cat of (type.categories || [])) {
+      for (const sub of (cat.subcategories || [])) {
+        if (sub.id === subcategoryId) return { type, cat, sub };
+      }
+    }
+  }
+  return null;
+}
+
+// --- Products without any stock (Build 96) ---------------------------------
+// filteredBatches() below shows these as synthetic rows alongside real
+// batches — this used to be a real gap: a product that only ever exists in
+// the catalog (created via Ziele's Produktziele picker but never actually
+// bought, or an orphaned/stray entry) had no batch and so was invisible in
+// Bestandsliste entirely, even though this is meant to be *the* admin place
+// to see every product. type/category/subcategory are resolved live from
+// Taxonomie via the product's own subcategoryId — unlike a real batch,
+// which freezes those as plain text at check-in time — so a product whose
+// subcategory no longer exists shows that honestly instead of just not
+// appearing anywhere.
+function phantomBatchFor(product) {
+  const ctx = findSubcategoryContext(product.subcategoryId);
+  return {
+    id: null,
+    productId: product.id,
+    quantity: 0,
+    details: '',
+    content: '',
+    bestBefore: '',
+    yearColor: 'none',
+    storage: '',
+    type: ctx ? ctx.type.name : '',
+    category: ctx ? ctx.cat.name : '',
+    subcategory: ctx ? ctx.sub.name : (product.subcategoryId ? '⚠️ Unterkategorie fehlt' : ''),
+  };
+}
+
+function allRows() {
+  const withStock = new Set(allBatches.map((b) => b.productId));
+  const phantoms = allProducts.filter((p) => !withStock.has(p.id)).map(phantomBatchFor);
+  return allBatches.concat(phantoms);
+}
+
+// --- Filter chip entries (Typ/Kategorie/Unterkategorie, Build 96) ---------
+// Each level cascades from the one above: with no Typ selected, Kategorie
+// shows every category across every type; select one or more Typ chips and
+// Kategorie narrows to just those types' categories (and any Kategorie
+// selection that's no longer among them gets cleared — see
+// pruneInvalidSelections) — then Unterkategorie narrows the same way off
+// whichever Kategorie chips are selected. cls drives the green/Lebensmittel,
+// blue/Wasser, plain/Sonstiges chip tint (see css .filter-chip.chip-food/
+// .chip-water) — same convention as the Taxonomie editor's type rows.
+
+function allTypeChipEntries() {
+  return (taxonomy.types || []).map((t) => ({ name: t.name, cls: typeClass(t) }));
+}
+
+function allCategoryChipEntries() {
+  const map = new Map();
+  (taxonomy.types || []).forEach((type) => {
+    if (selectedTypes.size && !selectedTypes.has(type.name)) return;
+    (type.categories || []).forEach((cat) => {
+      if (!map.has(cat.name)) map.set(cat.name, typeClass(type));
+    });
+  });
+  return Array.from(map, ([name, cls]) => ({ name, cls })).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+
+function allSubcategoryChipEntries() {
+  const map = new Map();
+  (taxonomy.types || []).forEach((type) => {
+    if (selectedTypes.size && !selectedTypes.has(type.name)) return;
+    (type.categories || []).forEach((cat) => {
+      if (selectedCategories.size && !selectedCategories.has(cat.name)) return;
+      (cat.subcategories || []).forEach((sub) => {
+        if (!map.has(sub.name)) map.set(sub.name, typeClass(type));
+      });
+    });
+  });
+  return Array.from(map, ([name, cls]) => ({ name, cls })).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+
+function pruneInvalidSelections(selectedSet, validNames) {
+  const valid = new Set(validNames);
+  Array.from(selectedSet).forEach((name) => {
+    if (!valid.has(name)) selectedSet.delete(name);
+  });
 }
 
 // --- Sorting & filtering ---------------------------------------------------
@@ -195,13 +287,14 @@ function compareBatches(a, b) {
 
 function filteredBatches() {
   const q = searchText.trim().toLowerCase();
-  return allBatches.filter((b) => {
+  return allRows().filter((b) => {
     if (activeSubcategoryFilter) {
       const product = productIndex.get(b.productId);
       if (!product || product.subcategoryId !== activeSubcategoryFilter) return false;
     }
     if (selectedTypes.size && !selectedTypes.has(b.type)) return false;
     if (selectedCategories.size && !selectedCategories.has(b.category)) return false;
+    if (selectedSubcategories.size && !selectedSubcategories.has(b.subcategory)) return false;
     if (selectedStorages.size && !selectedStorages.has(b.storage)) return false;
     if (q) {
       const name = productName(b.productId).toLowerCase();
@@ -231,9 +324,54 @@ function renderChips(container, values, selectedSet) {
   });
 }
 
+// Typ/Kategorie/Unterkategorie chips (Build 96) — tinted by type-class and
+// re-rendered as a full cascade on every click (see refreshHierarchyChips),
+// unlike the plain renderChips above.
+function renderHierarchyChips(container, entries, selectedSet, onToggle) {
+  container.innerHTML = '';
+  entries.forEach(({ name, cls }) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    const tint = cls === 'food' ? ' chip-food' : cls === 'water' ? ' chip-water' : '';
+    chip.className = 'filter-chip' + tint + (selectedSet.has(name) ? ' active' : '');
+    chip.textContent = name;
+    chip.addEventListener('click', () => {
+      if (selectedSet.has(name)) selectedSet.delete(name);
+      else selectedSet.add(name);
+      onToggle();
+    });
+    container.appendChild(chip);
+  });
+}
+
+// Re-derives and re-renders all three cascading rows top-down on every
+// click at any level — simpler and cheap enough at household-catalog scale
+// than trying to patch just the affected row(s), and it's what keeps a
+// stale selection from lingering (e.g. a Kategorie chip selected before its
+// Typ was deselected) via pruneInvalidSelections at each level.
+function refreshHierarchyChips() {
+  renderHierarchyChips(typeFilterRow, allTypeChipEntries(), selectedTypes, () => {
+    refreshHierarchyChips();
+    renderRows();
+  });
+
+  const catEntries = allCategoryChipEntries();
+  pruneInvalidSelections(selectedCategories, catEntries.map((e) => e.name));
+  renderHierarchyChips(categoryFilterRow, catEntries, selectedCategories, () => {
+    refreshHierarchyChips();
+    renderRows();
+  });
+
+  const subEntries = allSubcategoryChipEntries();
+  pruneInvalidSelections(selectedSubcategories, subEntries.map((e) => e.name));
+  renderHierarchyChips(subcategoryFilterRow, subEntries, selectedSubcategories, () => {
+    refreshHierarchyChips();
+    renderRows();
+  });
+}
+
 function renderFilters() {
-  renderChips(typeFilterRow, allTypeNames(), selectedTypes);
-  renderChips(categoryFilterRow, allCategoryNames(), selectedCategories);
+  refreshHierarchyChips();
   renderChips(storageFilterRow, storageLocations, selectedStorages);
 }
 
@@ -281,21 +419,27 @@ function makeYearBadge(batch) {
 }
 
 function renderRow(batch) {
+  const isPhantom = batch.id === null;
   const row = document.createElement('div');
-  row.className = 'stock-product-row' + (editingBatch && editingBatch.id === batch.id ? ' selected' : '');
+  row.className = 'stock-product-row' + (editingBatch && editingBatch.id === batch.id ? ' selected' : '') + (isPhantom ? ' no-stock' : '');
 
   if (selectMode) {
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.className = 'select-checkbox';
-    cb.checked = selectedIds.has(batch.id);
-    cb.addEventListener('click', (e) => e.stopPropagation());
-    cb.addEventListener('change', () => {
-      if (cb.checked) selectedIds.add(batch.id);
-      else selectedIds.delete(batch.id);
-      updateBulkBar();
-    });
-    row.appendChild(cb);
+    // A product with no stock has no stockItem doc to bulk-delete — select
+    // mode simply doesn't apply to it, so its checkbox slot stays empty
+    // rather than offering a control that can't do anything.
+    if (!isPhantom) {
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'select-checkbox';
+      cb.checked = selectedIds.has(batch.id);
+      cb.addEventListener('click', (e) => e.stopPropagation());
+      cb.addEventListener('change', () => {
+        if (cb.checked) selectedIds.add(batch.id);
+        else selectedIds.delete(batch.id);
+        updateBulkBar();
+      });
+      row.appendChild(cb);
+    }
   } else {
     row.appendChild(makeYearBadge(batch));
   }
@@ -311,7 +455,7 @@ function renderRow(batch) {
 
   const metaEl = document.createElement('span');
   metaEl.className = 'pmeta';
-  metaEl.textContent = batchMetaLine(batch);
+  metaEl.textContent = isPhantom ? 'Kein Bestand' : batchMetaLine(batch);
 
   const subEl = document.createElement('span');
   subEl.className = 'table-row-sub';
@@ -324,6 +468,7 @@ function renderRow(batch) {
 
   row.addEventListener('click', () => {
     if (selectMode) {
+      if (isPhantom) return;
       if (selectedIds.has(batch.id)) selectedIds.delete(batch.id);
       else selectedIds.add(batch.id);
       renderRows();
@@ -426,33 +571,40 @@ let editQty = 1;
 function openEditModal(batch) {
   editingBatch = batch;
   const product = productIndex.get(batch.productId);
+  const isPhantom = batch.id === null;
 
+  editTitleEl.textContent = isPhantom ? 'Produkt (kein Bestand)' : 'Bestand bearbeiten';
   editNameInput.value = productName(batch.productId);
+  editBatchFieldsEl.classList.toggle('hidden', isPhantom);
+  editNoStockNoteEl.classList.toggle('hidden', !isPhantom);
+  editDeleteBtn.textContent = isPhantom ? 'Produkt löschen' : 'Löschen';
 
-  editQty = batch.quantity;
-  editQtyNumEl.value = String(editQty);
+  if (!isPhantom) {
+    editQty = batch.quantity;
+    editQtyNumEl.value = String(editQty);
 
-  editDetailsInput.value = batch.details || '';
+    editDetailsInput.value = batch.details || '';
 
-  // kg/l are the only "fractional" units (content-string-parsed) — every
-  // other unit (legacy 'stueck', or an open Sonstiges unit like Flaschen/
-  // Säcke/custom) tracks by plain integer quantity instead, no content
-  // field needed. See js/dashboard.js's isFractionalUnit for the same
-  // distinction driving the stock-summing math.
-  const isFractional = !product || product.unitType === 'kg' || product.unitType === 'l';
-  editContentGroup.classList.toggle('hidden', !isFractional);
-  editContentInput.value = batch.content || '';
+    // kg/l are the only "fractional" units (content-string-parsed) — every
+    // other unit (legacy 'stueck', or an open Sonstiges unit like Flaschen/
+    // Säcke/custom) tracks by plain integer quantity instead, no content
+    // field needed. See js/dashboard.js's isFractionalUnit for the same
+    // distinction driving the stock-summing math.
+    const isFractional = !product || product.unitType === 'kg' || product.unitType === 'l';
+    editContentGroup.classList.toggle('hidden', !isFractional);
+    editContentInput.value = batch.content || '';
 
-  editBestBeforeInput.value = batch.bestBefore || '';
+    editBestBeforeInput.value = batch.bestBefore || '';
 
-  editStorageSelect.innerHTML = '';
-  storageLocations.forEach((loc) => {
-    const opt = document.createElement('option');
-    opt.value = loc;
-    opt.textContent = loc;
-    editStorageSelect.appendChild(opt);
-  });
-  editStorageSelect.value = batch.storage || '';
+    editStorageSelect.innerHTML = '';
+    storageLocations.forEach((loc) => {
+      const opt = document.createElement('option');
+      opt.value = loc;
+      opt.textContent = loc;
+      editStorageSelect.appendChild(opt);
+    });
+    editStorageSelect.value = batch.storage || '';
+  }
 
   editEmptyEl.classList.add('hidden');
   editFormEl.classList.remove('hidden');
@@ -498,8 +650,31 @@ editModal.addEventListener('click', (e) => {
 
 editSaveBtn.addEventListener('click', async () => {
   if (!editingBatch) return;
-  const isFractional = !editContentGroup.classList.contains('hidden');
   const newName = editNameInput.value.trim();
+
+  // A product-with-no-stock row has no stockItem doc — the rename below is
+  // the only thing to save for it, same catalog-wide rename mechanism as
+  // the real-batch path already uses.
+  if (editingBatch.id === null) {
+    editSaveBtn.disabled = true;
+    try {
+      if (newName && newName !== productName(editingBatch.productId)) {
+        await updateDoc(doc(db, 'products', editingBatch.productId), { name: newName });
+        const product = productIndex.get(editingBatch.productId);
+        if (product) product.name = newName;
+      }
+      closeEdit();
+      window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+    } catch (err) {
+      alert('Speichern fehlgeschlagen: ' + err.message);
+      console.error(err);
+    } finally {
+      editSaveBtn.disabled = false;
+    }
+    return;
+  }
+
+  const isFractional = !editContentGroup.classList.contains('hidden');
   const updated = {
     quantity: editQty,
     details: editDetailsInput.value.trim(),
@@ -535,6 +710,27 @@ editSaveBtn.addEventListener('click', async () => {
 
 editDeleteBtn.addEventListener('click', async () => {
   if (!editingBatch) return;
+
+  // A product-with-no-stock row's "Löschen" removes the product from the
+  // catalog itself (there's no stockItem doc to delete) — this is what
+  // actually lets a stray/orphaned catalog entry (see Ziele's Produktziele
+  // picker context labels) get cleaned up, which nothing in the app could
+  // do before this.
+  if (editingBatch.id === null) {
+    if (!confirm(`Produkt "${productName(editingBatch.productId)}" endgültig aus dem Katalog löschen?`)) return;
+    try {
+      await deleteDoc(doc(db, 'products', editingBatch.productId));
+      allProducts = allProducts.filter((p) => p.id !== editingBatch.productId);
+      productIndex.delete(editingBatch.productId);
+      closeEdit();
+      window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+    } catch (err) {
+      alert('Löschen fehlgeschlagen: ' + err.message);
+      console.error(err);
+    }
+    return;
+  }
+
   if (!confirm(`"${productName(editingBatch.productId)}" wirklich löschen?`)) return;
   try {
     await deleteDoc(doc(db, 'stockItems', editingBatch.id));

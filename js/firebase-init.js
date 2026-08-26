@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
-import { firebaseConfig } from './firebase-config.js?v=95';
+import { firebaseConfig } from './firebase-config.js?v=96';
 
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);

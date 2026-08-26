@@ -1185,6 +1185,13 @@ nav.bottomnav button .icon {
   border-style: dashed;
 }
 
+/* A catalog product with no actual stock (Build 96) — visually muted so
+   it reads as distinct from a real batch at a glance, without being hard
+   to find (that's the whole point of showing it at all). */
+.stock-product-row.no-stock {
+  opacity: 0.7;
+}
+
 /* Kontakte (Step 13) — rows reuse .stock-product-row/.pname/.pmeta as-is
    (name + role subtitle, same card shape); these are just the two trailing
    icons a contact row adds on top. Both stop propagation so tapping either
@@ -1837,6 +1844,33 @@ nav.bottomnav button .icon {
   background: var(--cellar);
   color: var(--paper);
   border-color: var(--cellar);
+}
+
+/* Bestandsliste's Typ/Kategorie/Unterkategorie filter chips (Build 96) —
+   same green/blue tint convention as .tax-type.food-type/.water-type in
+   the Taxonomie editor, so a Lebensmittel- or Wasser-classed chip reads as
+   the same group at a glance across both screens. Sonstiges chips stay
+   the plain default look — nothing to distinguish them from each other. */
+.filter-chip.chip-food {
+  background: #d7e8d4;
+  border-color: #8faa8a;
+}
+
+.filter-chip.chip-water {
+  background: #d3e3ee;
+  border-color: #86a8bf;
+}
+
+.filter-chip.chip-food.active {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: var(--paper);
+}
+
+.filter-chip.chip-water.active {
+  background: #3d6a86;
+  border-color: #3d6a86;
+  color: var(--paper);
 }
 
 .sort-bar {
