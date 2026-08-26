@@ -1,6 +1,7 @@
-import { db } from './firebase-init.js?v=85';
-import { PALETTE } from './year-colors.js?v=85';
-import { openAddFlow } from './stock-checkin.js?v=85';
+import { db } from './firebase-init.js?v=86';
+import { PALETTE } from './year-colors.js?v=86';
+import { openAddFlow } from './stock-checkin.js?v=86';
+import { switchTabWithoutReset } from './app-shell.js?v=86';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -81,11 +82,15 @@ let sortDir = 'asc';
 let selectMode = false;
 let selectedIds = new Set();
 let editingBatch = null;
-// Set only by openFilteredBySubcategory/openFilteredByProductSearch (tap-
-// throughs from Übersicht, Step 10) — tells the panel's own back button
-// where to return to instead of the generic "Admin main menu" default.
-// Cleared whenever the panel is opened the normal way (tapping the
-// Bestandsliste card itself).
+// Set (to 'dashboard') only by openFilteredBySubcategory/
+// openFilteredByProductSearch (tap-throughs from Übersicht, Step 10) —
+// tells the panel's own back button to switch back to the Dashboard
+// *without* the normal nav-icon reset (see switchTabWithoutReset), instead
+// of the generic "Admin main menu" default. Both tap-through origins land
+// on the same Dashboard screen they left, exactly as they left it — the
+// point of skipping the reset — so there's nothing left to distinguish
+// between them. Cleared whenever the panel is opened the normal way
+// (tapping the Bestandsliste card itself).
 let returnTarget = null;
 let pendingMonthIndex = 0;
 let pendingYearIndex = 0;
@@ -628,15 +633,16 @@ stocktableCard.addEventListener('click', () => {
 // screen by switching away to Dashboard entirely. back-nav.js's hardware-
 // back handling already delegates to a real .click() on this exact
 // button, so this also covers that path with no changes there.
+// switchTabWithoutReset (not a plain nav-icon .click()) is what actually
+// makes this "return to where I was" rather than "return to Dashboard's
+// root" — a real click dispatches erdkeller:navreset, which is exactly
+// what clears the Dashboard's expanded-category state and forces its
+// sub-tab back to "Bestand" on every other navigation.
 const stocktableBackBtn = document.querySelector('#settings-panel-stocktable [data-back]');
 stocktableBackBtn.addEventListener('click', () => {
   if (!returnTarget) return;
-  const target = returnTarget;
   returnTarget = null;
-  document.querySelector('.nav-btn[data-tab="dashboard"]').click();
-  if (target === 'dashboard-mhd') {
-    document.querySelector('.seg-btn[data-dash-tab="mhd"]').click();
-  }
+  switchTabWithoutReset('dashboard');
 });
 
 // Tap-through from Übersicht (Step 10, js/dashboard.js): reuses the same
@@ -646,7 +652,7 @@ stocktableBackBtn.addEventListener('click', () => {
 export function openFilteredBySubcategory(subcategoryId, subcategoryName) {
   document.querySelector('.nav-btn[data-tab="settings"]').click();
   stocktableCard.click();
-  returnTarget = 'dashboard-stock';
+  returnTarget = 'dashboard';
   activeSubcategoryFilter = subcategoryId;
   activeSubcategoryFilterName = subcategoryName;
   renderRows();
@@ -659,7 +665,7 @@ export function openFilteredBySubcategory(subcategoryId, subcategoryName) {
 export function openFilteredByProductSearch(productName) {
   document.querySelector('.nav-btn[data-tab="settings"]').click();
   stocktableCard.click();
-  returnTarget = 'dashboard-mhd';
+  returnTarget = 'dashboard';
   searchText = productName;
   searchInput.value = productName;
   renderRows();

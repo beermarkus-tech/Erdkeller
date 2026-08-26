@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=85';
-import { renderRecentLog } from './stock-log.js?v=85';
-import { renderResultLines } from './format-batch.js?v=85';
+import { db } from './firebase-init.js?v=86';
+import { renderRecentLog } from './stock-log.js?v=86';
+import { renderResultLines } from './format-batch.js?v=86';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -596,7 +596,17 @@ checkinConfirmBtn.addEventListener('click', async () => {
       storage: data.storage,
     });
 
-    goToStep('success');
+    // The add-from-Bestandsliste entry point (openAddFlow) skips the
+    // success screen entirely and jumps straight back — the whole point
+    // of that button was to add-and-return in one step, not add-then-
+    // require-a-second-tap-on-"Zurück". showUndoToast() must run *after*
+    // returnHome(), since returnHome() itself starts by hiding any
+    // currently-shown toast.
+    if (launchedFromStocktable) {
+      returnHome();
+    } else {
+      goToStep('success');
+    }
     showUndoToast(`Eingelagert: ${selection.product.name}`);
     renderRecentLog(recentLogEl);
     // Bestandsliste (stock-table.js) and Entnehmen (stock-checkout.js) each
@@ -662,7 +672,6 @@ function returnHome() {
   stockHomeEl.classList.remove('hidden');
   if (launchedFromStocktable) {
     launchedFromStocktable = false;
-    backHomeBtn.textContent = 'Zurück zur Übersicht';
     document.querySelector('.nav-btn[data-tab="settings"]').click();
     document.querySelector('.settings-card[data-target="stocktable"]').click();
   }
@@ -689,7 +698,6 @@ startCheckinBtn.addEventListener('click', () => {
 // bespoke add form; see returnHome() for the matching return trip.
 export function openAddFlow() {
   launchedFromStocktable = true;
-  backHomeBtn.textContent = 'Zurück zur Bestandsliste';
   document.querySelector('.nav-btn[data-tab="stock"]').click();
   startCheckinBtn.click();
 }
@@ -700,12 +708,11 @@ window.addEventListener('erdkeller:refresh', () => loadConfig());
 // Tapping the Bestand nav icon (even while already on it) always returns
 // to the two big buttons, regardless of how deep this flow was — and, if
 // the add-from-Bestandsliste flow was abandoned by switching tabs rather
-// than tapping its own back arrow, clears that stale flag/label so a
-// later *normal* Einlagern run doesn't misfire back into Admin.
+// than tapping its own back arrow, clears that stale flag so a later
+// *normal* Einlagern run doesn't misfire back into Admin.
 window.addEventListener('erdkeller:navreset', (e) => {
   if (e.detail.tab !== 'stock') return;
   stockFlowEl.classList.add('hidden');
   stockHomeEl.classList.remove('hidden');
   launchedFromStocktable = false;
-  backHomeBtn.textContent = 'Zurück zur Übersicht';
 });

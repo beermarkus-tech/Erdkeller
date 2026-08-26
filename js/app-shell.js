@@ -33,6 +33,17 @@ navButtons.forEach((btn) => {
   });
 });
 
+// Exposed for tap-through "return to origin" flows (js/stock-table.js'
+// Bestandsliste back button) that need to switch back to a screen
+// *without* dispatching erdkeller:navreset — that reset is what gives the
+// nav icons their "go to root" behavior (e.g. it wipes the Dashboard's
+// expanded-category state and forces its sub-tab back to "Bestand"),
+// which is exactly what a "return to exactly where I was" flow must not
+// trigger.
+export function switchTabWithoutReset(tab) {
+  setActiveTab(tab);
+}
+
 // Settings is admin-only — not shown to members at all (SPEC.md Section 3).
 window.addEventListener('erdkeller:signedin', (e) => {
   const isAdmin = e.detail.role === 'admin';
