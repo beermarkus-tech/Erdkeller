@@ -1247,6 +1247,61 @@ nav.bottomnav button .icon {
   margin-bottom: 18px;
 }
 
+/* Notizen (Build 92) — photos are stored compressed/resized directly on
+   the note document (no Firebase Storage on the free Spark plan, see
+   SPEC.md Section 9), so the grid only ever holds a handful of thumbnails,
+   never a real gallery. Shared between the read-only detail view and the
+   edit form; .note-photo-remove only ever renders in the edit form. */
+.note-photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.note-photo-grid:empty {
+  display: none;
+}
+
+.note-photo-thumb {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--stone-dark);
+  flex-shrink: 0;
+}
+
+.note-photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.note-photo-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(32, 36, 31, 0.7);
+  color: white;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.note-detail-body {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 4px;
+}
+
 .form-group {
   margin-bottom: 18px;
 }
@@ -1293,6 +1348,23 @@ nav.bottomnav button .icon {
   font-family: 'Inter', sans-serif;
   background: white;
   touch-action: pan-y;
+}
+
+/* Notizen's Text field (Build 92) — the app's first multi-line field, for
+   freeform note bodies ("how to clean the water tank" can run to several
+   sentences). Same look as the type="text" rule above it, just taller and
+   vertically resizable instead of single-line. */
+.form-group textarea {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--stone-dark);
+  font-size: 15px;
+  font-family: 'Inter', sans-serif;
+  background: white;
+  resize: vertical;
+  min-height: 100px;
+  box-sizing: border-box;
 }
 
 .unit-toggle {

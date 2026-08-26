@@ -91,9 +91,19 @@ service cloud.firestore {
     // Step 13: /contacts — SPEC.md Section 9 has adding/editing contacts as
     // admin-only ("same model as checklists" for permissions, unlike
     // /config/checklists' member-writable content); any signed-in family
-    // member can read. /notes and /recipes will get the identical shape
-    // when their own pieces of Step 13 land.
+    // member can read. /notes and /recipes get the identical shape.
     match /contacts/{contactId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Step 13: /notes — same shape as /contacts above (Section 9: "Adding/
+    // editing contacts and notes is admin-only"). Photos live inline on the
+    // document as compressed base64 data URIs (no Firebase Storage on the
+    // Spark plan), which is why a note document can be noticeably larger
+    // than a contact — still just a plain document write, no different
+    // rule needed.
+    match /notes/{noteId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }
