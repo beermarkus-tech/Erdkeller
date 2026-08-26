@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=86';
-import { renderRecentLog } from './stock-log.js?v=86';
-import { renderResultLines } from './format-batch.js?v=86';
+import { db } from './firebase-init.js?v=87';
+import { renderRecentLog } from './stock-log.js?v=87';
+import { renderResultLines } from './format-batch.js?v=87';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -697,8 +697,14 @@ startCheckinBtn.addEventListener('click', () => {
 // or-existing product, then batch details) rather than building a second,
 // bespoke add form; see returnHome() for the matching return trip.
 export function openAddFlow() {
-  launchedFromStocktable = true;
+  // Switching tabs first, then setting the flag: the nav-btn click fires
+  // erdkeller:navreset('stock') synchronously, and that handler clears
+  // this exact flag (see below) as its own stale-flag guard — setting the
+  // flag before the click meant it was wiped out immediately, before
+  // startCheckinBtn.click() ever ran, silently turning this into a plain
+  // Einlagern run with no memory of where it was launched from.
   document.querySelector('.nav-btn[data-tab="stock"]').click();
+  launchedFromStocktable = true;
   startCheckinBtn.click();
 }
 
