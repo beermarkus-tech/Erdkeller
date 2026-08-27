@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=116';
+import { db } from './firebase-init.js?v=117';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const listEl = document.getElementById('storage-list');
@@ -50,7 +50,21 @@ function escapeAttr(str) {
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
+// Build 117: preserve focus/selection across this innerHTML rebuild, same
+// as js/taxonomy.js's render() — saveStorage()'s own erdkeller:refresh
+// dispatch (once its Firestore write completes) loops back into this
+// module's own listener a moment later and re-renders, which was tearing
+// down the input the add-button flow had just focused before the user
+// even blurred it (the actual cause of the keyboard flashing open then
+// closing — Build 116's requestAnimationFrame deferral alone didn't
+// address this later, async-triggered rebuild).
 function render() {
+  const active = document.activeElement;
+  const preserveIndex = active && active.classList.contains('tax-name-input') && listEl.contains(active)
+    ? active.closest('[data-index]')?.dataset.index
+    : null;
+  const preserveSelection = preserveIndex !== null ? [active.selectionStart, active.selectionEnd] : null;
+
   listEl.innerHTML = '';
   locations.forEach((name, index) => {
     const row = document.createElement('div');
@@ -72,6 +86,14 @@ function render() {
     });
     listEl.appendChild(row);
   });
+
+  if (preserveIndex !== null) {
+    const input = listEl.querySelector(`[data-index="${preserveIndex}"] .tax-name-input`);
+    if (input) {
+      input.focus();
+      input.setSelectionRange(preserveSelection[0], preserveSelection[1]);
+    }
+  }
 }
 
 addBtn.addEventListener('click', () => {

@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=116';
+import { db } from './firebase-init.js?v=117';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -104,11 +104,10 @@ function escapeAttr(str) {
 // Auto-focus + select a freshly created node's name input (post-render, so
 // the element actually exists in the DOM) — lets you just type over the
 // default "Neuer Typ"/"Neue Kategorie"/… placeholder name immediately.
-// requestAnimationFrame (Build 116): focusing synchronously right after the
-// add button's own render() (a full innerHTML rebuild) made the on-screen
-// keyboard flash open then immediately close on a real Android device —
-// the layout was still settling from that reflow when focus() fired.
-// Deferring one frame lets it settle first.
+// requestAnimationFrame (Build 116) lets the add button's own render()
+// (a full innerHTML rebuild) settle before this first focus — the actual
+// keyboard-flicker fix is render()'s own focus-preserving logic above,
+// this defers the *initial* one for the same reason on general principle.
 function focusNewName(id) {
   requestAnimationFrame(() => {
     const input = editorEl.querySelector(`[data-id="${id}"] .tax-name-input`);
@@ -207,13 +206,37 @@ function makeReorderable(containerEl, itemSelector, onReorder) {
   });
 }
 
+// Build 116's requestAnimationFrame fix (focusNewName below) wasn't the
+// real cause of the keyboard flashing open then closing on a real Android
+// device — it was this: saveTaxonomy() dispatches erdkeller:refresh once
+// its Firestore write completes, and this module listens for that same
+// event itself (so other screens' cached copies of the taxonomy pick up
+// the change) and calls loadTaxonomy() -> render() again a moment later —
+// which was tearing down and rebuilding the exact input the add-button
+// flow had just focused, mid-keystroke, before the user had even blurred
+// it. Every render() now preserves + restores focus/selection across its
+// own innerHTML rebuild, closing that gap regardless of what triggered it.
 function render() {
+  const active = document.activeElement;
+  const preserveId = active && active.classList.contains('tax-name-input') && editorEl.contains(active)
+    ? active.closest('[data-id]')?.dataset.id
+    : null;
+  const preserveSelection = preserveId ? [active.selectionStart, active.selectionEnd] : null;
+
   editorEl.innerHTML = '';
   taxonomy.types.forEach((type) => editorEl.appendChild(renderType(type)));
   makeReorderable(editorEl, '.tax-type', (orderedIds) => {
     taxonomy.types = orderedIds.map((id) => taxonomy.types.find((t) => t.id === id));
     saveTaxonomy();
   });
+
+  if (preserveId) {
+    const input = editorEl.querySelector(`[data-id="${preserveId}"] .tax-name-input`);
+    if (input) {
+      input.focus();
+      input.setSelectionRange(preserveSelection[0], preserveSelection[1]);
+    }
+  }
 }
 
 function renderType(type) {

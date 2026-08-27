@@ -2136,19 +2136,19 @@ nav.bottomnav button .icon {
   margin-bottom: 10px;
 }
 
+/* Build 117 — full match with .panel-back-btn (font-family, size, weight,
+   padding all now identical, was 15px/700/Inter here): Build 116 only
+   swapped the typeface, but at 15px next to .panel-back-btn's 19px this
+   still read as visibly smaller than every other "‹ Zurück" in the app. */
 .flow-back-btn {
   border: none;
   background: none;
   color: var(--cellar);
-  font-weight: 700;
-  font-size: 15px;
-  padding: 6px 0;
-  cursor: pointer;
-  /* Build 116 — was 'Inter', sans-serif; every other "‹ Zurück" in the app
-     (.panel-back-btn) is set in the app's Fraunces display serif, so this
-     one (Einlagern/Entnehmen's flow topbar, every step) stood out as a
-     different typeface entirely rather than just a smaller size. */
   font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 19px;
+  padding: 4px 0;
+  cursor: pointer;
 }
 
 /* Checkout: grey out tiles with no stock underneath */

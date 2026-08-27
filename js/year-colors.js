@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=116';
+import { db } from './firebase-init.js?v=117';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const listEl = document.getElementById('year-color-list');
@@ -122,9 +122,31 @@ function renderRow(key) {
   return row;
 }
 
+// Build 117: preserve focus/selection across this innerHTML rebuild, same
+// as js/taxonomy.js's render() — saveYearColors()'s own erdkeller:refresh
+// dispatch (once its Firestore write completes) loops back into this
+// module's own listener a moment later and re-renders, which was tearing
+// down the input the add-button flow had just focused before the user
+// even blurred it (the actual cause of the keyboard flashing open then
+// closing — Build 116's requestAnimationFrame deferral alone didn't
+// address this later, async-triggered rebuild).
 function render() {
+  const active = document.activeElement;
+  const preserveKey = active && active.classList.contains('year-input') && listEl.contains(active)
+    ? active.closest('[data-key]')?.dataset.key
+    : null;
+  const preserveSelection = preserveKey ? [active.selectionStart, active.selectionEnd] : null;
+
   listEl.innerHTML = '';
   sortedKeys().forEach((key) => listEl.appendChild(renderRow(key)));
+
+  if (preserveKey) {
+    const input = listEl.querySelector(`[data-key="${preserveKey}"] .year-input`);
+    if (input) {
+      input.focus();
+      input.setSelectionRange(preserveSelection[0], preserveSelection[1]);
+    }
+  }
 }
 
 function renameYear(oldKey, newKey) {
