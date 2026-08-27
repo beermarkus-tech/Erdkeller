@@ -18,6 +18,10 @@
 
 const crisisReferenceEl = document.getElementById('crisis-reference');
 const crisisReferenceCloseBtn = document.getElementById('crisis-reference-close');
+const noteEditModalEl = document.getElementById('note-edit-modal');
+const noteEditBackBtn = document.getElementById('note-edit-back-btn');
+const noteViewModalEl = document.getElementById('note-view-modal');
+const noteViewCloseBtn = document.getElementById('note-view-close-btn');
 const checklistsEditToggleBtn = document.getElementById('checklists-edit-toggle');
 const checkinFlowEl = document.getElementById('stock-flow');
 const checkinBackBtn = document.getElementById('checkin-back-btn');
@@ -68,6 +72,16 @@ window.addEventListener('popstate', () => {
   armed = false;
   if (crisisReferenceEl.classList.contains('show')) {
     crisisReferenceCloseBtn.click();
+  } else if (noteEditModalEl.classList.contains('show')) {
+    // Notizen's edit screen (Build 103) autosaves on close (js/notes.js's
+    // closeEditScreen) rather than on a Speichern tap — routing the
+    // hardware/gesture back button through its own back button, same as
+    // every other nested state below, is what makes that flush actually
+    // run instead of the press silently falling through to "switch to
+    // Dashboard" and leaving the last edit stranded unsaved behind it.
+    noteEditBackBtn.click();
+  } else if (noteViewModalEl.classList.contains('show')) {
+    noteViewCloseBtn.click();
   } else if (checklistsEditNested()) {
     checklistsEditToggleBtn.click();
   } else if (settingsNested()) {

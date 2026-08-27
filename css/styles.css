@@ -1421,13 +1421,36 @@ nav.bottomnav button .icon {
   line-height: 1.5;
 }
 
-/* Edit screen (Build 103) — Google Keep-style: large borderless title,
-   the photo lives only behind the top bar's camera button (never shown
-   while editing), then the formatting toolbar, then a text box that fills
-   every bit of space down to the bottom of the screen (or the on-screen
-   keyboard, since this is a fixed-position full-height flex column —
-   see js/notes.js's autosave for why there's no separate Speichern
-   button here at all). */
+/* Edit screen (Build 103, Speichern button + status Build 104) — Google
+   Keep-style: large borderless title, the photo lives only behind the top
+   bar's camera button (never shown while editing), then the formatting
+   toolbar, then a text box that fills every bit of space down to the
+   bottom of the screen or the on-screen keyboard (see the --note-vh
+   custom property below — js/notes.js keeps it in sync with
+   window.visualViewport so the keyboard opening actually shrinks this
+   screen instead of covering the bottom of the text box). Autosaves as
+   you type (js/notes.js's persistNow) as well as explicitly via
+   Speichern — the button exists because a real device's timing/network
+   can't always be trusted to land the debounced save before a quick
+   close, not because the debounce itself doesn't work. */
+.note-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.note-topbar-save-btn {
+  border: 1px solid var(--cellar);
+  background: none;
+  color: var(--cellar);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+}
+
 .note-photo-btn-wrap {
   position: relative;
 }
@@ -1465,7 +1488,18 @@ nav.bottomnav button .icon {
   min-height: 0;
 }
 
+/* Steady-state feedback ("Gespeichert"/"Speichert…"/"Nicht gespeichert")
+   as well as a save error, all through the same line — js/notes.js swaps
+   both the text and this modifier class rather than needing a second
+   element for the error case. */
 .note-edit-status {
+  min-height: 16px;
+  font-size: 12px;
+  color: #6b6a5f;
+  margin: 2px 0 8px;
+}
+
+.note-edit-status.error {
   color: var(--rust);
 }
 
@@ -1475,7 +1509,13 @@ nav.bottomnav button .icon {
 
 #note-view-modal .note-screen-sheet,
 #note-edit-modal .note-screen-sheet {
-  height: 100%;
+  /* var(--note-vh) is set from window.visualViewport.height in
+     js/notes.js — plain 100%/100vh here would size against the layout
+     viewport, which on mobile does NOT shrink when the on-screen keyboard
+     opens, so the bottom of the text box would sit behind the keyboard
+     instead of just above it. 100dvh is the fallback for the instant
+     before that JS runs (or if visualViewport isn't available at all). */
+  height: var(--note-vh, 100dvh);
   border-radius: 0;
   overflow-y: auto;
 }

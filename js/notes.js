@@ -1,11 +1,12 @@
 // Notizen (SPEC.md Section 9, Step 13) — freeform rich-text + one-photo
 // notes, card grid with the photo as hero image, tap for a full-screen (on
 // tablet: large dialog) read-only view screen, admin-only Google-Keep-style
-// edit screen with instant autosave (no separate Speichern step — see
-// persistNow below) reached from the card's own pencil icon or the view
-// screen's edit button. Deleting a note only ever happens from the card's
-// trash icon (Build 103) — neither the view nor the edit screen has a
-// delete control of its own.
+// edit screen reached from the card's own pencil icon or the view screen's
+// edit button. Every edit autosaves (persistNow below) and there's also an
+// explicit Speichern button (Build 104) for a guaranteed, visible save.
+// Deleting a note only ever happens from the card's trash icon (Build
+// 103) — neither the view nor the edit screen has a delete control of
+// its own.
 //
 // The photo is stored compressed/resized directly on the note document as
 // a base64 JPEG data URI, not in Firebase Storage — the project stays on
@@ -16,7 +17,7 @@
 // note with more than one photo just shows photos[0] as its hero until
 // next edited, same as everywhere else in this app that reads a narrowed
 // field defensively instead of needing a migration.
-import { db } from './firebase-init.js?v=103';
+import { db } from './firebase-init.js?v=104';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -27,8 +28,14 @@ const JPEG_QUALITY = 0.6;
 // body text and Firestore's own per-document overhead.
 const MAX_TOTAL_PHOTO_CHARS = 700000;
 // Autosave debounce — long enough that a normal typing burst only writes
-// once at the end of it, short enough that "instant" still feels true.
-const SAVE_DEBOUNCE_MS = 700;
+// once at the end of it, short enough that a save has usually already
+// landed by the time an admin reaches for the back button (Build 104:
+// dropped from 700ms after a real device lost the last few typed
+// characters closing right after typing — the explicit Speichern button
+// below and the flush-on-close in closeEditScreen are the actual
+// guarantee, this is just about not leaning on that guarantee any harder
+// than necessary).
+const SAVE_DEBOUNCE_MS = 300;
 
 const addNoteBtn = document.getElementById('add-note-btn');
 const searchInput = document.getElementById('notes-search-input');
@@ -45,6 +52,7 @@ const viewContentEl = document.getElementById('note-view-content');
 
 const editModal = document.getElementById('note-edit-modal');
 const editBackBtn = document.getElementById('note-edit-back-btn');
+const editSaveBtn = document.getElementById('note-edit-save-btn');
 const editPhotoBtn = document.getElementById('note-edit-photo-btn');
 const editPhotoRemoveBadge = document.getElementById('note-edit-photo-remove-btn');
 const photoInput = document.getElementById('note-edit-photo-input');
@@ -385,11 +393,33 @@ viewEditBtn.addEventListener('click', () => {
   openEditScreen(note);
 });
 
-// --- Edit screen (Google Keep-style, instant autosave) ----------------------
+// --- Edit screen (Google Keep-style, autosave + explicit Speichern) --------
+// Autosave alone (Build 103) turned out not to be trustworthy enough on a
+// real device — a save still in flight when the admin closes right after
+// typing could lose the last few characters. Build 104 keeps the autosave
+// (shortened debounce, see SAVE_DEBOUNCE_MS) as the casual-navigation
+// convenience, but the actual guarantee is now the explicit Speichern
+// button plus a status line that always shows what state the note is in,
+// so there's never ambiguity about whether the last edit is safe.
 
-function setEditStatus(msg) {
+function setEditStatus(msg, isError) {
   editStatusEl.textContent = msg || '';
-  editStatusEl.classList.toggle('hidden', !msg);
+  editStatusEl.classList.toggle('error', Boolean(isError));
+}
+
+// Keeps the edit screen's real height in sync with the visible viewport —
+// window.visualViewport.height shrinks when the on-screen keyboard opens,
+// unlike the plain layout viewport a position:fixed;inset:0 element sizes
+// against by default (see --note-vh in css/styles.css). Without this the
+// text box's bottom edge sits behind the keyboard instead of just above
+// it, since the sheet never actually got shorter to begin with.
+function updateViewportHeight() {
+  if (!window.visualViewport) return;
+  document.documentElement.style.setProperty('--note-vh', `${window.visualViewport.height}px`);
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', updateViewportHeight);
+  updateViewportHeight();
 }
 
 function openEditScreen(note) {
@@ -403,7 +433,8 @@ function openEditScreen(note) {
   editBodyInput.innerHTML = note ? bodyToHtml(note.body || '') : '';
   pendingPhotos = note ? (note.photos || []).slice(0, 1) : [];
   updatePhotoRemoveBadge();
-  setEditStatus('');
+  setEditStatus('Gespeichert');
+  updateViewportHeight();
   editModal.classList.add('show');
   if (!note) editTitleInput.focus();
 }
@@ -412,7 +443,8 @@ async function closeEditScreen() {
   const changed = await persistNow();
   // A failed flush leaves dirty=true (see persistNow's catch) — keep the
   // editor open with the error visible instead of closing over an unsaved
-  // change and losing it silently; tapping back again retries the save.
+  // change and losing it silently; tapping back (or Speichern) again
+  // retries the save.
   if (dirty) return;
   editModal.classList.remove('show');
   editingNoteId = null;
@@ -426,6 +458,7 @@ async function closeEditScreen() {
 }
 
 editBackBtn.addEventListener('click', () => closeEditScreen());
+editSaveBtn.addEventListener('click', () => persistNow());
 editModal.addEventListener('click', (e) => {
   if (e.target === editModal) closeEditScreen();
 });
@@ -435,21 +468,24 @@ editBodyInput.addEventListener('input', scheduleSave);
 
 function scheduleSave() {
   dirty = true;
+  setEditStatus('Nicht gespeichert');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(persistNow, SAVE_DEBOUNCE_MS);
 }
 
-// The core of "saving is instant during editing" (Build 103) — every edit
-// (title/body keystroke debounced, photo add/remove and toolbar clicks
-// immediate) runs through here instead of a Speichern button. A note with
-// no content at all is never actually created (a fresh "+ Notiz" the admin
-// backs out of without typing anything leaves nothing behind); a note
-// that's edited down to fully empty gets deleted the same way Google Keep
-// does it, rather than leaving a blank card in the grid.
+// The actual save path — reached from the debounced autosave, the
+// explicit Speichern button, and closeEditScreen's flush-on-close, all
+// the same call so there's exactly one place that decides what "saved"
+// means. A note with no content at all is never actually created (a
+// fresh "+ Notiz" the admin backs out of without typing anything leaves
+// nothing behind); a note that's edited down to fully empty gets deleted
+// the same way Google Keep does it, rather than leaving a blank card in
+// the grid.
 async function persistNow() {
   clearTimeout(saveTimer);
   if (!dirty || !loadOk) return false;
   dirty = false;
+  setEditStatus('Speichert…');
   const data = {
     title: editTitleInput.value.trim(),
     body: editBodyInput.textContent.trim() ? sanitizeBodyHtml(editBodyInput.innerHTML.trim()) : '',
@@ -459,11 +495,15 @@ async function persistNow() {
   const nowIso = new Date().toISOString();
   try {
     if (!hasContent) {
-      if (!editingNoteId) return false;
+      if (!editingNoteId) {
+        setEditStatus('Gespeichert');
+        return false;
+      }
       await deleteDoc(doc(db, 'notes', editingNoteId));
       notes = notes.filter((n) => n.id !== editingNoteId);
       editingNoteId = null;
       renderNotes();
+      setEditStatus('Gespeichert');
       return true;
     }
     if (!editingNoteId) {
@@ -475,13 +515,13 @@ async function persistNow() {
       const idx = notes.findIndex((n) => n.id === editingNoteId);
       if (idx >= 0) notes[idx] = { ...notes[idx], ...data, updatedAt: nowIso };
     }
-    setEditStatus('');
+    setEditStatus('Gespeichert');
     renderNotes();
     return true;
   } catch (err) {
     console.error(err);
-    setEditStatus('Speichern fehlgeschlagen: ' + err.message);
-    dirty = true; // retried on the next keystroke/close instead of silently dropping the change
+    setEditStatus('Speichern fehlgeschlagen: ' + err.message, true);
+    dirty = true; // retried on the next keystroke/Speichern tap/close instead of silently dropping the change
     return false;
   }
 }
