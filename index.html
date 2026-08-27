@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=114">
-<link rel="icon" href="icons/icon-192.png?v=114">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=114">
+<link rel="manifest" href="manifest.json?v=115">
+<link rel="icon" href="icons/icon-192.png?v=115">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=115">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=114">
+<link rel="stylesheet" href="css/styles.css?v=115">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 114</div>
+<div id="build-tag" class="build-tag">Build 115</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -505,7 +505,7 @@
       <div id="settings-main">
         <div class="settings-card" data-target="data">
           <span class="sym">🗂️</span>
-          <div class="sc-text"><div class="sc-title">Daten</div><div class="sc-sub">Kategorien, Lagerorte, Farben</div></div>
+          <div class="sc-text"><div class="sc-title">Einrichten</div><div class="sc-sub">Kategorien, Lagerorte, Farben</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="stocktable">
@@ -563,7 +563,7 @@
             <button class="select-mode-btn" id="collapse-all-btn" type="button">Alle einklappen</button>
           </div>
           <div id="taxonomy-editor"></div>
-          <button class="add-row-btn" id="add-type-btn">+ Neuer Typ</button>
+          <button type="button" class="fab" id="add-type-btn" title="Neuer Typ">+</button>
           <p id="taxonomy-status" class="taxonomy-status"></p>
         </div>
 
@@ -585,11 +585,12 @@
           <div class="panel-header-row">
             <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
             <div class="panel-header-actions">
-              <button class="select-mode-btn" id="table-add-btn" type="button">+ Hinzufügen</button>
               <button class="select-mode-btn" id="table-select-mode-btn" type="button">Auswählen</button>
             </div>
           </div>
         </div>
+
+        <button type="button" class="fab" id="table-add-btn" title="Hinzufügen">+</button>
 
         <div class="stocktable-layout">
           <div class="stocktable-list-col">
@@ -709,6 +710,9 @@
         <div class="sticky-panel-header">
           <div class="panel-header-row">
             <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
+            <div class="panel-header-actions">
+              <button class="select-mode-btn danger-btn" id="log-clear-btn" type="button">Verlauf löschen</button>
+            </div>
           </div>
         </div>
         <div id="admin-log-list"></div>
@@ -951,13 +955,13 @@
             </button>
             <div class="targets-section-body" id="targets-products-body">
               <div id="product-targets-list"></div>
-              <button class="add-row-btn" id="add-product-target-btn">+ Produktziel hinzufügen</button>
             </div>
           </div>
+          <button type="button" class="fab" id="add-product-target-btn" title="Produktziel hinzufügen">+</button>
         </div>
 
         <div class="ziele-tab hidden" data-ziele-tab-panel="nonfood">
-          <button class="add-row-btn" id="add-product-target-nonfood-btn">+ Neues Produktziel hinzufügen</button>
+          <button type="button" class="fab" id="add-product-target-nonfood-btn" title="Neues Produktziel hinzufügen">+</button>
           <div id="product-targets-list-nonfood"></div>
         </div>
 
@@ -1135,28 +1139,28 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=114"></script>
-<script type="module" src="js/auth.js?v=114"></script>
-<script type="module" src="js/app-shell.js?v=114"></script>
-<script type="module" src="js/account-menu.js?v=114"></script>
-<script type="module" src="js/refresh-button.js?v=114"></script>
-<script type="module" src="js/settings-nav.js?v=114"></script>
-<script type="module" src="js/data-tabs.js?v=114"></script>
-<script type="module" src="js/taxonomy.js?v=114"></script>
-<script type="module" src="js/storage-locations.js?v=114"></script>
-<script type="module" src="js/year-colors.js?v=114"></script>
-<script type="module" src="js/stock-checkin.js?v=114"></script>
-<script type="module" src="js/stock-checkout.js?v=114"></script>
-<script type="module" src="js/stock-table.js?v=114"></script>
-<script type="module" src="js/dashboard.js?v=114"></script>
-<script type="module" src="js/targets.js?v=114"></script>
-<script type="module" src="js/planning.js?v=114"></script>
-<script type="module" src="js/notifications.js?v=114"></script>
-<script type="module" src="js/checklists.js?v=114"></script>
-<script type="module" src="js/info-nav.js?v=114"></script>
-<script type="module" src="js/contacts.js?v=114"></script>
-<script type="module" src="js/notes.js?v=114"></script>
-<script type="module" src="js/admin-log.js?v=114"></script>
-<script type="module" src="js/back-nav.js?v=114"></script>
+<script src="js/app.js?v=115"></script>
+<script type="module" src="js/auth.js?v=115"></script>
+<script type="module" src="js/app-shell.js?v=115"></script>
+<script type="module" src="js/account-menu.js?v=115"></script>
+<script type="module" src="js/refresh-button.js?v=115"></script>
+<script type="module" src="js/settings-nav.js?v=115"></script>
+<script type="module" src="js/data-tabs.js?v=115"></script>
+<script type="module" src="js/taxonomy.js?v=115"></script>
+<script type="module" src="js/storage-locations.js?v=115"></script>
+<script type="module" src="js/year-colors.js?v=115"></script>
+<script type="module" src="js/stock-checkin.js?v=115"></script>
+<script type="module" src="js/stock-checkout.js?v=115"></script>
+<script type="module" src="js/stock-table.js?v=115"></script>
+<script type="module" src="js/dashboard.js?v=115"></script>
+<script type="module" src="js/targets.js?v=115"></script>
+<script type="module" src="js/planning.js?v=115"></script>
+<script type="module" src="js/notifications.js?v=115"></script>
+<script type="module" src="js/checklists.js?v=115"></script>
+<script type="module" src="js/info-nav.js?v=115"></script>
+<script type="module" src="js/contacts.js?v=115"></script>
+<script type="module" src="js/notes.js?v=115"></script>
+<script type="module" src="js/admin-log.js?v=115"></script>
+<script type="module" src="js/back-nav.js?v=115"></script>
 </body>
 </html>

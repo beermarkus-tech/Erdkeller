@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=114';
+import { db } from './firebase-init.js?v=115';
 import {
-  collection, getDocs, query, orderBy, limit,
+  collection, getDocs, query, orderBy, limit, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 function formatLogRow(entry) {
@@ -44,5 +44,21 @@ export async function renderRecentLog(container, count = 15) {
     });
   } catch (err) {
     console.error(err);
+  }
+}
+
+// Settings → Verlauf's "Verlauf löschen" (Build 115) — wipes the whole
+// /stockLog collection, not just the slice renderRecentLog happens to be
+// showing. Firestore batches cap at 500 writes, so chunk defensively even
+// though a home household's log is very unlikely to ever reach that.
+const DELETE_BATCH_SIZE = 450;
+
+export async function deleteAllLogs() {
+  const snap = await getDocs(collection(db, 'stockLog'));
+  const docs = snap.docs;
+  for (let i = 0; i < docs.length; i += DELETE_BATCH_SIZE) {
+    const batch = writeBatch(db);
+    docs.slice(i, i + DELETE_BATCH_SIZE).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
   }
 }
