@@ -1321,6 +1321,13 @@ nav.bottomnav button .icon {
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  /* Grid items default to min-width:auto, meaning a card won't shrink
+     below its content's intrinsic width — a long unbroken word or URL in
+     the title/preview could force this whole card (and .notes-grid with
+     it) wider than the screen despite grid-template-columns:1fr. This,
+     plus overflow-wrap on the text elements below, is what actually
+     bounds it to the column. */
+  min-width: 0;
 }
 
 .notes-grid.list-mode .note-card {
@@ -1383,12 +1390,14 @@ nav.bottomnav button .icon {
 .note-card-title {
   font-weight: 600;
   font-size: 15px;
+  overflow-wrap: break-word;
 }
 
 .note-card-preview {
   font-size: 12px;
   color: #6b6a5f;
   margin-top: 4px;
+  overflow-wrap: break-word;
 }
 
 .note-card-actions {
@@ -1429,6 +1438,12 @@ nav.bottomnav button .icon {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  /* .modal-overlay is a row-direction flex container — without this a
+     flex item defaults to min-width:auto, so a long unbroken word/URL in
+     the title or body could still force this sheet (and the viewport
+     with it) wider than intended despite width:100%/a fixed tablet
+     width. Same root cause as .note-card's own min-width:0 above. */
+  min-width: 0;
 }
 
 /* .modal-sheet (defined later in this file, "Date picker modal" section)
@@ -1472,6 +1487,7 @@ nav.bottomnav button .icon {
   font-size: 22px;
   margin: 4px 0 12px;
   text-align: left;
+  overflow-wrap: break-word;
 }
 
 /* No overflow:hidden here (Build 106) — same touch-scroll-blocked-on-
@@ -1590,6 +1606,13 @@ nav.bottomnav button .icon {
    start at h2 — h1 is implicitly this note's own title, shown separately
    above (the view screen's title / card title), not part of the body
    content. */
+/* overflow-wrap so a long unbroken word/URL wraps instead of forcing the
+   editor/view screen wider than the viewport (same family of overflow
+   bug as .note-card's min-width:0 above, different mechanism). */
+.note-richtext {
+  overflow-wrap: break-word;
+}
+
 .note-richtext h2, .note-richtext h3 {
   font-family: 'Fraunces', serif;
   font-weight: 600;
