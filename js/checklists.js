@@ -36,7 +36,7 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=101';
+import { db } from './firebase-init.js?v=102';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------

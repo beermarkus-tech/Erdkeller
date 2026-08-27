@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=101">
-<link rel="icon" href="icons/icon-192.png?v=101">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=101">
+<link rel="manifest" href="manifest.json?v=102">
+<link rel="icon" href="icons/icon-192.png?v=102">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=102">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=101">
+<link rel="stylesheet" href="css/styles.css?v=102">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 101</div>
+<div id="build-tag" class="build-tag">Build 102</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -387,8 +387,9 @@
       </div>
 
       <div class="info-tab hidden" data-info-tab-panel="notes">
+        <div class="search-bar"><span>🔍</span><input placeholder="Notizen durchsuchen…" id="notes-search-input"></div>
         <button type="button" class="add-row-btn admin-only hidden" id="add-note-btn">+ Notiz</button>
-        <div class="product-list" id="notes-list"></div>
+        <div class="notes-grid" id="notes-list"></div>
         <p id="notes-status" class="taxonomy-status"></p>
       </div>
 
@@ -458,12 +459,13 @@
     </div>
 
     <div class="modal-overlay" id="note-detail-modal">
-      <div class="modal-sheet modal-body-padded">
+      <div class="modal-sheet modal-body-padded note-detail-sheet">
+        <button type="button" class="note-detail-close-btn" id="note-detail-close-btn" title="Schließen">✕</button>
         <div class="modal-title" id="note-detail-title">Notiz</div>
 
         <div id="note-detail-view">
-          <p class="note-detail-body hidden" id="note-detail-body"></p>
-          <div class="note-photo-grid" id="note-detail-photos"></div>
+          <div class="note-detail-hero hidden" id="note-detail-hero"><img id="note-detail-hero-img" alt=""></div>
+          <div class="note-detail-body note-richtext hidden" id="note-detail-body"></div>
         </div>
 
         <div id="note-edit-form" class="hidden">
@@ -472,15 +474,24 @@
             <input type="text" id="note-edit-title">
           </div>
           <div class="form-group">
-            <label>Text</label>
-            <textarea id="note-edit-body" rows="6"></textarea>
-          </div>
-          <div class="form-group">
-            <label>Fotos</label>
-            <div class="note-photo-grid" id="note-edit-photo-grid"></div>
+            <label>Foto</label>
+            <div class="note-photo-slot" id="note-edit-photo-slot"></div>
             <input type="file" accept="image/*" id="note-edit-photo-input" class="hidden">
             <button type="button" class="add-row-btn small" id="note-add-photo-btn">+ Foto hinzufügen</button>
-            <p class="settings-note">Fotos werden verkleinert und komprimiert gespeichert (max. 3 pro Notiz).</p>
+            <p class="settings-note">Ein Foto pro Notiz, wird automatisch verkleinert.</p>
+          </div>
+          <div class="form-group">
+            <label>Text</label>
+            <div class="richtext-toolbar" id="note-edit-toolbar">
+              <button type="button" data-cmd="formatBlock" data-value="H2" title="Überschrift">H1</button>
+              <button type="button" data-cmd="formatBlock" data-value="H3" title="Unterüberschrift">H2</button>
+              <button type="button" data-cmd="bold" title="Fett"><b>F</b></button>
+              <button type="button" data-cmd="italic" title="Kursiv"><i>K</i></button>
+              <button type="button" data-cmd="underline" title="Unterstrichen"><u>U</u></button>
+              <button type="button" data-cmd="insertUnorderedList" title="Aufzählung">•</button>
+              <button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste">1.</button>
+            </div>
+            <div class="richtext-editor note-richtext" id="note-edit-body" contenteditable="true"></div>
           </div>
         </div>
 
@@ -1128,28 +1139,28 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=101"></script>
-<script type="module" src="js/auth.js?v=101"></script>
-<script type="module" src="js/app-shell.js?v=101"></script>
-<script type="module" src="js/account-menu.js?v=101"></script>
-<script type="module" src="js/refresh-button.js?v=101"></script>
-<script type="module" src="js/settings-nav.js?v=101"></script>
-<script type="module" src="js/data-tabs.js?v=101"></script>
-<script type="module" src="js/taxonomy.js?v=101"></script>
-<script type="module" src="js/storage-locations.js?v=101"></script>
-<script type="module" src="js/year-colors.js?v=101"></script>
-<script type="module" src="js/stock-checkin.js?v=101"></script>
-<script type="module" src="js/stock-checkout.js?v=101"></script>
-<script type="module" src="js/stock-table.js?v=101"></script>
-<script type="module" src="js/dashboard.js?v=101"></script>
-<script type="module" src="js/targets.js?v=101"></script>
-<script type="module" src="js/planning.js?v=101"></script>
-<script type="module" src="js/notifications.js?v=101"></script>
-<script type="module" src="js/checklists.js?v=101"></script>
-<script type="module" src="js/info-nav.js?v=101"></script>
-<script type="module" src="js/contacts.js?v=101"></script>
-<script type="module" src="js/notes.js?v=101"></script>
-<script type="module" src="js/admin-log.js?v=101"></script>
-<script type="module" src="js/back-nav.js?v=101"></script>
+<script src="js/app.js?v=102"></script>
+<script type="module" src="js/auth.js?v=102"></script>
+<script type="module" src="js/app-shell.js?v=102"></script>
+<script type="module" src="js/account-menu.js?v=102"></script>
+<script type="module" src="js/refresh-button.js?v=102"></script>
+<script type="module" src="js/settings-nav.js?v=102"></script>
+<script type="module" src="js/data-tabs.js?v=102"></script>
+<script type="module" src="js/taxonomy.js?v=102"></script>
+<script type="module" src="js/storage-locations.js?v=102"></script>
+<script type="module" src="js/year-colors.js?v=102"></script>
+<script type="module" src="js/stock-checkin.js?v=102"></script>
+<script type="module" src="js/stock-checkout.js?v=102"></script>
+<script type="module" src="js/stock-table.js?v=102"></script>
+<script type="module" src="js/dashboard.js?v=102"></script>
+<script type="module" src="js/targets.js?v=102"></script>
+<script type="module" src="js/planning.js?v=102"></script>
+<script type="module" src="js/notifications.js?v=102"></script>
+<script type="module" src="js/checklists.js?v=102"></script>
+<script type="module" src="js/info-nav.js?v=102"></script>
+<script type="module" src="js/contacts.js?v=102"></script>
+<script type="module" src="js/notes.js?v=102"></script>
+<script type="module" src="js/admin-log.js?v=102"></script>
+<script type="module" src="js/back-nav.js?v=102"></script>
 </body>
 </html>

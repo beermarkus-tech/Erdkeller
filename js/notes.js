@@ -1,21 +1,22 @@
-// Notizen (SPEC.md Section 9, Step 13) — freeform text + photo notes, list
-// by title, tap for a read-only detail view, admin-only inline add/edit.
-// Same list/detail/modal shape as js/contacts.js; the one real addition is
-// photo handling.
+// Notizen (SPEC.md Section 9, Step 13) — freeform rich-text + one-photo
+// notes, card grid with the photo as hero image, tap for a read-only
+// detail modal, admin-only inline add/edit.
 //
-// Photos are stored compressed/resized directly on the note document as
-// base64 JPEG data URIs, not in Firebase Storage — the project stays on
+// The photo is stored compressed/resized directly on the note document as
+// a base64 JPEG data URI, not in Firebase Storage — the project stays on
 // the free Spark plan (SPEC.md Section 18), which has no free Storage
-// tier, and Storage was never provisioned. That caps things at a handful
-// of small photos per note (Firestore's 1MB document limit, plus base64's
-// ~33% size inflation) rather than a real photo gallery — fine for "how
-// to clean the water tank" reference shots, not meant for more.
-import { db } from './firebase-init.js?v=101';
+// tier, and Storage was never provisioned. Still stored as a `photos`
+// array of length 0 or 1 (Build 92 shape, capped to one item since Build
+// 102 — see the settings-note in the edit form) rather than renaming the
+// field to a single `photo`, so existing notes from before the one-photo
+// limit don't need a migration: an old note with more than one photo just
+// shows photos[0] as its hero until next edited, same as everywhere else
+// in this app that reads a narrowed field defensively.
+import { db } from './firebase-init.js?v=102';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
-const MAX_PHOTOS = 3;
 const MAX_PHOTO_DIMENSION = 1000;
 const JPEG_QUALITY = 0.6;
 // Rough budget, not Firestore's exact 1MB — leaves headroom for the title/
@@ -23,19 +24,23 @@ const JPEG_QUALITY = 0.6;
 const MAX_TOTAL_PHOTO_CHARS = 700000;
 
 const addNoteBtn = document.getElementById('add-note-btn');
+const searchInput = document.getElementById('notes-search-input');
 const notesListEl = document.getElementById('notes-list');
 const statusEl = document.getElementById('notes-status');
 
 const detailModal = document.getElementById('note-detail-modal');
+const detailCloseBtn = document.getElementById('note-detail-close-btn');
 const detailTitleEl = document.getElementById('note-detail-title');
 const detailViewEl = document.getElementById('note-detail-view');
+const detailHeroEl = document.getElementById('note-detail-hero');
+const detailHeroImgEl = document.getElementById('note-detail-hero-img');
 const detailBodyEl = document.getElementById('note-detail-body');
-const detailPhotosEl = document.getElementById('note-detail-photos');
 
 const editFormEl = document.getElementById('note-edit-form');
 const editTitleInput = document.getElementById('note-edit-title');
 const editBodyInput = document.getElementById('note-edit-body');
-const editPhotoGridEl = document.getElementById('note-edit-photo-grid');
+const editToolbarEl = document.getElementById('note-edit-toolbar');
+const editPhotoSlotEl = document.getElementById('note-edit-photo-slot');
 const photoInput = document.getElementById('note-edit-photo-input');
 const addPhotoBtn = document.getElementById('note-add-photo-btn');
 
@@ -51,6 +56,7 @@ let isAdmin = false;
 let editingNote = null;
 let isNewNote = false;
 let pendingPhotos = [];
+let searchText = '';
 
 // --- Data loading -----------------------------------------------------
 
@@ -100,35 +106,32 @@ function compressImage(file) {
   });
 }
 
-function renderPhotoGrid(container, photos, removable) {
-  container.innerHTML = '';
-  photos.forEach((src, idx) => {
-    const thumb = document.createElement('div');
-    thumb.className = 'note-photo-thumb';
-    const img = document.createElement('img');
-    img.src = src;
-    thumb.appendChild(img);
-    if (removable) {
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'note-photo-remove';
-      removeBtn.textContent = '✕';
-      removeBtn.title = 'Foto entfernen';
-      removeBtn.addEventListener('click', () => {
-        pendingPhotos.splice(idx, 1);
-        renderPhotoGrid(editPhotoGridEl, pendingPhotos, true);
-      });
-      thumb.appendChild(removeBtn);
-    }
-    container.appendChild(thumb);
+// One photo only (Build 102) — the add button hides itself once a photo is
+// set (see below) rather than a runtime "max reached" check, so this only
+// ever needs to render zero or one thumbnail.
+function renderPhotoSlot() {
+  editPhotoSlotEl.innerHTML = '';
+  addPhotoBtn.classList.toggle('hidden', pendingPhotos.length > 0);
+  if (pendingPhotos.length === 0) return;
+  const thumb = document.createElement('div');
+  thumb.className = 'note-photo-thumb';
+  const img = document.createElement('img');
+  img.src = pendingPhotos[0];
+  thumb.appendChild(img);
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'note-photo-remove';
+  removeBtn.textContent = '✕';
+  removeBtn.title = 'Foto entfernen';
+  removeBtn.addEventListener('click', () => {
+    pendingPhotos = [];
+    renderPhotoSlot();
   });
+  thumb.appendChild(removeBtn);
+  editPhotoSlotEl.appendChild(thumb);
 }
 
 addPhotoBtn.addEventListener('click', () => {
-  if (pendingPhotos.length >= MAX_PHOTOS) {
-    alert(`Maximal ${MAX_PHOTOS} Fotos pro Notiz.`);
-    return;
-  }
   photoInput.click();
 });
 
@@ -138,96 +141,202 @@ photoInput.addEventListener('change', async () => {
   if (!file) return;
   try {
     const dataUri = await compressImage(file);
-    pendingPhotos.push(dataUri);
-    renderPhotoGrid(editPhotoGridEl, pendingPhotos, true);
+    pendingPhotos = [dataUri];
+    renderPhotoSlot();
   } catch (err) {
     alert('Foto konnte nicht verarbeitet werden: ' + err.message);
     console.error(err);
   }
 });
 
-// --- Row rendering ---------------------------------------------------------
+// --- Rich text body (Build 102) ------------------------------------------
+// A plain contenteditable div + execCommand toolbar rather than a rich-text
+// library — this project has no bundler (CDN ESM imports only), and the
+// six formatting options requested (two heading levels, bold/italic/
+// underline, bullet/numbered lists) don't need more than that.
 
-function makeNoteRow(note) {
-  const row = document.createElement('div');
-  row.className = 'stock-product-row';
+editToolbarEl.querySelectorAll('button[data-cmd]').forEach((btn) => {
+  // mousedown + preventDefault (not click) so the editor never loses its
+  // text selection to the toolbar button gaining focus first — execCommand
+  // needs that selection to know what to format.
+  btn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    editBodyInput.focus();
+    document.execCommand(btn.dataset.cmd, false, btn.dataset.value || null);
+  });
+});
 
-  const textWrap = document.createElement('span');
-  textWrap.style.display = 'flex';
-  textWrap.style.flexDirection = 'column';
-  textWrap.style.flex = '1';
-  textWrap.style.minWidth = '0';
+// Body is rendered via innerHTML (below and in the card preview's plain-
+// text extraction), and a contenteditable editor doesn't sanitize what a
+// paste brings in — a clipboard paste from a random webpage could carry a
+// <script>/onerror=/href="javascript:..." payload that would then run for
+// every signed-in member who opens the note, not just the admin who wrote
+// it. Applied once at save time so what's actually stored (and everywhere
+// it's later rendered) is already clean: unknown tags are unwrapped
+// (their text kept, so a pasted heading/link still reads correctly, just
+// unstyled) and every attribute is stripped from what's kept — none of
+// the allowed tags need one, and that's what actually blocks an event-
+// handler or style-based payload from surviving.
+const ALLOWED_BODY_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'H2', 'H3', 'UL', 'OL', 'LI', 'BR', 'P', 'DIV', 'SPAN']);
 
-  const nameEl = document.createElement('span');
-  nameEl.className = 'pname';
-  nameEl.textContent = note.title || '(ohne Titel)';
-  textWrap.appendChild(nameEl);
+function sanitizeNode(node) {
+  Array.from(node.childNodes).forEach((child) => {
+    if (child.nodeType === Node.TEXT_NODE) return;
+    if (child.nodeType !== Node.ELEMENT_NODE) {
+      node.removeChild(child);
+      return;
+    }
+    if (!ALLOWED_BODY_TAGS.has(child.tagName)) {
+      while (child.firstChild) node.insertBefore(child.firstChild, child);
+      node.removeChild(child);
+      sanitizeNode(node);
+      return;
+    }
+    Array.from(child.attributes).forEach((attr) => child.removeAttribute(attr.name));
+    sanitizeNode(child);
+  });
+}
 
-  if (note.body) {
-    const previewEl = document.createElement('span');
-    previewEl.className = 'pmeta';
-    previewEl.textContent = note.body.length > 80 ? note.body.slice(0, 80) + '…' : note.body;
-    textWrap.appendChild(previewEl);
+function sanitizeBodyHtml(html) {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  sanitizeNode(container);
+  return container.innerHTML;
+}
+
+// Existing notes predate rich text and stored plain text with real
+// newlines — detected by the absence of any HTML tag at all. Escaped and
+// newline-to-<br> converted here so they still display with their line
+// breaks intact instead of running together, and so opening one for
+// editing doesn't nuke that formatting the moment it's re-saved.
+function isLegacyPlainText(value) {
+  return !/<[a-z][\s\S]*>/i.test(value || '');
+}
+
+function bodyToHtml(value) {
+  if (!value) return '';
+  if (!isLegacyPlainText(value)) return value;
+  const div = document.createElement('div');
+  div.textContent = value;
+  return div.innerHTML.replace(/\n/g, '<br>');
+}
+
+// Plain-text extraction for the card preview and for search — strips every
+// tag regardless of heading/list/bold markup, since neither cares about
+// formatting, just the words.
+function bodyPlainText(value) {
+  if (!value) return '';
+  const div = document.createElement('div');
+  div.innerHTML = bodyToHtml(value);
+  return (div.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+// --- Card rendering ---------------------------------------------------------
+
+function makeNoteCard(note) {
+  const card = document.createElement('div');
+  card.className = 'note-card';
+
+  const photo = (note.photos || [])[0];
+  if (photo) {
+    const hero = document.createElement('div');
+    hero.className = 'note-card-hero';
+    const img = document.createElement('img');
+    img.src = photo;
+    img.alt = '';
+    hero.appendChild(img);
+    card.appendChild(hero);
   }
 
-  row.appendChild(textWrap);
+  const body = document.createElement('div');
+  body.className = 'note-card-body';
 
-  if ((note.photos || []).length > 0) {
-    const photoBadge = document.createElement('span');
-    photoBadge.className = 'contact-call-btn';
-    photoBadge.textContent = '📷';
-    photoBadge.title = `${note.photos.length} Foto(s)`;
-    row.appendChild(photoBadge);
+  const titleEl = document.createElement('div');
+  titleEl.className = 'note-card-title';
+  titleEl.textContent = note.title || '(ohne Titel)';
+  body.appendChild(titleEl);
+
+  const preview = bodyPlainText(note.body);
+  if (preview) {
+    const previewEl = document.createElement('div');
+    previewEl.className = 'note-card-preview';
+    previewEl.textContent = preview;
+    body.appendChild(previewEl);
   }
+
+  card.appendChild(body);
 
   if (isAdmin) {
     const editIcon = document.createElement('button');
     editIcon.type = 'button';
-    editIcon.className = 'contact-edit-icon';
+    editIcon.className = 'note-card-edit-icon';
     editIcon.textContent = '✏️';
     editIcon.title = 'Bearbeiten';
     editIcon.addEventListener('click', (e) => {
       e.stopPropagation();
       openNote(note, { edit: true });
     });
-    row.appendChild(editIcon);
+    card.appendChild(editIcon);
   }
 
-  row.addEventListener('click', () => openNote(note));
-  return row;
+  card.addEventListener('click', () => openNote(note));
+  return card;
+}
+
+function matchesSearch(note, q) {
+  if (!q) return true;
+  if ((note.title || '').toLowerCase().includes(q)) return true;
+  return bodyPlainText(note.body).toLowerCase().includes(q);
 }
 
 function renderNotes() {
-  const sorted = [...notes].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'de'));
+  const q = searchText.trim().toLowerCase();
+  const sorted = notes
+    .filter((n) => matchesSearch(n, q))
+    .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'de'));
   notesListEl.innerHTML = '';
   if (sorted.length === 0) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = 'Noch keine Notizen.';
+    p.textContent = notes.length === 0 ? 'Noch keine Notizen.' : 'Keine Treffer.';
     notesListEl.appendChild(p);
   } else {
-    sorted.forEach((n) => notesListEl.appendChild(makeNoteRow(n)));
+    sorted.forEach((n) => notesListEl.appendChild(makeNoteCard(n)));
   }
 }
+
+searchInput.addEventListener('input', () => {
+  searchText = searchInput.value;
+  renderNotes();
+});
 
 // --- Detail / edit modal ---------------------------------------------------
 
 function populateDetailView(note) {
   detailTitleEl.textContent = note.title || '(ohne Titel)';
-  if (note.body) {
-    detailBodyEl.textContent = note.body;
+  const photo = (note.photos || [])[0];
+  if (photo) {
+    detailHeroImgEl.src = photo;
+    detailHeroEl.classList.remove('hidden');
+  } else {
+    detailHeroImgEl.src = '';
+    detailHeroEl.classList.add('hidden');
+  }
+  const html = bodyToHtml(note.body);
+  if (html) {
+    detailBodyEl.innerHTML = html;
     detailBodyEl.classList.remove('hidden');
   } else {
+    detailBodyEl.innerHTML = '';
     detailBodyEl.classList.add('hidden');
   }
-  renderPhotoGrid(detailPhotosEl, note.photos || [], false);
 }
 
 function populateEditForm(note) {
   editTitleInput.value = note.title || '';
-  editBodyInput.value = note.body || '';
-  pendingPhotos = [...(note.photos || [])];
-  renderPhotoGrid(editPhotoGridEl, pendingPhotos, true);
+  editBodyInput.innerHTML = bodyToHtml(note.body || '');
+  pendingPhotos = (note.photos || []).slice(0, 1);
+  renderPhotoSlot();
 }
 
 function showViewMode() {
@@ -277,6 +386,10 @@ editBtn.addEventListener('click', () => {
   showEditMode();
 });
 
+detailCloseBtn.addEventListener('click', () => {
+  detailModal.classList.remove('show');
+});
+
 detailModal.addEventListener('click', (e) => {
   if (e.target === detailModal) detailModal.classList.remove('show');
 });
@@ -293,13 +406,17 @@ saveBtn.addEventListener('click', async () => {
   }
   const totalPhotoChars = pendingPhotos.reduce((sum, p) => sum + p.length, 0);
   if (totalPhotoChars > MAX_TOTAL_PHOTO_CHARS) {
-    alert('Die Fotos sind zusammen zu groß. Bitte ein Foto entfernen.');
+    alert('Das Foto ist zu groß. Bitte ein anderes wählen.');
     return;
   }
+  // An emptied editor can leave stray markup (e.g. "<br>") behind rather
+  // than a clean empty string — textContent is what actually decides
+  // whether there's real content to save.
+  const bodyHtml = editBodyInput.textContent.trim() ? sanitizeBodyHtml(editBodyInput.innerHTML.trim()) : '';
   const nowIso = new Date().toISOString();
   const data = {
     title,
-    body: editBodyInput.value.trim(),
+    body: bodyHtml,
     photos: pendingPhotos,
     updatedAt: nowIso,
   };

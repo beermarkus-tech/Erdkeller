@@ -1273,19 +1273,14 @@ nav.bottomnav button .icon {
   margin-bottom: 18px;
 }
 
-/* Notizen (Build 92) — photos are stored compressed/resized directly on
-   the note document (no Firebase Storage on the free Spark plan, see
-   SPEC.md Section 9), so the grid only ever holds a handful of thumbnails,
-   never a real gallery. Shared between the read-only detail view and the
-   edit form; .note-photo-remove only ever renders in the edit form. */
-.note-photo-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.note-photo-grid:empty {
+/* Notizen (Build 92, card view + rich text Build 102) — the one photo a
+   note can carry is stored compressed/resized directly on the note
+   document (no Firebase Storage on the free Spark plan, see SPEC.md
+   Section 9). .note-photo-thumb/.note-photo-remove are shared between the
+   edit form's single photo slot and (before Build 102) the old detail
+   grid — kept as-is since the shape is identical, just one instead of a
+   grid of up to three. */
+.note-photo-slot:empty {
   display: none;
 }
 
@@ -1297,6 +1292,7 @@ nav.bottomnav button .icon {
   overflow: hidden;
   border: 1px solid var(--stone-dark);
   flex-shrink: 0;
+  margin-top: 8px;
 }
 
 .note-photo-thumb img {
@@ -1322,10 +1318,217 @@ nav.bottomnav button .icon {
 }
 
 .note-detail-body {
-  white-space: pre-wrap;
   font-size: 14px;
   line-height: 1.5;
   margin: 0 0 4px;
+}
+
+/* Card grid (Build 102): one column on mobile, four across on tablet (see
+   the min-width:900px override below) — hero photo on top when the note
+   has one, title + a plain-text preview of the (possibly rich) body
+   underneath. */
+.notes-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.note-card {
+  position: relative;
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.note-card-hero {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+
+.note-card-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.note-card-body {
+  padding: 12px 14px;
+}
+
+.note-card-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.note-card-preview {
+  font-size: 12px;
+  color: #6b6a5f;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.note-card-edit-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Detail modal (Build 102): full-screen on mobile instead of the generic
+   bottom sheet every other .modal-overlay uses, and a large centered
+   dialog on tablet (see the min-width:900px override below) — both scoped
+   to this modal's own id so every other modal keeps its default look. */
+.note-detail-sheet {
+  position: relative;
+  padding-top: 44px;
+}
+
+.note-detail-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--stone-dark);
+  background: white;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.note-detail-hero {
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.note-detail-hero img {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  display: block;
+}
+
+#note-detail-modal {
+  align-items: stretch;
+}
+
+#note-detail-modal .note-detail-sheet {
+  height: 100%;
+  border-radius: 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* Rich text (Build 102): a plain contenteditable div + toolbar using
+   execCommand rather than pulling in a rich-text library — enough for the
+   handful of formatting options requested (headers, lists, bold/italic/
+   underline) without a bundler in this project (see js/notes.js). Shared
+   between the editor itself and the read-only detail view so saved
+   headings/lists look identical in both places; the card preview is a
+   plain-text summary instead, so it doesn't need these rules. Headings
+   start at h2 — h1 is implicitly this note's own title, shown separately
+   above (the modal title / card title), not part of the body content. */
+.note-richtext h2, .note-richtext h3 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+.note-richtext h2 {
+  font-size: 19px;
+}
+
+.note-richtext h3 {
+  font-size: 16px;
+}
+
+.note-richtext ul, .note-richtext ol {
+  margin: 6px 0;
+  padding-left: 22px;
+}
+
+.note-richtext p {
+  margin: 0 0 8px;
+}
+
+.note-richtext > *:first-child {
+  margin-top: 0;
+}
+
+.note-richtext > *:last-child {
+  margin-bottom: 0;
+}
+
+.richtext-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.richtext-toolbar button {
+  border: 1px solid var(--stone-dark);
+  background: white;
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-width: 34px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+}
+
+.richtext-editor {
+  width: 100%;
+  min-height: 140px;
+  padding: 13px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--stone-dark);
+  font-size: 15px;
+  font-family: 'Inter', sans-serif;
+  background: white;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.richtext-editor:focus {
+  outline: none;
+  border-color: var(--cellar);
+}
+
+@media (min-width: 900px) {
+  .notes-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  #note-detail-modal {
+    align-items: center;
+  }
+
+  #note-detail-modal .note-detail-sheet {
+    height: auto;
+    max-height: 85vh;
+    width: 640px;
+    max-width: 90vw;
+    border-radius: 20px;
+  }
 }
 
 .form-group {
@@ -1382,23 +1585,6 @@ nav.bottomnav button .icon {
    between whole form-groups, not between two controls sharing one. */
 #target-nonfood-unit-select {
   margin-bottom: 8px;
-}
-
-/* Notizen's Text field (Build 92) — the app's first multi-line field, for
-   freeform note bodies ("how to clean the water tank" can run to several
-   sentences). Same look as the type="text" rule above it, just taller and
-   vertically resizable instead of single-line. */
-.form-group textarea {
-  width: 100%;
-  padding: 13px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--stone-dark);
-  font-size: 15px;
-  font-family: 'Inter', sans-serif;
-  background: white;
-  resize: vertical;
-  min-height: 100px;
-  box-sizing: border-box;
 }
 
 .unit-toggle {
