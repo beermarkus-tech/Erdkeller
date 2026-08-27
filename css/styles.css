@@ -1626,6 +1626,14 @@ nav.bottomnav button .icon {
   align-items: stretch;
 }
 
+/* Editing view keeps the app's own beige page tint instead of .modal-
+   sheet's plain white (Build 109) — reads as "you're on a page", not a
+   dialog floating over one. #id + .class beats plain .modal-sheet's
+   background regardless of source order. */
+#note-edit-modal .modal-sheet {
+  background: var(--paper);
+}
+
 #note-view-modal .note-screen-sheet,
 #note-edit-modal .note-screen-sheet {
   /* var(--note-vh) is set from window.visualViewport.height in
