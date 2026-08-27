@@ -3055,6 +3055,7 @@ nav.bottomnav button .icon {
   gap: 10px;
   padding: 9px 0;
   border-top: 1px solid var(--stone-dark);
+  cursor: pointer;
 }
 .dash-shopping-row:first-of-type { border-top: none; }
 

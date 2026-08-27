@@ -22,11 +22,12 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=110';
+import { db } from './firebase-init.js?v=111';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=110';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=111';
+import { openAtSubcategory } from './stock-checkin.js?v=111';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -160,6 +161,20 @@ function waterGlobalLiters() {
 
 function hasWaterType() {
   return taxonomy.types.some((type) => typeClass(type) === 'water');
+}
+
+// The global Wasser shortfall isn't tied to any one subcategory the way a
+// Lebensmittel gap or a Produktziel is — it's a single global target. For
+// the shopping-list tap-through (openAtSubcategory below) this just needs
+// *a* reasonable landing spot rather than the "correct" one, so the first
+// category's auto-managed subcategory (js/taxonomy.js keeps exactly one
+// per Wasser category) is as good as any — the admin picks the actual
+// storage form (Tank/Flaschen/…) themselves from there anyway.
+function firstWaterSubcategoryId() {
+  const waterType = taxonomy.types.find((type) => typeClass(type) === 'water');
+  const firstCat = waterType && (waterType.categories || [])[0];
+  const firstSub = firstCat && (firstCat.subcategories || [])[0];
+  return firstSub ? firstSub.id : null;
 }
 
 function equalSplit(ids) {
@@ -379,7 +394,7 @@ function computeShoppingList(subStock, rows) {
     row.subs.forEach(({ sub, targetKg, currentKg }) => {
       if (targetKg != null && currentKg < targetKg) {
         items.push({
-          kind: 'sub', name: sub.name, group: row.cat.name, groupSym: row.cat.sym || '', need: targetKg - currentKg, unit: 'kg', kcalPerKg: row.kcalPerKg,
+          kind: 'sub', name: sub.name, group: row.cat.name, groupSym: row.cat.sym || '', need: targetKg - currentKg, unit: 'kg', kcalPerKg: row.kcalPerKg, subcategoryId: sub.id,
         });
       }
     });
@@ -394,7 +409,7 @@ function computeShoppingList(subStock, rows) {
     const current = productCurrentAmount(product);
     if (current < targetAmount) {
       items.push({
-        kind: 'product', name: product.name, group: 'Produktziele', groupSym: '', need: targetAmount - current, unit: target.unit,
+        kind: 'product', name: product.name, group: 'Produktziele', groupSym: '', need: targetAmount - current, unit: target.unit, subcategoryId: product.subcategoryId,
       });
     }
   });
@@ -403,7 +418,7 @@ function computeShoppingList(subStock, rows) {
   const waterCurrent = waterCurrentLiters(subStock);
   if (waterTarget != null && waterCurrent < waterTarget) {
     items.push({
-      kind: 'water', name: 'Wasser', group: 'Produktziele', groupSym: '', need: waterTarget - waterCurrent, unit: 'L',
+      kind: 'water', name: 'Wasser', group: 'Produktziele', groupSym: '', need: waterTarget - waterCurrent, unit: 'L', subcategoryId: firstWaterSubcategoryId(),
     });
   }
 
@@ -765,6 +780,7 @@ function renderShoppingList(items) {
           <span class="dash-shopping-row-name">${item.name}</span>
           <span class="dash-shopping-row-need">+${formatShoppingNeed(item)}</span>
         `;
+        row.addEventListener('click', () => openAtSubcategory(item.subcategoryId));
         col.appendChild(row);
       });
     });

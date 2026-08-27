@@ -1,6 +1,7 @@
-import { db } from './firebase-init.js?v=110';
-import { renderRecentLog } from './stock-log.js?v=110';
-import { renderResultLines } from './format-batch.js?v=110';
+import { db } from './firebase-init.js?v=111';
+import { renderRecentLog } from './stock-log.js?v=111';
+import { renderResultLines } from './format-batch.js?v=111';
+import { switchTabWithoutReset } from './app-shell.js?v=111';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -159,6 +160,14 @@ function currentStepName() {
 }
 
 function goBack() {
+  // A shopping-list tap-through (openAtSubcategory below) lands deep in
+  // the flow already, and "Zurück" from there is meant to go straight
+  // back to the Einkaufsliste, not walk back up through Subcategory/
+  // Category/Type first — see returnHome() for where that's decided.
+  if (launchedFromShoppingList) {
+    returnHome();
+    return;
+  }
   const current = currentStepName();
   if (!current || current === 'success') return;
   let prev = current === 'detail' ? (selection.isNewProduct ? 'new-product' : 'product') : PREV_STEP[current];
@@ -695,6 +704,11 @@ undoBtn.addEventListener('click', async () => {
 // Bestandsliste instead of this screen's own home once the flow ends,
 // however it ends (confirm-then-"zurück", or cancelling all the way out).
 let launchedFromStocktable = false;
+// Set only by openAtSubcategory (a tap-through from Übersicht's
+// Einkaufsliste, js/dashboard.js) — same idea, but for the shopping list;
+// see goBack() above for why this also short-circuits the normal
+// stepwise "Zurück" instead of only mattering once already at 'type'.
+let launchedFromShoppingList = false;
 
 function returnHome() {
   hideUndoToast();
@@ -704,6 +718,14 @@ function returnHome() {
     launchedFromStocktable = false;
     document.querySelector('.nav-btn[data-tab="settings"]').click();
     document.querySelector('.settings-card[data-target="stocktable"]').click();
+  } else if (launchedFromShoppingList) {
+    launchedFromShoppingList = false;
+    // Dashboard's own Einkaufsliste sub-tab is never reset by switching
+    // *to* Bestand (erdkeller:navreset only fires for the tab actually
+    // being switched to) — so it's still showing underneath, and
+    // switchTabWithoutReset (not a plain nav-icon .click()) just needs to
+    // reveal it again without re-triggering Dashboard's own reset.
+    switchTabWithoutReset('dashboard');
   }
 }
 
@@ -738,17 +760,42 @@ export function openAddFlow() {
   startCheckinBtn.click();
 }
 
+// Tap-through from Übersicht's Einkaufsliste (js/dashboard.js) — jumps
+// straight to the guided Einlagern flow's product step for the shopping-
+// list item's own subcategory (resolved from subcategoryIndex, same as
+// stock-table.js's openFilteredBySubcategory) instead of making the admin
+// drill down by hand. A subcategory-less item (the Wasser shortfall, which
+// isn't tied to one subcategory — see dashboard.js's
+// firstWaterSubcategoryId) falls back to the plain type-selection step.
+// Same tab-switch-then-set-flag ordering as openAddFlow above, for the
+// same reason.
+export function openAtSubcategory(subcategoryId) {
+  document.querySelector('.nav-btn[data-tab="stock"]').click();
+  launchedFromShoppingList = true;
+  const ctx = subcategoryId ? subcategoryIndex.get(subcategoryId) : null;
+  selection = {
+    type: ctx ? ctx.type : null, category: ctx ? ctx.category : null, subcategory: ctx ? ctx.subcategory : null,
+    product: null, isNewProduct: false, newProductUnit: 'kg',
+    qty: 1, details: '', content: '', bestBefore: '', storage: '',
+  };
+  stockHomeEl.classList.add('hidden');
+  stockFlowEl.classList.remove('hidden');
+  goToStep(ctx ? 'product' : 'type');
+}
+
 window.addEventListener('erdkeller:signedin', () => loadConfig());
 window.addEventListener('erdkeller:refresh', () => loadConfig());
 
 // Tapping the Bestand nav icon (even while already on it) always returns
 // to the two big buttons, regardless of how deep this flow was — and, if
-// the add-from-Bestandsliste flow was abandoned by switching tabs rather
-// than tapping its own back arrow, clears that stale flag so a later
-// *normal* Einlagern run doesn't misfire back into Admin.
+// a tap-through flow (from Bestandsliste's "+" or Übersicht's
+// Einkaufsliste) was abandoned by switching tabs rather than tapping its
+// own back arrow, clears both stale flags so a later *normal* Einlagern
+// run doesn't misfire back into Admin or Übersicht.
 window.addEventListener('erdkeller:navreset', (e) => {
   if (e.detail.tab !== 'stock') return;
   stockFlowEl.classList.add('hidden');
   stockHomeEl.classList.remove('hidden');
   launchedFromStocktable = false;
+  launchedFromShoppingList = false;
 });
