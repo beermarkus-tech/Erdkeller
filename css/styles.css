@@ -2144,7 +2144,11 @@ nav.bottomnav button .icon {
   font-size: 15px;
   padding: 6px 0;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
+  /* Build 116 — was 'Inter', sans-serif; every other "‹ Zurück" in the app
+     (.panel-back-btn) is set in the app's Fraunces display serif, so this
+     one (Einlagern/Entnehmen's flow topbar, every step) stood out as a
+     different typeface entirely rather than just a smaller size. */
+  font-family: 'Fraunces', serif;
 }
 
 /* Checkout: grey out tiles with no stock underneath */

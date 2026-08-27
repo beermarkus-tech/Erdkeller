@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=115';
+import { db } from './firebase-init.js?v=116';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -104,12 +104,19 @@ function escapeAttr(str) {
 // Auto-focus + select a freshly created node's name input (post-render, so
 // the element actually exists in the DOM) — lets you just type over the
 // default "Neuer Typ"/"Neue Kategorie"/… placeholder name immediately.
+// requestAnimationFrame (Build 116): focusing synchronously right after the
+// add button's own render() (a full innerHTML rebuild) made the on-screen
+// keyboard flash open then immediately close on a real Android device —
+// the layout was still settling from that reflow when focus() fired.
+// Deferring one frame lets it settle first.
 function focusNewName(id) {
-  const input = editorEl.querySelector(`[data-id="${id}"] .tax-name-input`);
-  if (input) {
-    input.focus();
-    input.select();
-  }
+  requestAnimationFrame(() => {
+    const input = editorEl.querySelector(`[data-id="${id}"] .tax-name-input`);
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  });
 }
 
 async function loadTaxonomy() {

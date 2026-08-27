@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=115';
+import { db } from './firebase-init.js?v=116';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const listEl = document.getElementById('storage-list');
@@ -78,12 +78,18 @@ addBtn.addEventListener('click', () => {
   locations.push('Neuer Lagerort');
   saveStorage();
   render();
-  const rows = listEl.querySelectorAll('.storage-row');
-  const lastInput = rows[rows.length - 1]?.querySelector('.tax-name-input');
-  if (lastInput) {
-    lastInput.focus();
-    lastInput.select();
-  }
+  // requestAnimationFrame (Build 116) — focusing synchronously right after
+  // render()'s innerHTML rebuild made the keyboard flash open then
+  // immediately close on a real Android device; deferring one frame lets
+  // the reflow settle first (same fix as Taxonomie/Jahresfarben).
+  requestAnimationFrame(() => {
+    const rows = listEl.querySelectorAll('.storage-row');
+    const lastInput = rows[rows.length - 1]?.querySelector('.tax-name-input');
+    if (lastInput) {
+      lastInput.focus();
+      lastInput.select();
+    }
+  });
 });
 
 window.addEventListener('erdkeller:signedin', () => loadStorage());
