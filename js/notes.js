@@ -1,15 +1,17 @@
 // Notizen (SPEC.md Section 9, Step 13) — freeform rich-text + one-photo
-// notes, card grid with the photo as hero image, tap (or double-tap the
-// view screen, admin-only, Build 105) for a full-screen (on tablet: large
-// dialog) read-only view screen, admin-only Google-Keep-style edit screen
-// reached from the card's own pencil icon or the view screen's edit
-// button/double-tap. Every edit autosaves (persistNow below) — a Build 104
-// Speichern button existed briefly as a trust backstop while chasing a
-// real save-timing bug, removed again in Build 105 once the actual bug
-// (js/back-nav.js, see its own comment) was fixed and autosave proved
-// reliable; the status line it came with stayed. Editing and duplicating
-// live on the card's own icons (Build 103/105) alongside delete — none of
-// that lives in either screen below.
+// notes, card grid (or a dense list — the "▦ Karten"/"☰ Liste" toggle,
+// Build 106) with the photo (or a faint placeholder — every card is the
+// same size either way, Build 106) as the hero image, tap (or double-tap
+// the view screen, admin-only, Build 105) for a full-screen (on tablet:
+// large dialog) read-only view screen, admin-only Google-Keep-style edit
+// screen reached from the card's own pencil icon or the view screen's
+// edit button/double-tap. Every edit autosaves (persistNow below) — a
+// Build 104 Speichern button existed briefly as a trust backstop while
+// chasing a real save-timing bug, removed again in Build 105 once the
+// actual bug (js/back-nav.js, see its own comment) was fixed and
+// autosave proved reliable; the status line it came with stayed. Editing
+// and duplicating live on the card's own icons (Build 103/105) alongside
+// delete — none of that lives in either screen below.
 //
 // The photo is stored compressed/resized directly on the note document as
 // a base64 JPEG data URI, not in Firebase Storage — the project stays on
@@ -20,7 +22,7 @@
 // note with more than one photo just shows photos[0] as its hero until
 // next edited, same as everywhere else in this app that reads a narrowed
 // field defensively instead of needing a migration.
-import { db } from './firebase-init.js?v=105';
+import { db } from './firebase-init.js?v=106';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -39,11 +41,15 @@ const MAX_TOTAL_PHOTO_CHARS = 700000;
 // didn't before Build 104, are the actual guarantee; this is just about
 // not leaning on that guarantee any harder than necessary).
 const SAVE_DEBOUNCE_MS = 300;
+// Card preview length — see the truncation comment in makeNoteCard below
+// for why this is plain JS slicing rather than a CSS line-clamp.
+const PREVIEW_MAX_CHARS = 100;
 
 const addNoteBtn = document.getElementById('add-note-btn');
 const searchInput = document.getElementById('notes-search-input');
 const notesListEl = document.getElementById('notes-list');
 const statusEl = document.getElementById('notes-status');
+const viewToggleEl = document.getElementById('notes-view-toggle');
 
 const viewModal = document.getElementById('note-view-modal');
 const viewCloseBtn = document.getElementById('note-view-close-btn');
@@ -68,6 +74,10 @@ let notes = [];
 let loadOk = false;
 let isAdmin = false;
 let searchText = '';
+// Not persisted across reloads (no localStorage anywhere in this app —
+// same convention as e.g. Übersicht's kg/kcal unit toggle) — always
+// starts back on 'cards'.
+let viewMode = 'cards';
 
 let viewingNote = null;
 
@@ -254,16 +264,24 @@ function makeNoteCard(note) {
   const card = document.createElement('div');
   card.className = 'note-card';
 
+  // Always rendered, photo or not (Build 106) — a faint placeholder icon
+  // instead of skipping the hero entirely, so every card comes out the
+  // same size regardless of whether it has a photo.
+  const hero = document.createElement('div');
+  hero.className = 'note-card-hero';
   const photo = (note.photos || [])[0];
   if (photo) {
-    const hero = document.createElement('div');
-    hero.className = 'note-card-hero';
     const img = document.createElement('img');
     img.src = photo;
     img.alt = '';
     hero.appendChild(img);
-    card.appendChild(hero);
+  } else {
+    const placeholder = document.createElement('span');
+    placeholder.className = 'note-card-hero-placeholder';
+    placeholder.textContent = '📷';
+    hero.appendChild(placeholder);
   }
+  card.appendChild(hero);
 
   const body = document.createElement('div');
   body.className = 'note-card-body';
@@ -273,11 +291,14 @@ function makeNoteCard(note) {
   titleEl.textContent = note.title || '(ohne Titel)';
   body.appendChild(titleEl);
 
+  // Truncated here in JS rather than via CSS -webkit-line-clamp, which
+  // needs overflow:hidden to work at all — see the .note-card comment in
+  // styles.css for why that's avoided on every touch target in this grid.
   const preview = bodyPlainText(note.body);
   if (preview) {
     const previewEl = document.createElement('div');
     previewEl.className = 'note-card-preview';
-    previewEl.textContent = preview;
+    previewEl.textContent = preview.length > PREVIEW_MAX_CHARS ? preview.slice(0, PREVIEW_MAX_CHARS) + '…' : preview;
     body.appendChild(previewEl);
   }
 
@@ -368,6 +389,7 @@ function matchesSearch(note, q) {
 }
 
 function renderNotes() {
+  notesListEl.classList.toggle('list-mode', viewMode === 'list');
   const q = searchText.trim().toLowerCase();
   const sorted = notes
     .filter((n) => matchesSearch(n, q))
@@ -386,6 +408,21 @@ function renderNotes() {
 searchInput.addEventListener('input', () => {
   searchText = searchInput.value;
   renderNotes();
+});
+
+// Same DOM either way (makeNoteCard) — .list-mode on #notes-list is what
+// actually reshapes card layout into a row layout (see styles.css), so
+// switching modes is just a class toggle + re-render, no separate
+// rendering path needed.
+viewToggleEl.querySelectorAll('button[data-view]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.view === viewMode) return;
+    viewMode = btn.dataset.view;
+    viewToggleEl.querySelectorAll('button[data-view]').forEach((b) => {
+      b.classList.toggle('active', b === btn);
+    });
+    renderNotes();
+  });
 });
 
 // --- View screen (read-only, admin-only edit button) -----------------------

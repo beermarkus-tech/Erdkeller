@@ -1278,17 +1278,39 @@ nav.bottomnav button .icon {
    compressed/resized directly on the note document (no Firebase Storage
    on the free Spark plan, see SPEC.md Section 9). */
 
-/* Card grid (Build 102): one column on mobile, four across on tablet (see
-   the min-width:900px override below) — hero photo on top when the note
-   has one, title + a plain-text preview of the (possibly rich) body
-   underneath. Tapping the card body opens the read-only view screen;
-   admins get an edit and a delete icon on the card itself (Build 103 —
-   deleting a note only ever happens from here, there's no delete control
-   left in either screen below). */
+/* Card grid (Build 102, list-view toggle + scroll fixes Build 106): one
+   column on mobile, four across on tablet (see the min-width:900px
+   override below) — hero photo on top when the note has one, title + a
+   plain-text preview of the (possibly rich) body underneath. Tapping the
+   card body opens the read-only view screen; admins get edit/duplicate/
+   delete icons on the card itself (Build 103/105 — deleting a note only
+   ever happens from here, there's no delete control left in either
+   screen below).
+   Neither .note-card nor .note-card-hero carries overflow:hidden — this
+   codebase already hit the exact same Android Chrome bug on .tax-type/
+   .dash-cat-card (see their own comments): overflow:hidden on a large
+   tap target inside a scrolling ancestor blocks the touch-scroll gesture
+   from reaching that ancestor, leaving only the thin gaps between cards
+   swipeable. The hero's rounded corners come from border-radius on the
+   <img>/placeholder itself instead, which clips its own painted content
+   without needing overflow:hidden on any wrapper. Same reasoning is why
+   .note-card-preview below truncates its text in JS (bodyPlainText in
+   js/notes.js) rather than via -webkit-line-clamp, which requires
+   overflow:hidden to work at all. */
 .notes-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
+}
+
+/* List mode (Build 106) — collapses the hero into a small thumbnail on
+   the left instead of a full-width photo on top, single column
+   regardless of screen size (a dense scannable list doesn't want tablet's
+   4-across treatment). The .list-mode class lives on .notes-grid; every
+   rule below it just reshapes the same .note-card/-hero/-body/-actions
+   markup card mode already uses, no separate list-specific DOM. */
+.notes-grid.list-mode {
+  grid-template-columns: 1fr;
 }
 
 .note-card {
@@ -1296,16 +1318,32 @@ nav.bottomnav button .icon {
   background: white;
   border: 1px solid var(--stone-dark);
   border-radius: 16px;
-  overflow: hidden;
   cursor: pointer;
   display: flex;
   flex-direction: column;
 }
 
+.notes-grid.list-mode .note-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+}
+
 .note-card-hero {
   width: 100%;
   aspect-ratio: 16 / 9;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--stone-dark);
+}
+
+.notes-grid.list-mode .note-card-hero {
+  width: 56px;
+  height: 56px;
+  aspect-ratio: unset;
+  flex-shrink: 0;
 }
 
 .note-card-hero img {
@@ -1313,10 +1351,33 @@ nav.bottomnav button .icon {
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: 16px 16px 0 0;
+}
+
+.notes-grid.list-mode .note-card-hero img {
+  border-radius: 10px;
+}
+
+/* No photo — a faint placeholder instead of just skipping the hero
+   entirely, so every card is the same size whether or not it has a
+   photo (Build 106). */
+.note-card-hero-placeholder {
+  font-size: 32px;
+  opacity: 0.35;
+}
+
+.notes-grid.list-mode .note-card-hero-placeholder {
+  font-size: 20px;
 }
 
 .note-card-body {
   padding: 12px 14px;
+}
+
+.notes-grid.list-mode .note-card-body {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
 }
 
 .note-card-title {
@@ -1328,10 +1389,6 @@ nav.bottomnav button .icon {
   font-size: 12px;
   color: #6b6a5f;
   margin-top: 4px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .note-card-actions {
@@ -1342,6 +1399,11 @@ nav.bottomnav button .icon {
   gap: 6px;
 }
 
+.notes-grid.list-mode .note-card-actions {
+  position: static;
+  flex-shrink: 0;
+}
+
 .note-card-icon-btn {
   width: 30px;
   height: 30px;
@@ -1350,6 +1412,10 @@ nav.bottomnav button .icon {
   background: rgba(255, 255, 255, 0.9);
   font-size: 14px;
   cursor: pointer;
+}
+
+.notes-grid.list-mode .note-card-icon-btn {
+  background: none;
 }
 
 /* View/edit screens (Build 103) — full-screen on mobile instead of the
@@ -1408,9 +1474,12 @@ nav.bottomnav button .icon {
   text-align: left;
 }
 
+/* No overflow:hidden here (Build 106) — same touch-scroll-blocked-on-
+   Android-Chrome bug as .note-card above (see its comment): starting a
+   scroll gesture on top of the hero photo wasn't reaching .note-screen-
+   body's own overflow-y:auto. The rounding lives on the <img> itself
+   instead, which needs no wrapper clipping to begin with. */
 .note-view-hero {
-  border-radius: 14px;
-  overflow: hidden;
   margin-bottom: 14px;
 }
 
@@ -1419,6 +1488,7 @@ nav.bottomnav button .icon {
   max-height: 320px;
   object-fit: cover;
   display: block;
+  border-radius: 14px;
 }
 
 .note-view-content {
