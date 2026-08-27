@@ -3046,7 +3046,17 @@ nav.bottomnav button .icon {
   letter-spacing: 0.03em;
   margin: 16px 0 8px;
 }
-.dash-shopping-group-label:first-child { margin-top: 0; }
+/* On mobile the two .dash-shopping-col columns stack into what reads as
+   one continuous list — zeroing every column's own :first-child label
+   (not just the very first one overall) left no gap at all between
+   column 1's last row and column 2's first label, while every other
+   group boundary kept its 16px margin-top. Scoped to the true first
+   label of the whole list instead, so the gap is consistent throughout.
+   Tablet's side-by-side columns want every column's own top label flush
+   instead — see the min-width:900px override below. */
+.dash-shopping-cols > .dash-shopping-col:first-child > .dash-shopping-group-label:first-child {
+  margin-top: 0;
+}
 
 .dash-shopping-row {
   display: flex;
@@ -3438,6 +3448,13 @@ nav.bottomnav button .icon {
   }
   .dash-shopping-col {
     flex: 1;
+  }
+  /* Side by side now, so every column's own top label should sit flush
+     with the other column's, not just the first column's (see the base
+     rule's comment above, which only zeros that one for mobile's
+     stacked layout). */
+  .dash-shopping-group-label:first-child {
+    margin-top: 0;
   }
 
   /* Checklisten (Wartung, live view): checklist cards two up. CSS multi-
