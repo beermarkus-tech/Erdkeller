@@ -1,12 +1,15 @@
 // Notizen (SPEC.md Section 9, Step 13) — freeform rich-text + one-photo
-// notes, card grid with the photo as hero image, tap for a full-screen (on
-// tablet: large dialog) read-only view screen, admin-only Google-Keep-style
-// edit screen reached from the card's own pencil icon or the view screen's
-// edit button. Every edit autosaves (persistNow below) and there's also an
-// explicit Speichern button (Build 104) for a guaranteed, visible save.
-// Deleting a note only ever happens from the card's trash icon (Build
-// 103) — neither the view nor the edit screen has a delete control of
-// its own.
+// notes, card grid with the photo as hero image, tap (or double-tap the
+// view screen, admin-only, Build 105) for a full-screen (on tablet: large
+// dialog) read-only view screen, admin-only Google-Keep-style edit screen
+// reached from the card's own pencil icon or the view screen's edit
+// button/double-tap. Every edit autosaves (persistNow below) — a Build 104
+// Speichern button existed briefly as a trust backstop while chasing a
+// real save-timing bug, removed again in Build 105 once the actual bug
+// (js/back-nav.js, see its own comment) was fixed and autosave proved
+// reliable; the status line it came with stayed. Editing and duplicating
+// live on the card's own icons (Build 103/105) alongside delete — none of
+// that lives in either screen below.
 //
 // The photo is stored compressed/resized directly on the note document as
 // a base64 JPEG data URI, not in Firebase Storage — the project stays on
@@ -17,7 +20,7 @@
 // note with more than one photo just shows photos[0] as its hero until
 // next edited, same as everywhere else in this app that reads a narrowed
 // field defensively instead of needing a migration.
-import { db } from './firebase-init.js?v=104';
+import { db } from './firebase-init.js?v=105';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -31,10 +34,10 @@ const MAX_TOTAL_PHOTO_CHARS = 700000;
 // once at the end of it, short enough that a save has usually already
 // landed by the time an admin reaches for the back button (Build 104:
 // dropped from 700ms after a real device lost the last few typed
-// characters closing right after typing — the explicit Speichern button
-// below and the flush-on-close in closeEditScreen are the actual
-// guarantee, this is just about not leaning on that guarantee any harder
-// than necessary).
+// characters closing right after typing — closeEditScreen's flush-on-
+// close and js/back-nav.js knowing about this modal at all, which it
+// didn't before Build 104, are the actual guarantee; this is just about
+// not leaning on that guarantee any harder than necessary).
 const SAVE_DEBOUNCE_MS = 300;
 
 const addNoteBtn = document.getElementById('add-note-btn');
@@ -49,10 +52,10 @@ const viewTitleEl = document.getElementById('note-view-title');
 const viewHeroEl = document.getElementById('note-view-hero');
 const viewHeroImgEl = document.getElementById('note-view-hero-img');
 const viewContentEl = document.getElementById('note-view-content');
+const viewBodyEl = document.getElementById('note-view-body');
 
 const editModal = document.getElementById('note-edit-modal');
 const editBackBtn = document.getElementById('note-edit-back-btn');
-const editSaveBtn = document.getElementById('note-edit-save-btn');
 const editPhotoBtn = document.getElementById('note-edit-photo-btn');
 const editPhotoRemoveBadge = document.getElementById('note-edit-photo-remove-btn');
 const photoInput = document.getElementById('note-edit-photo-input');
@@ -295,6 +298,17 @@ function makeNoteCard(note) {
     });
     actions.appendChild(editIcon);
 
+    const duplicateIcon = document.createElement('button');
+    duplicateIcon.type = 'button';
+    duplicateIcon.className = 'note-card-icon-btn';
+    duplicateIcon.textContent = '🗐';
+    duplicateIcon.title = 'Duplizieren';
+    duplicateIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      duplicateNote(note);
+    });
+    actions.appendChild(duplicateIcon);
+
     const deleteIcon = document.createElement('button');
     deleteIcon.type = 'button';
     deleteIcon.className = 'note-card-icon-btn';
@@ -322,6 +336,27 @@ async function deleteNote(note) {
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     alert('Löschen fehlgeschlagen: ' + err.message);
+    console.error(err);
+  }
+}
+
+// Straight from the card, no confirmation needed — worst case is an extra
+// card that's just as easy to delete again. "(Kopie)" only gets appended
+// when there's an actual title to append it to.
+async function duplicateNote(note) {
+  const nowIso = new Date().toISOString();
+  const data = {
+    title: note.title ? `${note.title} (Kopie)` : '',
+    body: note.body || '',
+    photos: note.photos || [],
+  };
+  try {
+    const newDoc = await addDoc(collection(db, 'notes'), { ...data, createdAt: nowIso, updatedAt: nowIso });
+    notes.push({ id: newDoc.id, ...data, createdAt: nowIso, updatedAt: nowIso });
+    renderNotes();
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+  } catch (err) {
+    alert('Duplizieren fehlgeschlagen: ' + err.message);
     console.error(err);
   }
 }
@@ -392,15 +427,28 @@ viewEditBtn.addEventListener('click', () => {
   closeViewScreen();
   openEditScreen(note);
 });
+// Double-tap anywhere on the title/photo/text (not the top bar, which has
+// its own buttons) also opens edit mode, admin-only — same as tapping the
+// pencil above. .note-screen-body's touch-action:manipulation (styles.css)
+// keeps the browser's own double-tap-to-zoom from intercepting this first.
+viewBodyEl.addEventListener('dblclick', () => {
+  if (!isAdmin || !viewingNote) return;
+  const note = viewingNote;
+  closeViewScreen();
+  openEditScreen(note);
+});
 
-// --- Edit screen (Google Keep-style, autosave + explicit Speichern) --------
-// Autosave alone (Build 103) turned out not to be trustworthy enough on a
-// real device — a save still in flight when the admin closes right after
-// typing could lose the last few characters. Build 104 keeps the autosave
-// (shortened debounce, see SAVE_DEBOUNCE_MS) as the casual-navigation
-// convenience, but the actual guarantee is now the explicit Speichern
-// button plus a status line that always shows what state the note is in,
-// so there's never ambiguity about whether the last edit is safe.
+// --- Edit screen (Google Keep-style, autosave) -----------------------------
+// Autosave (Build 103) initially lost the last few characters on a real
+// device when closed right after typing — not a debounce-timing problem
+// but js/back-nav.js not knowing this modal existed at all, so the
+// Android back gesture bypassed closeEditScreen's flush entirely (see
+// back-nav.js's own comment). Fixed there in Build 104, alongside a
+// shorter debounce (SAVE_DEBOUNCE_MS) and, briefly, an explicit Speichern
+// button as an extra trust backstop — removed again in Build 105 once
+// autosave proved reliable on its own. The status line below the top bar
+// still shows what state the note is in (Gespeichert/Speichert…/Nicht
+// gespeichert/an error).
 
 function setEditStatus(msg, isError) {
   editStatusEl.textContent = msg || '';
@@ -443,8 +491,7 @@ async function closeEditScreen() {
   const changed = await persistNow();
   // A failed flush leaves dirty=true (see persistNow's catch) — keep the
   // editor open with the error visible instead of closing over an unsaved
-  // change and losing it silently; tapping back (or Speichern) again
-  // retries the save.
+  // change and losing it silently; tapping back again retries the save.
   if (dirty) return;
   editModal.classList.remove('show');
   editingNoteId = null;
@@ -458,7 +505,6 @@ async function closeEditScreen() {
 }
 
 editBackBtn.addEventListener('click', () => closeEditScreen());
-editSaveBtn.addEventListener('click', () => persistNow());
 editModal.addEventListener('click', (e) => {
   if (e.target === editModal) closeEditScreen();
 });
@@ -473,14 +519,13 @@ function scheduleSave() {
   saveTimer = setTimeout(persistNow, SAVE_DEBOUNCE_MS);
 }
 
-// The actual save path — reached from the debounced autosave, the
-// explicit Speichern button, and closeEditScreen's flush-on-close, all
-// the same call so there's exactly one place that decides what "saved"
-// means. A note with no content at all is never actually created (a
-// fresh "+ Notiz" the admin backs out of without typing anything leaves
-// nothing behind); a note that's edited down to fully empty gets deleted
-// the same way Google Keep does it, rather than leaving a blank card in
-// the grid.
+// The actual save path — reached from the debounced autosave and
+// closeEditScreen's flush-on-close alike, so there's exactly one place
+// that decides what "saved" means. A note with no content at all is
+// never actually created (a fresh "+ Notiz" the admin backs out of
+// without typing anything leaves nothing behind); a note that's edited
+// down to fully empty gets deleted the same way Google Keep does it,
+// rather than leaving a blank card in the grid.
 async function persistNow() {
   clearTimeout(saveTimer);
   if (!dirty || !loadOk) return false;
@@ -521,7 +566,7 @@ async function persistNow() {
   } catch (err) {
     console.error(err);
     setEditStatus('Speichern fehlgeschlagen: ' + err.message, true);
-    dirty = true; // retried on the next keystroke/Speichern tap/close instead of silently dropping the change
+    dirty = true; // retried on the next keystroke/close instead of silently dropping the change
     return false;
   }
 }

@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=104">
-<link rel="icon" href="icons/icon-192.png?v=104">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=104">
+<link rel="manifest" href="manifest.json?v=105">
+<link rel="icon" href="icons/icon-192.png?v=105">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=105">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=104">
+<link rel="stylesheet" href="css/styles.css?v=105">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 104</div>
+<div id="build-tag" class="build-tag">Build 105</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -464,7 +464,7 @@
           <button type="button" class="note-topbar-btn" id="note-view-close-btn" title="Schließen">‹</button>
           <button type="button" class="note-topbar-btn admin-only hidden" id="note-view-edit-btn" title="Bearbeiten">✏️</button>
         </div>
-        <div class="note-screen-body">
+        <div class="note-screen-body" id="note-view-body">
           <h2 class="note-view-title" id="note-view-title"></h2>
           <div class="note-view-hero hidden" id="note-view-hero"><img id="note-view-hero-img" alt=""></div>
           <div class="note-view-content note-richtext hidden" id="note-view-content"></div>
@@ -476,12 +476,9 @@
       <div class="modal-sheet note-screen-sheet">
         <div class="note-topbar">
           <button type="button" class="note-topbar-btn" id="note-edit-back-btn" title="Zurück">‹</button>
-          <div class="note-topbar-right">
-            <button type="button" class="note-topbar-save-btn" id="note-edit-save-btn">Speichern</button>
-            <div class="note-photo-btn-wrap">
-              <button type="button" class="note-topbar-btn" id="note-edit-photo-btn" title="Foto hinzufügen/ersetzen">📷</button>
-              <button type="button" class="note-photo-remove-badge hidden" id="note-edit-photo-remove-btn" title="Foto entfernen">✕</button>
-            </div>
+          <div class="note-photo-btn-wrap">
+            <button type="button" class="note-topbar-btn" id="note-edit-photo-btn" title="Foto hinzufügen/ersetzen">📷</button>
+            <button type="button" class="note-photo-remove-badge hidden" id="note-edit-photo-remove-btn" title="Foto entfernen">✕</button>
           </div>
         </div>
         <p class="note-edit-status" id="note-edit-status"></p>
@@ -1134,28 +1131,28 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=104"></script>
-<script type="module" src="js/auth.js?v=104"></script>
-<script type="module" src="js/app-shell.js?v=104"></script>
-<script type="module" src="js/account-menu.js?v=104"></script>
-<script type="module" src="js/refresh-button.js?v=104"></script>
-<script type="module" src="js/settings-nav.js?v=104"></script>
-<script type="module" src="js/data-tabs.js?v=104"></script>
-<script type="module" src="js/taxonomy.js?v=104"></script>
-<script type="module" src="js/storage-locations.js?v=104"></script>
-<script type="module" src="js/year-colors.js?v=104"></script>
-<script type="module" src="js/stock-checkin.js?v=104"></script>
-<script type="module" src="js/stock-checkout.js?v=104"></script>
-<script type="module" src="js/stock-table.js?v=104"></script>
-<script type="module" src="js/dashboard.js?v=104"></script>
-<script type="module" src="js/targets.js?v=104"></script>
-<script type="module" src="js/planning.js?v=104"></script>
-<script type="module" src="js/notifications.js?v=104"></script>
-<script type="module" src="js/checklists.js?v=104"></script>
-<script type="module" src="js/info-nav.js?v=104"></script>
-<script type="module" src="js/contacts.js?v=104"></script>
-<script type="module" src="js/notes.js?v=104"></script>
-<script type="module" src="js/admin-log.js?v=104"></script>
-<script type="module" src="js/back-nav.js?v=104"></script>
+<script src="js/app.js?v=105"></script>
+<script type="module" src="js/auth.js?v=105"></script>
+<script type="module" src="js/app-shell.js?v=105"></script>
+<script type="module" src="js/account-menu.js?v=105"></script>
+<script type="module" src="js/refresh-button.js?v=105"></script>
+<script type="module" src="js/settings-nav.js?v=105"></script>
+<script type="module" src="js/data-tabs.js?v=105"></script>
+<script type="module" src="js/taxonomy.js?v=105"></script>
+<script type="module" src="js/storage-locations.js?v=105"></script>
+<script type="module" src="js/year-colors.js?v=105"></script>
+<script type="module" src="js/stock-checkin.js?v=105"></script>
+<script type="module" src="js/stock-checkout.js?v=105"></script>
+<script type="module" src="js/stock-table.js?v=105"></script>
+<script type="module" src="js/dashboard.js?v=105"></script>
+<script type="module" src="js/targets.js?v=105"></script>
+<script type="module" src="js/planning.js?v=105"></script>
+<script type="module" src="js/notifications.js?v=105"></script>
+<script type="module" src="js/checklists.js?v=105"></script>
+<script type="module" src="js/info-nav.js?v=105"></script>
+<script type="module" src="js/contacts.js?v=105"></script>
+<script type="module" src="js/notes.js?v=105"></script>
+<script type="module" src="js/admin-log.js?v=105"></script>
+<script type="module" src="js/back-nav.js?v=105"></script>
 </body>
 </html>

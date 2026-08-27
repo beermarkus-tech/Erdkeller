@@ -1390,9 +1390,14 @@ nav.bottomnav button .icon {
   color: var(--charcoal);
 }
 
+/* touch-action:manipulation (Build 105) tells the browser to skip its own
+   double-tap-to-zoom gesture recognition here, so a double-tap reaches
+   js/notes.js's dblclick listener (admin-only: open the edit screen)
+   promptly instead of the page zooming in first. */
 .note-screen-body {
   flex: 1;
   overflow-y: auto;
+  touch-action: manipulation;
 }
 
 .note-view-title {
@@ -1421,36 +1426,21 @@ nav.bottomnav button .icon {
   line-height: 1.5;
 }
 
-/* Edit screen (Build 103, Speichern button + status Build 104) — Google
-   Keep-style: large borderless title, the photo lives only behind the top
-   bar's camera button (never shown while editing), then the formatting
-   toolbar, then a text box that fills every bit of space down to the
-   bottom of the screen or the on-screen keyboard (see the --note-vh
-   custom property below — js/notes.js keeps it in sync with
+/* Edit screen (Build 103, autosave-reliability status Build 104) —
+   Google Keep-style: large borderless title, the photo lives only behind
+   the top bar's camera button (never shown while editing), then the
+   formatting toolbar, then a text box that fills every bit of space down
+   to the bottom of the screen or the on-screen keyboard (see the
+   --note-vh custom property below — js/notes.js keeps it in sync with
    window.visualViewport so the keyboard opening actually shrinks this
-   screen instead of covering the bottom of the text box). Autosaves as
-   you type (js/notes.js's persistNow) as well as explicitly via
-   Speichern — the button exists because a real device's timing/network
-   can't always be trusted to land the debounced save before a quick
-   close, not because the debounce itself doesn't work. */
-.note-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.note-topbar-save-btn {
-  border: 1px solid var(--cellar);
-  background: none;
-  color: var(--cellar);
-  border-radius: 20px;
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: 'Inter', sans-serif;
-  cursor: pointer;
-}
-
+   screen instead of covering the bottom of the text box). Every change
+   autosaves (js/notes.js's persistNow); Build 104 briefly added an
+   explicit Speichern button here too after a real-device timing bug, but
+   Build 105 removed it again once the actual bug (js/back-nav.js not
+   knowing about this modal — see its own comment) was fixed and autosave
+   proved reliable — the status line below the top bar (Gespeichert/
+   Speichert…/Nicht gespeichert) stayed, since it's useful feedback on
+   its own. */
 .note-photo-btn-wrap {
   position: relative;
 }
