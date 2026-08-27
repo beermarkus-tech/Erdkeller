@@ -22,7 +22,7 @@
 // note with more than one photo just shows photos[0] as its hero until
 // next edited, same as everywhere else in this app that reads a narrowed
 // field defensively instead of needing a migration.
-import { db } from './firebase-init.js?v=107';
+import { db } from './firebase-init.js?v=108';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -322,7 +322,11 @@ function makeNoteCard(note) {
     const duplicateIcon = document.createElement('button');
     duplicateIcon.type = 'button';
     duplicateIcon.className = 'note-card-icon-btn';
-    duplicateIcon.textContent = '🗐';
+    // 🗐 (U+1F5D0, "documents") rendered as a missing-glyph box on a real
+    // device — 📋 is the same everyday emoji already used for the
+    // Bestandsliste shortcut elsewhere (unrelated screen, no ambiguity)
+    // and has solid support on Android.
+    duplicateIcon.textContent = '📋';
     duplicateIcon.title = 'Duplizieren';
     duplicateIcon.addEventListener('click', (e) => {
       e.stopPropagation();

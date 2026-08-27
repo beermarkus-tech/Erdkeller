@@ -1337,13 +1337,23 @@ nav.bottomnav button .icon {
   padding: 8px 10px;
 }
 
+/* Square (width defines height, Build 108 — was 16:9), photo or
+   placeholder alike, so every card is exactly as tall as it is wide up
+   top regardless of content. border-radius lives on this wrapper too,
+   not just the <img> below — the wrapper is what actually shows through
+   at the rounded corners for a placeholder (its own background) or for
+   a photo smaller than its box, so without matching radius here the
+   corners showed a small square sliver of the wrapper's background
+   behind the image's rounded corner. Never overflow:hidden — see the
+   .note-card comment above for why. */
 .note-card-hero {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 1 / 1;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--stone-dark);
+  border-radius: 16px 16px 0 0;
 }
 
 .notes-grid.list-mode .note-card-hero {
@@ -1351,6 +1361,7 @@ nav.bottomnav button .icon {
   height: 56px;
   aspect-ratio: unset;
   flex-shrink: 0;
+  border-radius: 10px;
 }
 
 .note-card-hero img {
@@ -1425,6 +1436,38 @@ nav.bottomnav button .icon {
 
 .notes-grid.list-mode .note-card-icon-btn {
   background: none;
+}
+
+/* "+ Notiz" as a floating action button (Build 108) rather than an inline
+   row button — fixed to the bottom-right corner the way this pattern
+   usually shows up elsewhere, in the app's signature green. Positioned
+   above nav.bottomnav (fixed, own bottom:0) rather than colliding with
+   it; nav.bottomnav is hidden outright on tablet (min-width:900px), so
+   the override below just tucks the FAB into the corner there instead. */
+.notes-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--cellar);
+  color: var(--paper);
+  font-size: 28px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(32, 36, 31, 0.3);
+  cursor: pointer;
+  z-index: 30;
+}
+
+@media (min-width: 900px) {
+  .notes-fab {
+    bottom: 24px;
+  }
 }
 
 /* View/edit screens (Build 103) — full-screen on mobile instead of the
