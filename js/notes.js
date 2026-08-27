@@ -1,18 +1,22 @@
 // Notizen (SPEC.md Section 9, Step 13) — freeform rich-text + one-photo
-// notes, card grid with the photo as hero image, tap for a read-only
-// detail modal, admin-only inline add/edit.
+// notes, card grid with the photo as hero image, tap for a full-screen (on
+// tablet: large dialog) read-only view screen, admin-only Google-Keep-style
+// edit screen with instant autosave (no separate Speichern step — see
+// persistNow below) reached from the card's own pencil icon or the view
+// screen's edit button. Deleting a note only ever happens from the card's
+// trash icon (Build 103) — neither the view nor the edit screen has a
+// delete control of its own.
 //
 // The photo is stored compressed/resized directly on the note document as
 // a base64 JPEG data URI, not in Firebase Storage — the project stays on
 // the free Spark plan (SPEC.md Section 18), which has no free Storage
 // tier, and Storage was never provisioned. Still stored as a `photos`
 // array of length 0 or 1 (Build 92 shape, capped to one item since Build
-// 102 — see the settings-note in the edit form) rather than renaming the
-// field to a single `photo`, so existing notes from before the one-photo
-// limit don't need a migration: an old note with more than one photo just
-// shows photos[0] as its hero until next edited, same as everywhere else
-// in this app that reads a narrowed field defensively.
-import { db } from './firebase-init.js?v=102';
+// 102) rather than renamed to a single `photo` field, so a pre-Build-102
+// note with more than one photo just shows photos[0] as its hero until
+// next edited, same as everywhere else in this app that reads a narrowed
+// field defensively instead of needing a migration.
+import { db } from './firebase-init.js?v=103';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -22,41 +26,49 @@ const JPEG_QUALITY = 0.6;
 // Rough budget, not Firestore's exact 1MB — leaves headroom for the title/
 // body text and Firestore's own per-document overhead.
 const MAX_TOTAL_PHOTO_CHARS = 700000;
+// Autosave debounce — long enough that a normal typing burst only writes
+// once at the end of it, short enough that "instant" still feels true.
+const SAVE_DEBOUNCE_MS = 700;
 
 const addNoteBtn = document.getElementById('add-note-btn');
 const searchInput = document.getElementById('notes-search-input');
 const notesListEl = document.getElementById('notes-list');
 const statusEl = document.getElementById('notes-status');
 
-const detailModal = document.getElementById('note-detail-modal');
-const detailCloseBtn = document.getElementById('note-detail-close-btn');
-const detailTitleEl = document.getElementById('note-detail-title');
-const detailViewEl = document.getElementById('note-detail-view');
-const detailHeroEl = document.getElementById('note-detail-hero');
-const detailHeroImgEl = document.getElementById('note-detail-hero-img');
-const detailBodyEl = document.getElementById('note-detail-body');
+const viewModal = document.getElementById('note-view-modal');
+const viewCloseBtn = document.getElementById('note-view-close-btn');
+const viewEditBtn = document.getElementById('note-view-edit-btn');
+const viewTitleEl = document.getElementById('note-view-title');
+const viewHeroEl = document.getElementById('note-view-hero');
+const viewHeroImgEl = document.getElementById('note-view-hero-img');
+const viewContentEl = document.getElementById('note-view-content');
 
-const editFormEl = document.getElementById('note-edit-form');
-const editTitleInput = document.getElementById('note-edit-title');
-const editBodyInput = document.getElementById('note-edit-body');
-const editToolbarEl = document.getElementById('note-edit-toolbar');
-const editPhotoSlotEl = document.getElementById('note-edit-photo-slot');
+const editModal = document.getElementById('note-edit-modal');
+const editBackBtn = document.getElementById('note-edit-back-btn');
+const editPhotoBtn = document.getElementById('note-edit-photo-btn');
+const editPhotoRemoveBadge = document.getElementById('note-edit-photo-remove-btn');
 const photoInput = document.getElementById('note-edit-photo-input');
-const addPhotoBtn = document.getElementById('note-add-photo-btn');
-
-const viewActionsEl = document.getElementById('note-view-actions');
-const editActionsEl = document.getElementById('note-edit-actions');
-const editBtn = document.getElementById('note-edit-btn');
-const saveBtn = document.getElementById('note-save-btn');
-const deleteBtn = document.getElementById('note-delete-btn');
+const editTitleInput = document.getElementById('note-edit-title');
+const editToolbarEl = document.getElementById('note-edit-toolbar');
+const editBodyInput = document.getElementById('note-edit-body');
+const editStatusEl = document.getElementById('note-edit-status');
 
 let notes = [];
 let loadOk = false;
 let isAdmin = false;
-let editingNote = null;
-let isNewNote = false;
-let pendingPhotos = [];
 let searchText = '';
+
+let viewingNote = null;
+
+// null until the note being edited actually has a Firestore doc (a brand
+// new note doesn't get one until the first bit of real content autosaves —
+// see persistNow) — not the same as "isNewNote" in the old Build 92/102
+// shape, since a note started fresh can still end up with an id partway
+// through this same editing session.
+let editingNoteId = null;
+let pendingPhotos = [];
+let dirty = false;
+let saveTimer = null;
 
 // --- Data loading -----------------------------------------------------
 
@@ -106,32 +118,14 @@ function compressImage(file) {
   });
 }
 
-// One photo only (Build 102) — the add button hides itself once a photo is
-// set (see below) rather than a runtime "max reached" check, so this only
-// ever needs to render zero or one thumbnail.
-function renderPhotoSlot() {
-  editPhotoSlotEl.innerHTML = '';
-  addPhotoBtn.classList.toggle('hidden', pendingPhotos.length > 0);
-  if (pendingPhotos.length === 0) return;
-  const thumb = document.createElement('div');
-  thumb.className = 'note-photo-thumb';
-  const img = document.createElement('img');
-  img.src = pendingPhotos[0];
-  thumb.appendChild(img);
-  const removeBtn = document.createElement('button');
-  removeBtn.type = 'button';
-  removeBtn.className = 'note-photo-remove';
-  removeBtn.textContent = '✕';
-  removeBtn.title = 'Foto entfernen';
-  removeBtn.addEventListener('click', () => {
-    pendingPhotos = [];
-    renderPhotoSlot();
-  });
-  thumb.appendChild(removeBtn);
-  editPhotoSlotEl.appendChild(thumb);
+function updatePhotoRemoveBadge() {
+  editPhotoRemoveBadge.classList.toggle('hidden', pendingPhotos.length === 0);
 }
 
-addPhotoBtn.addEventListener('click', () => {
+// The camera button always opens the picker — with one photo allowed, "add"
+// and "replace" are the same action (confirmed with Markus). The small ✕
+// badge next to it is the only way to remove a photo outright.
+editPhotoBtn.addEventListener('click', () => {
   photoInput.click();
 });
 
@@ -141,15 +135,26 @@ photoInput.addEventListener('change', async () => {
   if (!file) return;
   try {
     const dataUri = await compressImage(file);
+    if (dataUri.length > MAX_TOTAL_PHOTO_CHARS) {
+      alert('Das Foto ist zu groß. Bitte ein anderes wählen.');
+      return;
+    }
     pendingPhotos = [dataUri];
-    renderPhotoSlot();
+    updatePhotoRemoveBadge();
+    scheduleSave();
   } catch (err) {
     alert('Foto konnte nicht verarbeitet werden: ' + err.message);
     console.error(err);
   }
 });
 
-// --- Rich text body (Build 102) ------------------------------------------
+editPhotoRemoveBadge.addEventListener('click', () => {
+  pendingPhotos = [];
+  updatePhotoRemoveBadge();
+  scheduleSave();
+});
+
+// --- Rich text body ------------------------------------------------------
 // A plain contenteditable div + execCommand toolbar rather than a rich-text
 // library — this project has no bundler (CDN ESM imports only), and the
 // six formatting options requested (two heading levels, bold/italic/
@@ -163,6 +168,7 @@ editToolbarEl.querySelectorAll('button[data-cmd]').forEach((btn) => {
     e.preventDefault();
     editBodyInput.focus();
     document.execCommand(btn.dataset.cmd, false, btn.dataset.value || null);
+    scheduleSave();
   });
 });
 
@@ -267,20 +273,49 @@ function makeNoteCard(note) {
   card.appendChild(body);
 
   if (isAdmin) {
+    const actions = document.createElement('div');
+    actions.className = 'note-card-actions';
+
     const editIcon = document.createElement('button');
     editIcon.type = 'button';
-    editIcon.className = 'note-card-edit-icon';
+    editIcon.className = 'note-card-icon-btn';
     editIcon.textContent = '✏️';
     editIcon.title = 'Bearbeiten';
     editIcon.addEventListener('click', (e) => {
       e.stopPropagation();
-      openNote(note, { edit: true });
+      openEditScreen(note);
     });
-    card.appendChild(editIcon);
+    actions.appendChild(editIcon);
+
+    const deleteIcon = document.createElement('button');
+    deleteIcon.type = 'button';
+    deleteIcon.className = 'note-card-icon-btn';
+    deleteIcon.textContent = '🗑️';
+    deleteIcon.title = 'Löschen';
+    deleteIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteNote(note);
+    });
+    actions.appendChild(deleteIcon);
+
+    card.appendChild(actions);
   }
 
-  card.addEventListener('click', () => openNote(note));
+  card.addEventListener('click', () => openViewScreen(note));
   return card;
+}
+
+async function deleteNote(note) {
+  if (!confirm(`"${note.title || 'Notiz'}" wirklich löschen?`)) return;
+  try {
+    await deleteDoc(doc(db, 'notes', note.id));
+    notes = notes.filter((n) => n.id !== note.id);
+    renderNotes();
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+  } catch (err) {
+    alert('Löschen fehlgeschlagen: ' + err.message);
+    console.error(err);
+  }
 }
 
 function matchesSearch(note, q) {
@@ -310,152 +345,148 @@ searchInput.addEventListener('input', () => {
   renderNotes();
 });
 
-// --- Detail / edit modal ---------------------------------------------------
+// --- View screen (read-only, admin-only edit button) -----------------------
 
-function populateDetailView(note) {
-  detailTitleEl.textContent = note.title || '(ohne Titel)';
+function openViewScreen(note) {
+  viewingNote = note;
+  viewTitleEl.textContent = note.title || '(ohne Titel)';
   const photo = (note.photos || [])[0];
   if (photo) {
-    detailHeroImgEl.src = photo;
-    detailHeroEl.classList.remove('hidden');
+    viewHeroImgEl.src = photo;
+    viewHeroEl.classList.remove('hidden');
   } else {
-    detailHeroImgEl.src = '';
-    detailHeroEl.classList.add('hidden');
+    viewHeroImgEl.src = '';
+    viewHeroEl.classList.add('hidden');
   }
   const html = bodyToHtml(note.body);
   if (html) {
-    detailBodyEl.innerHTML = html;
-    detailBodyEl.classList.remove('hidden');
+    viewContentEl.innerHTML = html;
+    viewContentEl.classList.remove('hidden');
   } else {
-    detailBodyEl.innerHTML = '';
-    detailBodyEl.classList.add('hidden');
+    viewContentEl.innerHTML = '';
+    viewContentEl.classList.add('hidden');
   }
+  viewModal.classList.add('show');
 }
 
-function populateEditForm(note) {
-  editTitleInput.value = note.title || '';
-  editBodyInput.innerHTML = bodyToHtml(note.body || '');
-  pendingPhotos = (note.photos || []).slice(0, 1);
-  renderPhotoSlot();
+function closeViewScreen() {
+  viewModal.classList.remove('show');
+  viewingNote = null;
 }
 
-function showViewMode() {
-  detailViewEl.classList.remove('hidden');
-  editFormEl.classList.add('hidden');
-  viewActionsEl.classList.remove('hidden');
-  editActionsEl.classList.add('hidden');
+viewCloseBtn.addEventListener('click', closeViewScreen);
+viewModal.addEventListener('click', (e) => {
+  if (e.target === viewModal) closeViewScreen();
+});
+viewEditBtn.addEventListener('click', () => {
+  if (!viewingNote) return;
+  const note = viewingNote;
+  closeViewScreen();
+  openEditScreen(note);
+});
+
+// --- Edit screen (Google Keep-style, instant autosave) ----------------------
+
+function setEditStatus(msg) {
+  editStatusEl.textContent = msg || '';
+  editStatusEl.classList.toggle('hidden', !msg);
 }
 
-function showEditMode() {
-  detailViewEl.classList.add('hidden');
-  editFormEl.classList.remove('hidden');
-  viewActionsEl.classList.add('hidden');
-  editActionsEl.classList.remove('hidden');
-  deleteBtn.classList.toggle('hidden', isNewNote);
-}
-
-function openNote(note, { edit = false } = {}) {
-  editingNote = note;
-  isNewNote = false;
-  detailTitleEl.textContent = note.title || '(ohne Titel)';
-  if (edit) {
-    populateEditForm(note);
-    showEditMode();
-  } else {
-    populateDetailView(note);
-    showViewMode();
-  }
-  detailModal.classList.add('show');
-}
-
-addNoteBtn.addEventListener('click', () => {
-  if (!loadOk) {
+function openEditScreen(note) {
+  if (!note && !loadOk) {
     statusEl.textContent = 'Hinzufügen blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
     return;
   }
-  editingNote = null;
-  isNewNote = true;
-  detailTitleEl.textContent = 'Neue Notiz';
-  populateEditForm({});
-  showEditMode();
-  detailModal.classList.add('show');
+  editingNoteId = note ? note.id : null;
+  dirty = false;
+  editTitleInput.value = note ? (note.title || '') : '';
+  editBodyInput.innerHTML = note ? bodyToHtml(note.body || '') : '';
+  pendingPhotos = note ? (note.photos || []).slice(0, 1) : [];
+  updatePhotoRemoveBadge();
+  setEditStatus('');
+  editModal.classList.add('show');
+  if (!note) editTitleInput.focus();
+}
+
+async function closeEditScreen() {
+  const changed = await persistNow();
+  // A failed flush leaves dirty=true (see persistNow's catch) — keep the
+  // editor open with the error visible instead of closing over an unsaved
+  // change and losing it silently; tapping back again retries the save.
+  if (dirty) return;
+  editModal.classList.remove('show');
+  editingNoteId = null;
+  pendingPhotos = [];
+  // Only broadcast when something actually happened this session — every
+  // other screen in the app reloads its own Firestore data in response
+  // (see the erdkeller:refresh listeners across js/*.js), so a no-op
+  // close (opened a note, changed nothing, tapped back) shouldn't trigger
+  // that app-wide re-fetch.
+  if (changed) window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+}
+
+editBackBtn.addEventListener('click', () => closeEditScreen());
+editModal.addEventListener('click', (e) => {
+  if (e.target === editModal) closeEditScreen();
 });
 
-editBtn.addEventListener('click', () => {
-  populateEditForm(editingNote);
-  showEditMode();
-});
+editTitleInput.addEventListener('input', scheduleSave);
+editBodyInput.addEventListener('input', scheduleSave);
 
-detailCloseBtn.addEventListener('click', () => {
-  detailModal.classList.remove('show');
-});
+function scheduleSave() {
+  dirty = true;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(persistNow, SAVE_DEBOUNCE_MS);
+}
 
-detailModal.addEventListener('click', (e) => {
-  if (e.target === detailModal) detailModal.classList.remove('show');
-});
-
-saveBtn.addEventListener('click', async () => {
-  if (!loadOk) {
-    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
-    return;
-  }
-  const title = editTitleInput.value.trim();
-  if (!title) {
-    alert('Bitte einen Titel eingeben.');
-    return;
-  }
-  const totalPhotoChars = pendingPhotos.reduce((sum, p) => sum + p.length, 0);
-  if (totalPhotoChars > MAX_TOTAL_PHOTO_CHARS) {
-    alert('Das Foto ist zu groß. Bitte ein anderes wählen.');
-    return;
-  }
-  // An emptied editor can leave stray markup (e.g. "<br>") behind rather
-  // than a clean empty string — textContent is what actually decides
-  // whether there's real content to save.
-  const bodyHtml = editBodyInput.textContent.trim() ? sanitizeBodyHtml(editBodyInput.innerHTML.trim()) : '';
-  const nowIso = new Date().toISOString();
+// The core of "saving is instant during editing" (Build 103) — every edit
+// (title/body keystroke debounced, photo add/remove and toolbar clicks
+// immediate) runs through here instead of a Speichern button. A note with
+// no content at all is never actually created (a fresh "+ Notiz" the admin
+// backs out of without typing anything leaves nothing behind); a note
+// that's edited down to fully empty gets deleted the same way Google Keep
+// does it, rather than leaving a blank card in the grid.
+async function persistNow() {
+  clearTimeout(saveTimer);
+  if (!dirty || !loadOk) return false;
+  dirty = false;
   const data = {
-    title,
-    body: bodyHtml,
+    title: editTitleInput.value.trim(),
+    body: editBodyInput.textContent.trim() ? sanitizeBodyHtml(editBodyInput.innerHTML.trim()) : '',
     photos: pendingPhotos,
-    updatedAt: nowIso,
   };
-  saveBtn.disabled = true;
+  const hasContent = Boolean(data.title || data.body || data.photos.length);
+  const nowIso = new Date().toISOString();
   try {
-    if (isNewNote) {
-      data.createdAt = nowIso;
-      const newDoc = await addDoc(collection(db, 'notes'), data);
-      notes.push({ id: newDoc.id, ...data });
-    } else {
-      await updateDoc(doc(db, 'notes', editingNote.id), data);
-      const idx = notes.findIndex((n) => n.id === editingNote.id);
-      if (idx >= 0) notes[idx] = { ...notes[idx], ...data };
+    if (!hasContent) {
+      if (!editingNoteId) return false;
+      await deleteDoc(doc(db, 'notes', editingNoteId));
+      notes = notes.filter((n) => n.id !== editingNoteId);
+      editingNoteId = null;
+      renderNotes();
+      return true;
     }
-    detailModal.classList.remove('show');
+    if (!editingNoteId) {
+      const newDoc = await addDoc(collection(db, 'notes'), { ...data, createdAt: nowIso, updatedAt: nowIso });
+      editingNoteId = newDoc.id;
+      notes.push({ id: newDoc.id, ...data, createdAt: nowIso, updatedAt: nowIso });
+    } else {
+      await updateDoc(doc(db, 'notes', editingNoteId), { ...data, updatedAt: nowIso });
+      const idx = notes.findIndex((n) => n.id === editingNoteId);
+      if (idx >= 0) notes[idx] = { ...notes[idx], ...data, updatedAt: nowIso };
+    }
+    setEditStatus('');
     renderNotes();
-    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+    return true;
   } catch (err) {
-    alert('Speichern fehlgeschlagen: ' + err.message);
     console.error(err);
-  } finally {
-    saveBtn.disabled = false;
+    setEditStatus('Speichern fehlgeschlagen: ' + err.message);
+    dirty = true; // retried on the next keystroke/close instead of silently dropping the change
+    return false;
   }
-});
+}
 
-deleteBtn.addEventListener('click', async () => {
-  if (!editingNote) return;
-  if (!confirm(`"${editingNote.title || 'Notiz'}" wirklich löschen?`)) return;
-  try {
-    await deleteDoc(doc(db, 'notes', editingNote.id));
-    notes = notes.filter((n) => n.id !== editingNote.id);
-    detailModal.classList.remove('show');
-    renderNotes();
-    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
-  } catch (err) {
-    alert('Löschen fehlgeschlagen: ' + err.message);
-    console.error(err);
-  }
-});
+addNoteBtn.addEventListener('click', () => openEditScreen(null));
 
 // --- Entry point -----------------------------------------------------------
 

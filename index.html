@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=102">
-<link rel="icon" href="icons/icon-192.png?v=102">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=102">
+<link rel="manifest" href="manifest.json?v=103">
+<link rel="icon" href="icons/icon-192.png?v=103">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=103">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=102">
+<link rel="stylesheet" href="css/styles.css?v=103">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 102</div>
+<div id="build-tag" class="build-tag">Build 103</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -458,50 +458,42 @@
       </div>
     </div>
 
-    <div class="modal-overlay" id="note-detail-modal">
-      <div class="modal-sheet modal-body-padded note-detail-sheet">
-        <button type="button" class="note-detail-close-btn" id="note-detail-close-btn" title="Schließen">✕</button>
-        <div class="modal-title" id="note-detail-title">Notiz</div>
-
-        <div id="note-detail-view">
-          <div class="note-detail-hero hidden" id="note-detail-hero"><img id="note-detail-hero-img" alt=""></div>
-          <div class="note-detail-body note-richtext hidden" id="note-detail-body"></div>
+    <div class="modal-overlay" id="note-view-modal">
+      <div class="modal-sheet note-screen-sheet">
+        <div class="note-topbar">
+          <button type="button" class="note-topbar-btn" id="note-view-close-btn" title="Schließen">‹</button>
+          <button type="button" class="note-topbar-btn admin-only hidden" id="note-view-edit-btn" title="Bearbeiten">✏️</button>
         </div>
+        <div class="note-screen-body">
+          <h2 class="note-view-title" id="note-view-title"></h2>
+          <div class="note-view-hero hidden" id="note-view-hero"><img id="note-view-hero-img" alt=""></div>
+          <div class="note-view-content note-richtext hidden" id="note-view-content"></div>
+        </div>
+      </div>
+    </div>
 
-        <div id="note-edit-form" class="hidden">
-          <div class="form-group">
-            <label>Titel</label>
-            <input type="text" id="note-edit-title">
-          </div>
-          <div class="form-group">
-            <label>Foto</label>
-            <div class="note-photo-slot" id="note-edit-photo-slot"></div>
-            <input type="file" accept="image/*" id="note-edit-photo-input" class="hidden">
-            <button type="button" class="add-row-btn small" id="note-add-photo-btn">+ Foto hinzufügen</button>
-            <p class="settings-note">Ein Foto pro Notiz, wird automatisch verkleinert.</p>
-          </div>
-          <div class="form-group">
-            <label>Text</label>
-            <div class="richtext-toolbar" id="note-edit-toolbar">
-              <button type="button" data-cmd="formatBlock" data-value="H2" title="Überschrift">H1</button>
-              <button type="button" data-cmd="formatBlock" data-value="H3" title="Unterüberschrift">H2</button>
-              <button type="button" data-cmd="bold" title="Fett"><b>F</b></button>
-              <button type="button" data-cmd="italic" title="Kursiv"><i>K</i></button>
-              <button type="button" data-cmd="underline" title="Unterstrichen"><u>U</u></button>
-              <button type="button" data-cmd="insertUnorderedList" title="Aufzählung">•</button>
-              <button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste">1.</button>
-            </div>
-            <div class="richtext-editor note-richtext" id="note-edit-body" contenteditable="true"></div>
+    <div class="modal-overlay" id="note-edit-modal">
+      <div class="modal-sheet note-screen-sheet">
+        <div class="note-topbar">
+          <button type="button" class="note-topbar-btn" id="note-edit-back-btn" title="Zurück">‹</button>
+          <div class="note-photo-btn-wrap">
+            <button type="button" class="note-topbar-btn" id="note-edit-photo-btn" title="Foto hinzufügen/ersetzen">📷</button>
+            <button type="button" class="note-photo-remove-badge hidden" id="note-edit-photo-remove-btn" title="Foto entfernen">✕</button>
           </div>
         </div>
-
-        <div class="modal-actions table-edit-actions" id="note-view-actions">
-          <button class="confirm-btn admin-only hidden" id="note-edit-btn" type="button">Bearbeiten</button>
+        <input type="file" accept="image/*" id="note-edit-photo-input" class="hidden">
+        <input type="text" class="note-edit-title-input" id="note-edit-title" placeholder="Titel">
+        <div class="richtext-toolbar" id="note-edit-toolbar">
+          <button type="button" data-cmd="formatBlock" data-value="H2" title="Überschrift">H1</button>
+          <button type="button" data-cmd="formatBlock" data-value="H3" title="Unterüberschrift">H2</button>
+          <button type="button" data-cmd="bold" title="Fett"><b>F</b></button>
+          <button type="button" data-cmd="italic" title="Kursiv"><i>K</i></button>
+          <button type="button" data-cmd="underline" title="Unterstrichen"><u>U</u></button>
+          <button type="button" data-cmd="insertUnorderedList" title="Aufzählung">•</button>
+          <button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste">1.</button>
         </div>
-        <div class="modal-actions table-edit-actions hidden" id="note-edit-actions">
-          <button class="confirm-btn" id="note-save-btn" type="button">Speichern</button>
-          <button class="danger-btn" id="note-delete-btn" type="button">Löschen</button>
-        </div>
+        <div class="richtext-editor note-richtext note-edit-body-box" id="note-edit-body" contenteditable="true"></div>
+        <p class="settings-note note-edit-status hidden" id="note-edit-status"></p>
       </div>
     </div>
 
@@ -1139,28 +1131,28 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=102"></script>
-<script type="module" src="js/auth.js?v=102"></script>
-<script type="module" src="js/app-shell.js?v=102"></script>
-<script type="module" src="js/account-menu.js?v=102"></script>
-<script type="module" src="js/refresh-button.js?v=102"></script>
-<script type="module" src="js/settings-nav.js?v=102"></script>
-<script type="module" src="js/data-tabs.js?v=102"></script>
-<script type="module" src="js/taxonomy.js?v=102"></script>
-<script type="module" src="js/storage-locations.js?v=102"></script>
-<script type="module" src="js/year-colors.js?v=102"></script>
-<script type="module" src="js/stock-checkin.js?v=102"></script>
-<script type="module" src="js/stock-checkout.js?v=102"></script>
-<script type="module" src="js/stock-table.js?v=102"></script>
-<script type="module" src="js/dashboard.js?v=102"></script>
-<script type="module" src="js/targets.js?v=102"></script>
-<script type="module" src="js/planning.js?v=102"></script>
-<script type="module" src="js/notifications.js?v=102"></script>
-<script type="module" src="js/checklists.js?v=102"></script>
-<script type="module" src="js/info-nav.js?v=102"></script>
-<script type="module" src="js/contacts.js?v=102"></script>
-<script type="module" src="js/notes.js?v=102"></script>
-<script type="module" src="js/admin-log.js?v=102"></script>
-<script type="module" src="js/back-nav.js?v=102"></script>
+<script src="js/app.js?v=103"></script>
+<script type="module" src="js/auth.js?v=103"></script>
+<script type="module" src="js/app-shell.js?v=103"></script>
+<script type="module" src="js/account-menu.js?v=103"></script>
+<script type="module" src="js/refresh-button.js?v=103"></script>
+<script type="module" src="js/settings-nav.js?v=103"></script>
+<script type="module" src="js/data-tabs.js?v=103"></script>
+<script type="module" src="js/taxonomy.js?v=103"></script>
+<script type="module" src="js/storage-locations.js?v=103"></script>
+<script type="module" src="js/year-colors.js?v=103"></script>
+<script type="module" src="js/stock-checkin.js?v=103"></script>
+<script type="module" src="js/stock-checkout.js?v=103"></script>
+<script type="module" src="js/stock-table.js?v=103"></script>
+<script type="module" src="js/dashboard.js?v=103"></script>
+<script type="module" src="js/targets.js?v=103"></script>
+<script type="module" src="js/planning.js?v=103"></script>
+<script type="module" src="js/notifications.js?v=103"></script>
+<script type="module" src="js/checklists.js?v=103"></script>
+<script type="module" src="js/info-nav.js?v=103"></script>
+<script type="module" src="js/contacts.js?v=103"></script>
+<script type="module" src="js/notes.js?v=103"></script>
+<script type="module" src="js/admin-log.js?v=103"></script>
+<script type="module" src="js/back-nav.js?v=103"></script>
 </body>
 </html>
