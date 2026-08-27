@@ -2000,9 +2000,19 @@ nav.bottomnav button .icon {
   display: flex;
 }
 
+/* Capped + scrollable (Build 113) — without this, a sheet taller than the
+   viewport (e.g. Ziele's product picker once the catalog has enough
+   products) just extended past the bottom of .modal-overlay's fixed box
+   with no scroll container anywhere in the chain, pushing its top content
+   — sometimes the whole search bar — off-screen above the viewport with
+   no way to reach it. The note view/edit screens (#note-view-modal/
+   #note-edit-modal .note-screen-sheet) already set their own height/
+   overflow-y via a more specific selector, so this doesn't change them. */
 .modal-sheet {
   background: white;
   width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
   border-radius: 20px 20px 0 0;
   padding: 20px 0 0;
 }
