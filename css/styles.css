@@ -1339,19 +1339,27 @@ nav.bottomnav button .icon {
 
 /* Square (width defines height, Build 108 — was 16:9), photo or
    placeholder alike, so every card is exactly as tall as it is wide up
-   top regardless of content. border-radius lives on this wrapper too,
-   not just the <img> below — the wrapper is what actually shows through
-   at the rounded corners for a placeholder (its own background) or for
-   a photo smaller than its box, so without matching radius here the
-   corners showed a small square sliver of the wrapper's background
-   behind the image's rounded corner. Never overflow:hidden — see the
-   .note-card comment above for why. */
+   top regardless of content. Build 109: the `aspect-ratio` property
+   version of this didn't actually render square on a real device, so
+   this uses the older, more bulletproof technique instead — a
+   percentage `padding-top` is resolved against the *width* of its own
+   containing block regardless of content, so 100% padding-top on a
+   zero-height box reliably forces a square no matter what, with none of
+   aspect-ratio's browser-specific quirks. That means an absolutely-
+   positioned img/placeholder inside instead of a normal flex child.
+   border-radius lives on this wrapper too, not just the <img> below —
+   the wrapper is what actually shows through at the rounded corners for
+   a placeholder (its own background) or for a photo smaller than its
+   box, so without matching radius here the corners showed a small
+   square sliver of the wrapper's background behind the image's rounded
+   corner. Never overflow:hidden — see the .note-card comment above for
+   why; position:relative alone doesn't cause that bug, only
+   overflow:hidden does. */
 .note-card-hero {
+  position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  height: 0;
+  padding-top: 100%;
   background: var(--stone-dark);
   border-radius: 16px 16px 0 0;
 }
@@ -1359,9 +1367,15 @@ nav.bottomnav button .icon {
 .notes-grid.list-mode .note-card-hero {
   width: 56px;
   height: 56px;
-  aspect-ratio: unset;
+  padding-top: 0;
   flex-shrink: 0;
   border-radius: 10px;
+}
+
+.note-card-hero img,
+.note-card-hero-placeholder {
+  position: absolute;
+  inset: 0;
 }
 
 .note-card-hero img {
@@ -1380,6 +1394,9 @@ nav.bottomnav button .icon {
    entirely, so every card is the same size whether or not it has a
    photo (Build 106). */
 .note-card-hero-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 32px;
   opacity: 0.35;
 }
@@ -1502,6 +1519,20 @@ nav.bottomnav button .icon {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
+}
+
+/* Viewer's top bar keeps the app's beige tint (Build 109) even though the
+   body below it stays white — bled out to the sheet's own edges via
+   negative margins matching .modal-sheet.note-screen-sheet's padding
+   (10px 16px), with that padding added back so the buttons themselves
+   sit exactly where they did before. The edit screen doesn't need this
+   separately since its *entire* sheet is already beige (see
+   #note-edit-modal .modal-sheet above) — the top bar there is beige
+   simply by being part of that background, no bar of its own. */
+#note-view-modal .note-topbar {
+  background: var(--paper);
+  margin: -10px -16px 8px;
+  padding: 10px 16px 10px;
 }
 
 .note-topbar-btn {
@@ -1750,6 +1781,12 @@ nav.bottomnav button .icon {
 
   #note-edit-modal .note-screen-sheet {
     height: 80vh;
+  }
+
+  /* Matches the sheet's own tablet corner radius so the beige top bar's
+     bled-out edges don't poke past the dialog's rounded corners. */
+  #note-view-modal .note-topbar {
+    border-radius: 20px 20px 0 0;
   }
 }
 
