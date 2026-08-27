@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=100';
-import { PALETTE } from './year-colors.js?v=100';
-import { openAddFlow } from './stock-checkin.js?v=100';
-import { switchTabWithoutReset } from './app-shell.js?v=100';
+import { db } from './firebase-init.js?v=101';
+import { PALETTE } from './year-colors.js?v=101';
+import { openAddFlow } from './stock-checkin.js?v=101';
+import { switchTabWithoutReset } from './app-shell.js?v=101';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -95,15 +95,16 @@ let sortDir = 'asc';
 let selectMode = false;
 let selectedIds = new Set();
 let editingBatch = null;
-// Set (to 'dashboard') only by openFilteredBySubcategory/
-// openFilteredByProductSearch (tap-throughs from Übersicht, Step 10) —
-// tells the panel's own back button to switch back to the Dashboard
-// *without* the normal nav-icon reset (see switchTabWithoutReset), instead
-// of the generic "Admin main menu" default. Both tap-through origins land
-// on the same Dashboard screen they left, exactly as they left it — the
-// point of skipping the reset — so there's nothing left to distinguish
-// between them. Cleared whenever the panel is opened the normal way
-// (tapping the Bestandsliste card itself).
+// Set to the origin tab ('dashboard' or 'stock') only by
+// openFilteredBySubcategory/openFilteredByProductSearch (tap-throughs from
+// Übersicht, Step 10) or the stockOpenTableBtn handler (Bestand's own
+// admin-only shortcut, Build 101) — tells the panel's own back button to
+// switch back to that origin tab *without* the normal nav-icon reset (see
+// switchTabWithoutReset), instead of the generic "Admin main menu" default.
+// Every tap-through origin lands on the exact screen it left, since
+// skipping that reset means nothing there was ever torn down. Cleared
+// whenever the panel is opened the normal way (tapping the Bestandsliste
+// card itself).
 let returnTarget = null;
 let pendingMonthIndex = 0;
 let pendingYearIndex = 0;
@@ -901,19 +902,22 @@ stocktableCard.addEventListener('click', () => {
 // settings-nav.js (return to the Admin main menu) — this listener is
 // attached afterwards (script tag order) and runs second within the same
 // click, so when a returnTarget is set it overrides the final visible
-// screen by switching away to Dashboard entirely. back-nav.js's hardware-
-// back handling already delegates to a real .click() on this exact
-// button, so this also covers that path with no changes there.
+// screen by switching away to that origin tab entirely ('dashboard' or
+// 'stock', whichever tap-through set it — see openFilteredBySubcategory/
+// openFilteredByProductSearch/stockOpenTableBtn below). back-nav.js's
+// hardware-back handling already delegates to a real .click() on this
+// exact button, so this also covers that path with no changes there.
 // switchTabWithoutReset (not a plain nav-icon .click()) is what actually
-// makes this "return to where I was" rather than "return to Dashboard's
+// makes this "return to where I was" rather than "return to that tab's
 // root" — a real click dispatches erdkeller:navreset, which is exactly
-// what clears the Dashboard's expanded-category state and forces its
+// what clears e.g. the Dashboard's expanded-category state and forces its
 // sub-tab back to "Bestand" on every other navigation.
 const stocktableBackBtn = document.querySelector('#settings-panel-stocktable [data-back]');
 stocktableBackBtn.addEventListener('click', () => {
   if (!returnTarget) return;
+  const target = returnTarget;
   returnTarget = null;
-  switchTabWithoutReset('dashboard');
+  switchTabWithoutReset(target);
 });
 
 // Tap-through from Übersicht (Step 10, js/dashboard.js): reuses the same
@@ -941,6 +945,16 @@ export function openFilteredByProductSearch(productName) {
   searchInput.value = productName;
   renderRows();
 }
+
+// Admin-only shortcut button on Bestand's own home screen (Build 101) —
+// same tap-through mechanism as the two above, just landing back on Bestand
+// instead of Dashboard, and with no filter to layer on top.
+const stockOpenTableBtn = document.getElementById('stock-open-table-btn');
+stockOpenTableBtn.addEventListener('click', () => {
+  document.querySelector('.nav-btn[data-tab="settings"]').click();
+  stocktableCard.click();
+  returnTarget = 'stock';
+});
 
 window.addEventListener('erdkeller:signedin', () => loadConfig());
 window.addEventListener('erdkeller:refresh', async () => {

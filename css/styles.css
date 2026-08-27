@@ -1040,6 +1040,25 @@ nav.bottomnav button .icon {
   font-size: 38px;
 }
 
+/* Admin-only shortcut straight to Bestandsliste from the Bestand home
+   screen (Build 101) — deliberately quieter than the two big Einlagern/
+   Entnehmen buttons above it, since this is an admin aside, not a
+   day-to-day action every member reaches for. */
+.stock-home-table-btn {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--stone-dark);
+  border-radius: 14px;
+  background: white;
+  color: var(--cellar);
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+
 /* Stock: guided flow */
 .stock-breadcrumb {
   display: flex;

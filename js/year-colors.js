@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=100';
+import { db } from './firebase-init.js?v=101';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const listEl = document.getElementById('year-color-list');

@@ -10,7 +10,7 @@
 // of small photos per note (Firestore's 1MB document limit, plus base64's
 // ~33% size inflation) rather than a real photo gallery — fine for "how
 // to clean the water tank" reference shots, not meant for more.
-import { db } from './firebase-init.js?v=100';
+import { db } from './firebase-init.js?v=101';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
