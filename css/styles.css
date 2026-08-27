@@ -1460,11 +1460,15 @@ nav.bottomnav button .icon {
    usually shows up elsewhere, in the app's signature green. Positioned
    above nav.bottomnav (fixed, own bottom:0) rather than colliding with
    it; nav.bottomnav is hidden outright on tablet (min-width:900px), so
-   the override below just tucks the FAB into the corner there instead. */
-.notes-fab {
+   the override below just tucks the FAB into the corner there instead.
+   Generic .fab class (Build 114 — was .notes-fab, renamed once Kontakte's
+   "+ Kontakt" adopted the same floating button instead of its old inline
+   .add-row-btn); nudged further left + higher on both breakpoints so it
+   clears the corner a bit more. */
+.fab {
   position: fixed;
-  right: 20px;
-  bottom: calc(80px + env(safe-area-inset-bottom));
+  right: 28px;
+  bottom: calc(96px + env(safe-area-inset-bottom));
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -1482,8 +1486,9 @@ nav.bottomnav button .icon {
 }
 
 @media (min-width: 900px) {
-  .notes-fab {
-    bottom: 24px;
+  .fab {
+    right: 32px;
+    bottom: 36px;
   }
 }
 

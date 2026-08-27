@@ -4,7 +4,7 @@
 // submenu — this is content you'd add while browsing, unlike structural
 // config). Same loadOk guard + erdkeller:refresh dispatch convention as
 // every other admin-editable module.
-import { db } from './firebase-init.js?v=113';
+import { db } from './firebase-init.js?v=114';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
