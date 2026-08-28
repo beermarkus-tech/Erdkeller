@@ -1226,6 +1226,28 @@ nav.bottomnav button .icon {
   cursor: pointer;
 }
 
+/* Settings → Personen — rows reuse .stock-product-row/.pname/.pmeta same as
+   Kontakte above, just with an avatar in front (textWrap's flex:1 already
+   soaks up the row's free space, so justify-content:space-between still
+   ends up pinning the avatar left and the role control right with no extra
+   wrapper needed — the same mechanism that already lines up Kontakte's
+   trailing call/edit icons). */
+.people-avatar {
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.people-role-toggle {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.people-self-label {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
 /* The pinned emergency section reuses the same danger tint already defined
    for MHD alerts/overdue rows elsewhere, rather than inventing a new
    "urgent" color. */

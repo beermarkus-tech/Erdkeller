@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=117';
+import { auth, db } from './firebase-init.js?v=118';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -7,7 +7,9 @@ import {
   signOut,
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import {
+  doc, getDoc, setDoc, updateDoc, onSnapshot,
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const provider = new GoogleAuthProvider();
 
@@ -68,19 +70,31 @@ getRedirectResult(auth).catch((err) => {
   console.error(err);
 });
 
+// Creates the user doc on first sign-in; on every later sign-in, quietly
+// patches name/photoURL back in sync with the live Google profile if
+// they've drifted (Settings → Personen, Build 118, needs a real avatar for
+// every user — this is what backfills it with no migration step needed,
+// including for accounts that signed in before photoURL was captured
+// here at all). role is deliberately never touched here — only Settings →
+// Personen's own updateDoc (or self-provisioning above) ever writes it.
 async function ensureUserDoc(user) {
   const ref = doc(db, 'users', user.uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
     await setDoc(ref, {
       name: user.displayName || '',
+      photoURL: user.photoURL || '',
       role: 'member',
       fcmToken: null,
       createdAt: new Date().toISOString(),
     });
-    return { name: user.displayName || '', role: 'member' };
+    return;
   }
-  return snap.data();
+  const data = snap.data();
+  const patch = {};
+  if ((user.displayName || '') !== (data.name || '')) patch.name = user.displayName || '';
+  if ((user.photoURL || '') !== (data.photoURL || '')) patch.photoURL = user.photoURL || '';
+  if (Object.keys(patch).length) await updateDoc(ref, patch);
 }
 
 function renderSignedOut() {
@@ -102,15 +116,34 @@ function renderSignedIn(user, userData) {
   window.dispatchEvent(new CustomEvent('erdkeller:signedin', { detail: { role: userData.role } }));
 }
 
+// Live doc listener (Build 118) rather than a one-shot getDoc — otherwise
+// an admin flipping this user's role in Settings → Personen would only
+// ever reach them on their next reload/sign-in. onAuthStateChanged only
+// fires on genuine auth transitions (sign-in/out, or an account switch on
+// the same device), so it's the right place to tear the previous listener
+// down before attaching a new one — never more than one live at a time.
+let unsubscribeUserDoc = null;
+
 onAuthStateChanged(auth, async (user) => {
+  if (unsubscribeUserDoc) {
+    unsubscribeUserDoc();
+    unsubscribeUserDoc = null;
+  }
   if (user) {
     try {
-      const userData = await ensureUserDoc(user);
-      renderSignedIn(user, userData);
+      await ensureUserDoc(user);
     } catch (err) {
       authError.textContent = 'Nutzerprofil konnte nicht geladen werden: ' + err.message;
       console.error(err);
+      return;
     }
+    const ref = doc(db, 'users', user.uid);
+    unsubscribeUserDoc = onSnapshot(ref, (snap) => {
+      if (snap.exists()) renderSignedIn(user, snap.data());
+    }, (err) => {
+      authError.textContent = 'Nutzerprofil konnte nicht geladen werden: ' + err.message;
+      console.error(err);
+    });
   } else {
     renderSignedOut();
   }
