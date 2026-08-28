@@ -433,6 +433,33 @@ nav.bottomnav button .icon {
   min-width: 0;
 }
 
+/* Import's confirmation input/button (Build 121) sit alone in the panel
+   rather than inside a flex row like every other .tax-name-input use, so
+   they need their own full-width block sizing instead of relying on
+   flex: 1 from a parent that isn't there. */
+#import-confirm-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 4px 0 12px;
+}
+
+#import-confirm-btn {
+  width: 100%;
+}
+
+#import-summary {
+  background: var(--stone);
+  color: var(--cellar);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+
+#import-summary div {
+  line-height: 1.6;
+}
+
 .taxonomy-status {
   font-size: 12px;
   color: #6b6a5f;
