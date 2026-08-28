@@ -108,6 +108,14 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Step 13 (Rezepte): identical shape to /notes above, per the comment
+    // there — freeform tags/ingredients/body, same admin-only write /
+    // member read split, same base64-photo-on-the-document approach.
+    match /recipes/{recipeId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
     // Everything else stays locked down until its own build step wires up
     // real rules (checklists in Step 12, etc.).
     match /{document=**} {

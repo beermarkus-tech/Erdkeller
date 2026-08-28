@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=118">
-<link rel="icon" href="icons/icon-192.png?v=118">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=118">
+<link rel="manifest" href="manifest.json?v=119">
+<link rel="icon" href="icons/icon-192.png?v=119">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=119">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=118">
+<link rel="stylesheet" href="css/styles.css?v=119">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 118</div>
+<div id="build-tag" class="build-tag">Build 119</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -398,7 +398,11 @@
       </div>
 
       <div class="info-tab hidden" data-info-tab-panel="recipes">
-        <p class="screen-placeholder">Rezepte — wird als Nächstes gebaut.</p>
+        <div class="search-bar"><span>🔍</span><input placeholder="Rezepte durchsuchen…" id="recipes-search-input"></div>
+        <div class="filter-chip-row" id="recipes-tag-filter"></div>
+        <button type="button" class="fab admin-only hidden" id="add-recipe-btn" title="Neues Rezept">+</button>
+        <div class="recipes-grid" id="recipes-list"></div>
+        <p id="recipes-status" class="taxonomy-status"></p>
       </div>
     </div>
 
@@ -498,6 +502,56 @@
           <button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste">1.</button>
         </div>
         <div class="richtext-editor note-richtext note-edit-body-box" id="note-edit-body" contenteditable="true"></div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="recipe-view-modal">
+      <div class="modal-sheet note-screen-sheet">
+        <div class="note-topbar">
+          <button type="button" class="note-topbar-btn" id="recipe-view-close-btn" title="Schließen">‹</button>
+          <button type="button" class="note-topbar-btn admin-only hidden" id="recipe-view-edit-btn" title="Bearbeiten">✏️</button>
+        </div>
+        <div class="note-screen-body" id="recipe-view-body">
+          <h2 class="note-view-title" id="recipe-view-title"></h2>
+          <div class="note-view-hero hidden" id="recipe-view-hero"><img id="recipe-view-hero-img" alt=""></div>
+          <div class="filter-chip-row recipe-view-tags hidden" id="recipe-view-tags"></div>
+          <div class="recipe-view-section hidden" id="recipe-view-ingredients-section">
+            <div class="section-label">Zutaten</div>
+            <ul class="recipe-ingredients-list" id="recipe-view-ingredients"></ul>
+          </div>
+          <div class="section-label hidden" id="recipe-view-body-label">Zubereitung</div>
+          <div class="note-view-content note-richtext hidden" id="recipe-view-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="recipe-edit-modal">
+      <div class="modal-sheet note-screen-sheet">
+        <div class="note-topbar">
+          <button type="button" class="note-topbar-btn" id="recipe-edit-back-btn" title="Zurück">‹</button>
+          <div class="note-photo-btn-wrap">
+            <button type="button" class="note-topbar-btn" id="recipe-edit-photo-btn" title="Foto hinzufügen/ersetzen">📷</button>
+            <button type="button" class="note-photo-remove-badge hidden" id="recipe-edit-photo-remove-btn" title="Foto entfernen">✕</button>
+          </div>
+        </div>
+        <p class="note-edit-status" id="recipe-edit-status"></p>
+        <input type="file" accept="image/*" id="recipe-edit-photo-input" class="hidden">
+        <input type="text" class="note-edit-title-input" id="recipe-edit-title" placeholder="Titel">
+        <input type="text" class="recipe-edit-tags-input" id="recipe-edit-tags" placeholder="Tags, mit Komma getrennt — z.B. Eintopf, Dutch Oven">
+        <div class="section-label">Zutaten</div>
+        <div id="recipe-edit-ingredients"></div>
+        <button type="button" class="add-row-btn" id="recipe-edit-add-ingredient-btn">+ Zutat</button>
+        <div class="section-label">Zubereitung</div>
+        <div class="richtext-toolbar" id="recipe-edit-toolbar">
+          <button type="button" data-cmd="formatBlock" data-value="H2" title="Überschrift">H1</button>
+          <button type="button" data-cmd="formatBlock" data-value="H3" title="Unterüberschrift">H2</button>
+          <button type="button" data-cmd="bold" title="Fett"><b>F</b></button>
+          <button type="button" data-cmd="italic" title="Kursiv"><i>K</i></button>
+          <button type="button" data-cmd="underline" title="Unterstrichen"><u>U</u></button>
+          <button type="button" data-cmd="insertUnorderedList" title="Aufzählung">•</button>
+          <button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste">1.</button>
+        </div>
+        <div class="richtext-editor note-richtext note-edit-body-box" id="recipe-edit-body" contenteditable="true"></div>
       </div>
     </div>
 
@@ -1142,29 +1196,30 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=118"></script>
-<script type="module" src="js/auth.js?v=118"></script>
-<script type="module" src="js/app-shell.js?v=118"></script>
-<script type="module" src="js/account-menu.js?v=118"></script>
-<script type="module" src="js/refresh-button.js?v=118"></script>
-<script type="module" src="js/settings-nav.js?v=118"></script>
-<script type="module" src="js/data-tabs.js?v=118"></script>
-<script type="module" src="js/taxonomy.js?v=118"></script>
-<script type="module" src="js/storage-locations.js?v=118"></script>
-<script type="module" src="js/year-colors.js?v=118"></script>
-<script type="module" src="js/stock-checkin.js?v=118"></script>
-<script type="module" src="js/stock-checkout.js?v=118"></script>
-<script type="module" src="js/stock-table.js?v=118"></script>
-<script type="module" src="js/dashboard.js?v=118"></script>
-<script type="module" src="js/targets.js?v=118"></script>
-<script type="module" src="js/planning.js?v=118"></script>
-<script type="module" src="js/notifications.js?v=118"></script>
-<script type="module" src="js/checklists.js?v=118"></script>
-<script type="module" src="js/info-nav.js?v=118"></script>
-<script type="module" src="js/contacts.js?v=118"></script>
-<script type="module" src="js/notes.js?v=118"></script>
-<script type="module" src="js/admin-log.js?v=118"></script>
-<script type="module" src="js/people.js?v=118"></script>
-<script type="module" src="js/back-nav.js?v=118"></script>
+<script src="js/app.js?v=119"></script>
+<script type="module" src="js/auth.js?v=119"></script>
+<script type="module" src="js/app-shell.js?v=119"></script>
+<script type="module" src="js/account-menu.js?v=119"></script>
+<script type="module" src="js/refresh-button.js?v=119"></script>
+<script type="module" src="js/settings-nav.js?v=119"></script>
+<script type="module" src="js/data-tabs.js?v=119"></script>
+<script type="module" src="js/taxonomy.js?v=119"></script>
+<script type="module" src="js/storage-locations.js?v=119"></script>
+<script type="module" src="js/year-colors.js?v=119"></script>
+<script type="module" src="js/stock-checkin.js?v=119"></script>
+<script type="module" src="js/stock-checkout.js?v=119"></script>
+<script type="module" src="js/stock-table.js?v=119"></script>
+<script type="module" src="js/dashboard.js?v=119"></script>
+<script type="module" src="js/targets.js?v=119"></script>
+<script type="module" src="js/planning.js?v=119"></script>
+<script type="module" src="js/notifications.js?v=119"></script>
+<script type="module" src="js/checklists.js?v=119"></script>
+<script type="module" src="js/info-nav.js?v=119"></script>
+<script type="module" src="js/contacts.js?v=119"></script>
+<script type="module" src="js/notes.js?v=119"></script>
+<script type="module" src="js/recipes.js?v=119"></script>
+<script type="module" src="js/admin-log.js?v=119"></script>
+<script type="module" src="js/people.js?v=119"></script>
+<script type="module" src="js/back-nav.js?v=119"></script>
 </body>
 </html>

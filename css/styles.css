@@ -1319,7 +1319,12 @@ nav.bottomnav button .icon {
    .note-card-preview below truncates its text in JS (bodyPlainText in
    js/notes.js) rather than via -webkit-line-clamp, which requires
    overflow:hidden to work at all. */
-.notes-grid {
+/* .recipes-grid (Rezepte) shares this whole card-grid ruleset with
+   .notes-grid — no list-mode variant for recipes (spec calls for a plain
+   photo-first grid only), so every selector below just grows a second
+   name rather than duplicating the rule. */
+.notes-grid,
+.recipes-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
@@ -1335,7 +1340,8 @@ nav.bottomnav button .icon {
   grid-template-columns: 1fr;
 }
 
-.note-card {
+.note-card,
+.recipe-card {
   position: relative;
   background: white;
   border: 1px solid var(--stone-dark);
@@ -1377,7 +1383,8 @@ nav.bottomnav button .icon {
    corner. Never overflow:hidden — see the .note-card comment above for
    why; position:relative alone doesn't cause that bug, only
    overflow:hidden does. */
-.note-card-hero {
+.note-card-hero,
+.recipe-card-hero {
   position: relative;
   width: 100%;
   height: 0;
@@ -1395,12 +1402,15 @@ nav.bottomnav button .icon {
 }
 
 .note-card-hero img,
-.note-card-hero-placeholder {
+.note-card-hero-placeholder,
+.recipe-card-hero img,
+.recipe-card-hero-placeholder {
   position: absolute;
   inset: 0;
 }
 
-.note-card-hero img {
+.note-card-hero img,
+.recipe-card-hero img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1415,7 +1425,8 @@ nav.bottomnav button .icon {
 /* No photo — a faint placeholder instead of just skipping the hero
    entirely, so every card is the same size whether or not it has a
    photo (Build 106). */
-.note-card-hero-placeholder {
+.note-card-hero-placeholder,
+.recipe-card-hero-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1427,7 +1438,8 @@ nav.bottomnav button .icon {
   font-size: 20px;
 }
 
-.note-card-body {
+.note-card-body,
+.recipe-card-body {
   padding: 12px 14px;
 }
 
@@ -1437,7 +1449,8 @@ nav.bottomnav button .icon {
   padding: 0;
 }
 
-.note-card-title {
+.note-card-title,
+.recipe-card-title {
   font-weight: 600;
   font-size: 15px;
   overflow-wrap: break-word;
@@ -1450,7 +1463,27 @@ nav.bottomnav button .icon {
   overflow-wrap: break-word;
 }
 
-.note-card-actions {
+/* Recipe cards show a couple of tag chips instead of a body-text preview
+   (the tags are the useful at-a-glance signal here, not a body snippet) —
+   reuses .filter-chip's own look, just smaller and non-interactive. */
+.recipe-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.recipe-card-tag {
+  background: var(--paper);
+  border: 1px solid var(--stone-dark);
+  color: var(--charcoal);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+}
+
+.note-card-actions,
+.recipe-card-actions {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -1463,7 +1496,8 @@ nav.bottomnav button .icon {
   flex-shrink: 0;
 }
 
-.note-card-icon-btn {
+.note-card-icon-btn,
+.recipe-card-icon-btn {
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -1556,7 +1590,8 @@ nav.bottomnav button .icon {
    separately since its *entire* sheet is already beige (see
    #note-edit-modal .modal-sheet above) — the top bar there is beige
    simply by being part of that background, no bar of its own. */
-#note-view-modal .note-topbar {
+#note-view-modal .note-topbar,
+#recipe-view-modal .note-topbar {
   background: var(--paper);
   margin: -10px -16px 8px;
   padding: 10px 16px 10px;
@@ -1680,7 +1715,87 @@ nav.bottomnav button .icon {
   color: var(--rust);
 }
 
-#note-view-modal, #note-edit-modal {
+/* Rezepte-only additions — tags input, Zutaten list (view + edit), and the
+   automatic stock-availability dot. Everything else in these two modals
+   (title input, photo button, richtext toolbar/editor, top bar) is
+   already fully shared with Notizen via the generic .note-* classes
+   above, so this is the only genuinely new chunk of CSS this feature
+   needs. */
+.recipe-edit-tags-input {
+  border: 1px solid var(--stone-dark);
+  border-radius: 10px;
+  background: white;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  padding: 8px 10px;
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+.recipe-view-section {
+  margin-bottom: 14px;
+}
+
+.recipe-ingredients-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Available (js/recipes.js's ingredientAvailable — a whole-word match
+   against a product currently in stock) gets a small green dot; anything
+   else (unmatched, or matched but out of stock) renders identically with
+   no dot at all — deliberately no red/warning state, per Markus: this is
+   a "nice to have" positive signal, never a checklist that nags. */
+.recipe-ingredient-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.recipe-ingredients-list li {
+  display: flex;
+  align-items: center;
+}
+
+.recipe-ingredients-list li + li {
+  margin-top: 4px;
+}
+
+/* Purely informational here (view screen), not a filter — .filter-chip's
+   own cursor:pointer would otherwise misleadingly suggest these tags are
+   tappable. */
+.recipe-view-tags.filter-chip-row {
+  margin-bottom: 14px;
+}
+
+.recipe-view-tags .filter-chip {
+  cursor: default;
+}
+
+/* Edit screen's ingredient rows — same add/remove-row shape as
+   js/storage-locations.js's .storage-row (text input + a ✕ to remove),
+   just embedded inline in the recipe editor instead of owning a whole
+   Settings panel. */
+.recipe-ingredient-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.recipe-ingredient-row .tax-name-input {
+  flex: 1;
+}
+
+#note-view-modal, #note-edit-modal,
+#recipe-view-modal, #recipe-edit-modal {
   align-items: stretch;
 }
 
@@ -1688,18 +1803,25 @@ nav.bottomnav button .icon {
    sheet's plain white (Build 109) — reads as "you're on a page", not a
    dialog floating over one. #id + .class beats plain .modal-sheet's
    background regardless of source order. */
-#note-edit-modal .modal-sheet {
+#note-edit-modal .modal-sheet,
+#recipe-edit-modal .modal-sheet {
   background: var(--paper);
 }
 
 #note-view-modal .note-screen-sheet,
-#note-edit-modal .note-screen-sheet {
+#note-edit-modal .note-screen-sheet,
+#recipe-view-modal .note-screen-sheet,
+#recipe-edit-modal .note-screen-sheet {
   /* var(--note-vh) is set from window.visualViewport.height in
-     js/notes.js — plain 100%/100vh here would size against the layout
-     viewport, which on mobile does NOT shrink when the on-screen keyboard
-     opens, so the bottom of the text box would sit behind the keyboard
-     instead of just above it. 100dvh is the fallback for the instant
-     before that JS runs (or if visualViewport isn't available at all). */
+     js/notes.js — a global CSS custom property on :root, kept in sync
+     unconditionally regardless of which modal happens to be open, so
+     Rezepte's screens read the same up-to-date value with no separate
+     listener of their own needed. Plain 100%/100vh here would size
+     against the layout viewport, which on mobile does NOT shrink when
+     the on-screen keyboard opens, so the bottom of the text box would
+     sit behind the keyboard instead of just above it. 100dvh is the
+     fallback for the instant before that JS runs (or if visualViewport
+     isn't available at all). */
   height: var(--note-vh, 100dvh);
   border-radius: 0;
   overflow-y: auto;
@@ -1789,16 +1911,20 @@ nav.bottomnav button .icon {
 }
 
 @media (min-width: 900px) {
-  .notes-grid {
+  .notes-grid,
+  .recipes-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 
-  #note-view-modal, #note-edit-modal {
+  #note-view-modal, #note-edit-modal,
+  #recipe-view-modal, #recipe-edit-modal {
     align-items: center;
   }
 
   #note-view-modal .note-screen-sheet,
-  #note-edit-modal .note-screen-sheet {
+  #note-edit-modal .note-screen-sheet,
+  #recipe-view-modal .note-screen-sheet,
+  #recipe-edit-modal .note-screen-sheet {
     height: auto;
     max-height: 85vh;
     width: 640px;
@@ -1806,13 +1932,15 @@ nav.bottomnav button .icon {
     border-radius: 20px;
   }
 
-  #note-edit-modal .note-screen-sheet {
+  #note-edit-modal .note-screen-sheet,
+  #recipe-edit-modal .note-screen-sheet {
     height: 80vh;
   }
 
   /* Matches the sheet's own tablet corner radius so the beige top bar's
      bled-out edges don't poke past the dialog's rounded corners. */
-  #note-view-modal .note-topbar {
+  #note-view-modal .note-topbar,
+  #recipe-view-modal .note-topbar {
     border-radius: 20px 20px 0 0;
   }
 }

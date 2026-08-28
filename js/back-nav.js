@@ -22,6 +22,10 @@ const noteEditModalEl = document.getElementById('note-edit-modal');
 const noteEditBackBtn = document.getElementById('note-edit-back-btn');
 const noteViewModalEl = document.getElementById('note-view-modal');
 const noteViewCloseBtn = document.getElementById('note-view-close-btn');
+const recipeEditModalEl = document.getElementById('recipe-edit-modal');
+const recipeEditBackBtn = document.getElementById('recipe-edit-back-btn');
+const recipeViewModalEl = document.getElementById('recipe-view-modal');
+const recipeViewCloseBtn = document.getElementById('recipe-view-close-btn');
 const checklistsEditToggleBtn = document.getElementById('checklists-edit-toggle');
 const checkinFlowEl = document.getElementById('stock-flow');
 const checkinBackBtn = document.getElementById('checkin-back-btn');
@@ -82,6 +86,12 @@ window.addEventListener('popstate', () => {
     noteEditBackBtn.click();
   } else if (noteViewModalEl.classList.contains('show')) {
     noteViewCloseBtn.click();
+  } else if (recipeEditModalEl.classList.contains('show')) {
+    // Rezepte's edit screen (js/recipes.js) autosaves the same way Notizen's
+    // does — same reasoning as the noteEditModalEl branch above.
+    recipeEditBackBtn.click();
+  } else if (recipeViewModalEl.classList.contains('show')) {
+    recipeViewCloseBtn.click();
   } else if (checklistsEditNested()) {
     checklistsEditToggleBtn.click();
   } else if (settingsNested()) {
