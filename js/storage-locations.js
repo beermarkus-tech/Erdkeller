@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=119';
+import { db } from './firebase-init.js?v=120';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const listEl = document.getElementById('storage-list');

@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=119">
-<link rel="icon" href="icons/icon-192.png?v=119">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=119">
+<link rel="manifest" href="manifest.json?v=120">
+<link rel="icon" href="icons/icon-192.png?v=120">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=120">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=119">
+<link rel="stylesheet" href="css/styles.css?v=120">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 119</div>
+<div id="build-tag" class="build-tag">Build 120</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -594,7 +594,7 @@
         </div>
         <div class="settings-card" data-target="export">
           <span class="sym">📤</span>
-          <div class="sc-text"><div class="sc-title">Export</div><div class="sc-sub">PDF &amp; CSV — Schritt 15/19</div></div>
+          <div class="sc-text"><div class="sc-title">Export</div><div class="sc-sub">CSV &amp; Datenbank-Backup</div></div>
           <span class="chev">›</span>
         </div>
       </div>
@@ -1172,7 +1172,41 @@
             <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
           </div>
         </div>
-        <p class="screen-placeholder">PDF- &amp; CSV-Export — wird in Schritt 15/19 gebaut.</p>
+        <p class="settings-note">CSV eignet sich zum Öffnen und Bearbeiten eines einzelnen Bereichs in einer Tabelle. Das Datenbank-Backup (JSON) ist eine vollständige, originalgetreue Kopie aller Daten — z.B. für einen Gerätewechsel.</p>
+
+        <div class="section-label">CSV-Export</div>
+        <div class="product-list">
+          <div class="stock-product-row">
+            <span class="export-row-text"><span class="pname">Bestand</span><span class="pmeta">Alle Chargen mit Produkt, Menge, MHD, Lagerort</span></span>
+            <button type="button" class="select-mode-btn" id="export-stock-btn">Herunterladen</button>
+          </div>
+          <div class="stock-product-row">
+            <span class="export-row-text"><span class="pname">Checklisten</span><span class="pmeta">Alle Aufgaben mit Häufigkeit</span></span>
+            <button type="button" class="select-mode-btn" id="export-checklists-btn">Herunterladen</button>
+          </div>
+          <div class="stock-product-row">
+            <span class="export-row-text"><span class="pname">Kontakte</span><span class="pmeta">Name, Rolle, Telefon, Adresse, Notizen</span></span>
+            <button type="button" class="select-mode-btn" id="export-contacts-btn">Herunterladen</button>
+          </div>
+          <div class="stock-product-row">
+            <span class="export-row-text"><span class="pname">Notizen</span><span class="pmeta">Titel und Text</span></span>
+            <button type="button" class="select-mode-btn" id="export-notes-btn">Herunterladen</button>
+          </div>
+          <div class="stock-product-row">
+            <span class="export-row-text"><span class="pname">Rezepte</span><span class="pmeta">Titel, Tags, Zutaten, Zubereitung</span></span>
+            <button type="button" class="select-mode-btn" id="export-recipes-btn">Herunterladen</button>
+          </div>
+        </div>
+
+        <div class="section-label">Datenbank-Backup</div>
+        <div class="product-list">
+          <div class="stock-product-row">
+            <span class="export-row-text"><span class="pname">Vollständiges Backup</span><span class="pmeta">Alle Daten als JSON</span></span>
+            <button type="button" class="select-mode-btn" id="export-json-btn">Herunterladen</button>
+          </div>
+        </div>
+
+        <p id="export-status" class="taxonomy-status"></p>
       </div>
     </div>
   </main>
@@ -1196,30 +1230,31 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=119"></script>
-<script type="module" src="js/auth.js?v=119"></script>
-<script type="module" src="js/app-shell.js?v=119"></script>
-<script type="module" src="js/account-menu.js?v=119"></script>
-<script type="module" src="js/refresh-button.js?v=119"></script>
-<script type="module" src="js/settings-nav.js?v=119"></script>
-<script type="module" src="js/data-tabs.js?v=119"></script>
-<script type="module" src="js/taxonomy.js?v=119"></script>
-<script type="module" src="js/storage-locations.js?v=119"></script>
-<script type="module" src="js/year-colors.js?v=119"></script>
-<script type="module" src="js/stock-checkin.js?v=119"></script>
-<script type="module" src="js/stock-checkout.js?v=119"></script>
-<script type="module" src="js/stock-table.js?v=119"></script>
-<script type="module" src="js/dashboard.js?v=119"></script>
-<script type="module" src="js/targets.js?v=119"></script>
-<script type="module" src="js/planning.js?v=119"></script>
-<script type="module" src="js/notifications.js?v=119"></script>
-<script type="module" src="js/checklists.js?v=119"></script>
-<script type="module" src="js/info-nav.js?v=119"></script>
-<script type="module" src="js/contacts.js?v=119"></script>
-<script type="module" src="js/notes.js?v=119"></script>
-<script type="module" src="js/recipes.js?v=119"></script>
-<script type="module" src="js/admin-log.js?v=119"></script>
-<script type="module" src="js/people.js?v=119"></script>
-<script type="module" src="js/back-nav.js?v=119"></script>
+<script src="js/app.js?v=120"></script>
+<script type="module" src="js/auth.js?v=120"></script>
+<script type="module" src="js/app-shell.js?v=120"></script>
+<script type="module" src="js/account-menu.js?v=120"></script>
+<script type="module" src="js/refresh-button.js?v=120"></script>
+<script type="module" src="js/settings-nav.js?v=120"></script>
+<script type="module" src="js/data-tabs.js?v=120"></script>
+<script type="module" src="js/taxonomy.js?v=120"></script>
+<script type="module" src="js/storage-locations.js?v=120"></script>
+<script type="module" src="js/year-colors.js?v=120"></script>
+<script type="module" src="js/stock-checkin.js?v=120"></script>
+<script type="module" src="js/stock-checkout.js?v=120"></script>
+<script type="module" src="js/stock-table.js?v=120"></script>
+<script type="module" src="js/dashboard.js?v=120"></script>
+<script type="module" src="js/targets.js?v=120"></script>
+<script type="module" src="js/planning.js?v=120"></script>
+<script type="module" src="js/notifications.js?v=120"></script>
+<script type="module" src="js/checklists.js?v=120"></script>
+<script type="module" src="js/info-nav.js?v=120"></script>
+<script type="module" src="js/contacts.js?v=120"></script>
+<script type="module" src="js/notes.js?v=120"></script>
+<script type="module" src="js/recipes.js?v=120"></script>
+<script type="module" src="js/export.js?v=120"></script>
+<script type="module" src="js/admin-log.js?v=120"></script>
+<script type="module" src="js/people.js?v=120"></script>
+<script type="module" src="js/back-nav.js?v=120"></script>
 </body>
 </html>

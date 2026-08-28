@@ -421,6 +421,18 @@ nav.bottomnav button .icon {
   margin: 18px 0 0;
 }
 
+/* Settings → Export's static rows — the text-wrap shape every other
+   .stock-product-row consumer (Kontakte, Personen) sets via inline JS
+   styles since their rows are JS-generated; this one is static HTML, so
+   a real class is the natural equivalent instead of repeating the same
+   four inline styles six times in index.html. */
+.export-row-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
 .taxonomy-status {
   font-size: 12px;
   color: #6b6a5f;
