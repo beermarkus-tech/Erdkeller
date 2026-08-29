@@ -50,14 +50,24 @@ function buildProductLines(products) {
   return products.map((p) => `${p.id}\t${p.name}\t${p.unitType}`);
 }
 
-function buildPrompt(transcript, taxonomy, products) {
+function buildBatchLines(batches, productIndex) {
+  return batches.map((b) => {
+    const name = (productIndex.get(b.productId) || {}).name || '(unbekannt)';
+    return `${b.id}\t${name}\t${b.quantity}\t${b.content || ''}\t${b.bestBefore || ''}\t${b.storage || ''}`;
+  });
+}
+
+function buildPrompt(transcript, taxonomy, products, batches, productIndex) {
   const taxonomyLines = buildTaxonomyLines(taxonomy);
   const productLines = buildProductLines(products);
-  return `Du hilfst beim Einlagern von Vorräten in einer Haushalts-Vorratsverwaltung. Ein Nutzer hat eine oder mehrere Chargen diktiert; hier die Transkription (Deutsch, kann Erkennungsfehler enthalten):
+  const batchLines = buildBatchLines(batches, productIndex);
+  return `Du hilfst beim Einlagern UND Entnehmen von Vorräten in einer Haushalts-Vorratsverwaltung. Ein Nutzer hat eine oder mehrere Chargen diktiert; hier die Transkription (Deutsch, kann Erkennungsfehler enthalten):
 
 "${transcript}"
 
-Zerlege die Aussage in eine JSON-Liste von Chargen (batch lines). Eine Aussage kann mehrere Chargen enthalten — z.B. "10 Tomatensugo, 5x800g, 5x400g" ergibt ZWEI Zeilen desselben Produkts mit unterschiedlichem Inhalt. Zwei verschiedene genannte Produkte ergeben ebenfalls getrennte Zeilen.
+Zerlege die Aussage in eine JSON-Liste von Chargen (batch lines). Eine Aussage kann mehrere Chargen enthalten — z.B. "10 Tomatensugo, 5x800g, 5x400g" ergibt ZWEI Zeilen desselben Produkts mit unterschiedlichem Inhalt. Zwei verschiedene genannte Produkte ergeben ebenfalls getrennte Zeilen. Eine Aussage kann auch Einlagern UND Entnehmen gleichzeitig enthalten.
+
+Jede Zeile braucht zuerst ein Feld "direction": "in" (eingelagert/gekauft/neu dazu) oder "out" (entnommen/verbraucht/aufgebraucht/rausgenommen) — aus der Wortwahl erkennbar.
 
 Bekannte Produkte (id, Name, Einheit):
 ${productLines.join('\n') || '(keine)'}
@@ -65,16 +75,24 @@ ${productLines.join('\n') || '(keine)'}
 Bekannte Unterkategorien (subcategoryId, Pfad Typ > Kategorie > Unterkategorie):
 ${taxonomyLines.join('\n') || '(keine)'}
 
-Für jede Charge gib GENAU eines von zwei Objektformaten zurück:
+Aktueller Lagerbestand — Chargen (batchId, Produktname, Menge, Inhalt, MHD, Lagerort) — nur relevant für "direction":"out":
+${batchLines.join('\n') || '(keine)'}
+
+Für "direction":"in" gib GENAU eines von zwei weiteren Feldsets zurück:
 
 1) Passt zu einem bekannten Produkt (auch bei leicht abweichender Schreibweise/Aussprache/Umlauten):
-{"matchedProductId": "<id aus der Liste oben>", "quantity": <Zahl>, "content": "<z.B. 800g, oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": "<Text oder null>"}
+{"direction": "in", "matchedProductId": "<id aus der Produktliste oben>", "quantity": <Zahl>, "content": "<z.B. 800g, oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": "<Text oder null>"}
 
 2) Kein bekanntes Produkt passt (neues Produkt):
-{"newProductName": "<Name>", "suggestedSubcategoryId": "<id aus der Liste oben, oder null wenn unklar>", "confidence": "high"|"medium"|"low", "quantity": <Zahl>, "content": "<... oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": "<... oder null>", "guessedUnitType": "kg"|"l"|"stueck"}
+{"direction": "in", "newProductName": "<Name>", "suggestedSubcategoryId": "<id aus der Liste oben, oder null wenn unklar>", "confidence": "high"|"medium"|"low", "quantity": <Zahl>, "content": "<... oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": "<... oder null>", "guessedUnitType": "kg"|"l"|"stueck"}
+
+Für "direction":"out" gib zurück:
+{"direction": "out", "matchedBatchId": "<batchId aus der Bestandsliste oben, oder null wenn das Produkt gar nicht im Bestand ist>", "quantity": <Zahl>, "confidence": "high"|"medium"|"low"}
+- Wenn ein Produkt mehrere Chargen hat (z.B. verschiedene Packungsgrößen/MHDs) und die Aussage nicht eindeutig klärt welche, wähle die plausibelste (z.B. passendster Inhalt/nächstes MHD) und setze "confidence" auf "medium" oder "low" statt "matchedBatchId" leer zu lassen.
+- "matchedBatchId" nur dann null, wenn das genannte Produkt in der Bestandsliste oben gar nicht vorkommt.
 
 Regeln:
-- "quantity" ist immer eine ganze Zahl (Anzahl der Chargen/Gebinde), nie das Gewicht.
+- "quantity" ist immer eine ganze Zahl (Anzahl der Chargen/Gebinde bzw. bei "out" die entnommene Anzahl), nie das Gewicht.
 - "content" ist die Packungsgröße als kurzer String wie im Beispiel (z.B. "800g", "1l"), nicht die Gesamtmenge.
 - "bestBefore" nur setzen, wenn ein Monat UND Jahr klar genannt wurden; sonst null.
 - "storage" nur setzen, wenn ein Lagerort klar genannt wurde; sonst null.
@@ -98,17 +116,30 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey] }, async (request) 
     throw new HttpsError('invalid-argument', 'Kein Text übergeben.');
   }
 
-  const [taxSnap, productsSnap] = await Promise.all([
+  const [taxSnap, productsSnap, batchesSnap] = await Promise.all([
     db.doc('config/taxonomy').get(),
     db.collection('products').get(),
+    db.collection('stockItems').get(),
   ]);
   const taxonomy = taxSnap.exists && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
   const products = productsSnap.docs.map((d) => {
     const p = d.data();
     return { id: d.id, name: p.name || '', unitType: p.unitType || '' };
   });
+  const productIndex = new Map(products.map((p) => [p.id, p]));
+  const batches = batchesSnap.docs.map((d) => {
+    const b = d.data();
+    return {
+      id: d.id,
+      productId: b.productId || '',
+      quantity: b.quantity || 0,
+      content: b.content || '',
+      bestBefore: b.bestBefore || '',
+      storage: b.storage || '',
+    };
+  });
 
-  const prompt = buildPrompt(transcript, taxonomy, products);
+  const prompt = buildPrompt(transcript, taxonomy, products, batches, productIndex);
 
   let response;
   try {

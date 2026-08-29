@@ -15,9 +15,9 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=129';
+import { db, functions } from './firebase-init.js?v=130';
 import {
-  collection, getDocs, doc, getDoc, addDoc,
+  collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
 
@@ -30,6 +30,8 @@ const hintEl = document.getElementById('dictate-hint');
 const micBtn = document.getElementById('dictate-mic-btn');
 
 const editModal = document.getElementById('dictate-edit-modal');
+const editSheetEl = document.querySelector('#dictate-edit-modal .dictate-edit-sheet');
+const editTitleEl = document.getElementById('dictate-edit-title');
 const editTypeSelect = document.getElementById('dictate-edit-type-select');
 const editCategorySelect = document.getElementById('dictate-edit-category-select');
 const editSubcategoryGroup = document.getElementById('dictate-edit-subcategory-group');
@@ -37,6 +39,8 @@ const editSubcategorySelect = document.getElementById('dictate-edit-subcategory-
 const editNameInput = document.getElementById('dictate-edit-name');
 const editUnitToggle = document.getElementById('dictate-edit-unit-toggle');
 const editUnitButtons = editUnitToggle.querySelectorAll('.unit-btn');
+const editBatchSelect = document.getElementById('dictate-edit-batch-select');
+const editQtyLabel = document.getElementById('dictate-edit-qty-label');
 const editQtyNum = document.getElementById('dictate-edit-qty-num');
 const editQtyMinus = document.getElementById('dictate-edit-qty-minus');
 const editQtyPlus = document.getElementById('dictate-edit-qty-plus');
@@ -53,6 +57,9 @@ let taxonomy = { types: [] };
 let allProducts = [];
 let productIndex = new Map();
 let subcategoryIndex = new Map(); // subcategoryId -> { type, category, subcategory }
+let allBatches = [];
+let batchIndex = new Map(); // batchId -> stockItems doc (incl. id)
+let targets = { products: {} };
 let storageLocations = [];
 let yearColorMap = {};
 let loadOk = false;
@@ -75,17 +82,23 @@ function buildSubcategoryIndex() {
 
 async function loadConfig() {
   try {
-    const [taxSnap, productsSnap, storeSnap, colorSnap] = await Promise.all([
+    const [taxSnap, productsSnap, storeSnap, colorSnap, batchesSnap, targetsSnap] = await Promise.all([
       getDoc(doc(db, 'config', 'taxonomy')),
       getDocs(collection(db, 'products')),
       getDoc(doc(db, 'config', 'storageLocations')),
       getDoc(doc(db, 'config', 'yearColorMap')),
+      getDocs(collection(db, 'stockItems')),
+      getDoc(doc(db, 'config', 'targets')),
     ]);
     taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
     allProducts = productsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     productIndex = new Map(allProducts.map((p) => [p.id, p]));
     storageLocations = storeSnap.exists() && Array.isArray(storeSnap.data().locations) ? storeSnap.data().locations : [];
     yearColorMap = colorSnap.exists() ? colorSnap.data() : {};
+    allBatches = batchesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    batchIndex = new Map(allBatches.map((b) => [b.id, b]));
+    targets = targetsSnap.exists() ? targetsSnap.data() : { products: {} };
+    if (!targets.products) targets.products = {};
     buildSubcategoryIndex();
     loadOk = true;
   } catch (err) {
@@ -102,6 +115,23 @@ window.addEventListener('erdkeller:refresh', () => loadConfig());
 function normalizeContent(raw) {
   const trimmed = (raw || '').trim();
   return /^\d+([.,]\d+)?$/.test(trimmed) ? trimmed + 'g' : trimmed;
+}
+
+function productName(productId) {
+  return (productIndex.get(productId) || {}).name || '(unbekanntes Produkt)';
+}
+
+function clampQty(n, max) {
+  const v = Number.isFinite(n) ? n : 1;
+  return Math.min(max, Math.max(1, v));
+}
+
+function batchMetaLine(batch) {
+  const parts = [`${batch.quantity}×`];
+  if (batch.content) parts.push(batch.content);
+  if (batch.bestBefore) parts.push('MHD ' + batch.bestBefore);
+  if (batch.storage) parts.push(batch.storage);
+  return parts.join(' · ');
 }
 
 function yearColorFor(bestBefore) {
@@ -299,11 +329,28 @@ function contextFor(subcategoryId) {
 }
 
 function resolveLine(item) {
+  if (item && item.direction === 'out') {
+    const batch = batchIndex.get(item.matchedBatchId);
+    if (!batch) return null; // no batch in stock for this product — dropped, same as an unresolvable 'in' line
+    return {
+      direction: 'out',
+      batchId: batch.id,
+      productId: batch.productId,
+      name: productName(batch.productId),
+      content: batch.content || '',
+      bestBefore: batch.bestBefore || '',
+      storage: batch.storage || '',
+      batchQuantity: batch.quantity,
+      removeQty: clampQty(normalizeQty(item.quantity), batch.quantity),
+      confidence: item.confidence === 'medium' || item.confidence === 'low' ? item.confidence : 'high',
+    };
+  }
   if (item && item.matchedProductId) {
     const product = productIndex.get(item.matchedProductId);
     if (!product) return null; // stale/unknown id from the model — skip defensively
     const ctx = contextFor(product.subcategoryId);
     return {
+      direction: 'in',
       isNew: false,
       productId: product.id,
       name: product.name,
@@ -326,6 +373,7 @@ function resolveLine(item) {
     const ctx = contextFor(item.suggestedSubcategoryId);
     const unitType = item.guessedUnitType === 'l' || item.guessedUnitType === 'stueck' ? item.guessedUnitType : 'kg';
     return {
+      direction: 'in',
       isNew: true,
       productId: null,
       name: String(item.newProductName).trim(),
@@ -417,10 +465,54 @@ function appendErrorBubble(message, transcript) {
   scrollChatToBottom();
 }
 
-function appendConfirmationBubble(text) {
+async function undoTurn(records) {
+  for (const rec of records) {
+    await setDoc(doc(db, 'stockItems', rec.batchId), rec.originalBatch);
+    if (rec.deletedProduct) {
+      const { id, ...productData } = rec.deletedProduct;
+      await setDoc(doc(db, 'products', id), productData);
+    }
+    await deleteDoc(doc(db, 'stockLog', rec.stockLogId));
+  }
+  window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+}
+
+function appendConfirmationBubble(result) {
   const div = document.createElement('div');
   div.className = 'dictate-bubble app confirmation';
-  div.textContent = text;
+
+  if (result.inSummaries.length) {
+    const p = document.createElement('div');
+    p.className = 'dictate-confirmation-line';
+    p.textContent = '✅ Eingelagert: ' + result.inSummaries.join(', ');
+    div.appendChild(p);
+  }
+  if (result.outSummaries.length) {
+    const p = document.createElement('div');
+    p.className = 'dictate-confirmation-line';
+    p.textContent = '➖ Entnommen: ' + result.outSummaries.join(', ');
+    div.appendChild(p);
+  }
+  if (result.undoRecords.length) {
+    const undoBtn = document.createElement('button');
+    undoBtn.type = 'button';
+    undoBtn.className = 'dictate-undo-btn';
+    undoBtn.textContent = '↩ Rückgängig';
+    undoBtn.addEventListener('click', async () => {
+      undoBtn.disabled = true;
+      try {
+        await undoTurn(result.undoRecords);
+        undoBtn.textContent = 'Rückgängig gemacht';
+      } catch (err) {
+        console.error(err);
+        undoBtn.disabled = false;
+        undoBtn.textContent = '↩ Rückgängig';
+        appendErrorBubbleSimple('Rückgängig machen fehlgeschlagen: ' + err.message);
+      }
+    });
+    div.appendChild(undoBtn);
+  }
+
   chatEl.appendChild(div);
   scrollChatToBottom();
 }
@@ -431,7 +523,34 @@ function lineBreadcrumb(line) {
 
 function renderProposalLine(line, onTap) {
   const row = document.createElement('div');
-  row.className = 'dictate-proposal-line';
+  row.className = 'dictate-proposal-line' + (line.direction === 'out' ? ' out' : '');
+
+  if (line.direction === 'out') {
+    const pathEl = document.createElement('div');
+    pathEl.className = 'dictate-line-path';
+    pathEl.textContent = 'Entnehmen';
+    row.appendChild(pathEl);
+
+    const mainEl = document.createElement('div');
+    mainEl.className = 'dictate-line-main';
+    mainEl.textContent = `−${line.removeQty}× ${line.name}`;
+    if (line.confidence !== 'high') {
+      const confEl = document.createElement('span');
+      confEl.className = 'dictate-line-confidence';
+      confEl.textContent = '?';
+      confEl.title = 'Unsichere Chargen-Zuordnung — bitte prüfen';
+      mainEl.appendChild(confEl);
+    }
+    row.appendChild(mainEl);
+
+    const meta2El = document.createElement('div');
+    meta2El.className = 'dictate-line-meta2';
+    meta2El.textContent = batchMetaLine({ quantity: line.batchQuantity, content: line.content, bestBefore: line.bestBefore, storage: line.storage });
+    row.appendChild(meta2El);
+
+    row.addEventListener('click', onTap);
+    return row;
+  }
 
   const pathEl = document.createElement('div');
   pathEl.className = 'dictate-line-path';
@@ -496,9 +615,9 @@ function appendProposalBubble(lines) {
     confirmBtn.disabled = true;
     discardBtn.disabled = true;
     try {
-      const summary = await registerLines(lines);
+      const result = await registerLines(lines);
       actions.remove();
-      appendConfirmationBubble(summary);
+      appendConfirmationBubble(result);
       window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
     } catch (err) {
       console.error(err);
@@ -574,18 +693,23 @@ editUnitButtons.forEach((btn) => {
   btn.addEventListener('click', () => setEditUnitToggle(btn.dataset.unit));
 });
 
+// Unlimited for 'in' lines (any quantity can be checked in); clamped to the
+// selected batch's own quantity for 'out' lines (populateEditBatchSelect
+// sets this whenever the sheet opens in out-mode or the batch changes).
+let editQtyMax = Infinity;
+
 editQtyMinus.addEventListener('click', () => {
   const n = Math.max(1, (parseInt(editQtyNum.value, 10) || 1) - 1);
   editQtyNum.value = String(n);
 });
 editQtyPlus.addEventListener('click', () => {
-  const n = (parseInt(editQtyNum.value, 10) || 1) + 1;
+  const n = Math.min(editQtyMax, (parseInt(editQtyNum.value, 10) || 1) + 1);
   editQtyNum.value = String(n);
 });
 editQtyNum.addEventListener('focus', () => editQtyNum.select());
 editQtyNum.addEventListener('blur', () => {
   const n = parseInt(editQtyNum.value, 10);
-  editQtyNum.value = String(Number.isFinite(n) && n >= 1 ? n : 1);
+  editQtyNum.value = String(clampQty(n, editQtyMax));
 });
 
 function populateEditStorageSelect() {
@@ -598,10 +722,46 @@ function populateEditStorageSelect() {
   });
 }
 
+function populateEditBatchSelect(productId, selectedBatchId) {
+  editBatchSelect.innerHTML = '';
+  const batches = allBatches.filter((b) => b.productId === productId);
+  batches.forEach((b) => {
+    const opt = document.createElement('option');
+    opt.value = b.id;
+    opt.textContent = batchMetaLine(b);
+    editBatchSelect.appendChild(opt);
+  });
+  if (selectedBatchId && batches.some((b) => b.id === selectedBatchId)) {
+    editBatchSelect.value = selectedBatchId;
+  }
+  applyEditBatchMax();
+}
+
+function applyEditBatchMax() {
+  const batch = batchIndex.get(editBatchSelect.value);
+  editQtyMax = batch ? batch.quantity : 1;
+  editQtyNum.value = String(clampQty(parseInt(editQtyNum.value, 10), editQtyMax));
+}
+
+editBatchSelect.addEventListener('change', applyEditBatchMax);
+
 function openEditSheet(lines, index, onApply) {
   const line = lines[index];
   editingContext = { lines, index, onApply };
 
+  const isOut = line.direction === 'out';
+  editSheetEl.classList.toggle('out-mode', isOut);
+  editTitleEl.textContent = isOut ? 'Entnahme bearbeiten' : 'Charge bearbeiten';
+  editQtyLabel.textContent = isOut ? 'Menge zum Entnehmen' : 'Menge';
+
+  if (isOut) {
+    populateEditBatchSelect(line.productId, line.batchId);
+    editQtyNum.value = String(clampQty(line.removeQty || 1, editQtyMax));
+    editModal.classList.add('show');
+    return;
+  }
+
+  editQtyMax = Infinity;
   populateEditTypeSelect();
   const ctx = contextFor(line.subcategoryId);
   const initialType = ctx ? ctx.type.id : (taxonomy.types[0] && taxonomy.types[0].id);
@@ -633,6 +793,26 @@ editApplyBtn.addEventListener('click', () => {
   const { lines, index, onApply } = editingContext;
   const line = lines[index];
 
+  if (line.direction === 'out') {
+    const batch = batchIndex.get(editBatchSelect.value);
+    if (batch) {
+      line.batchId = batch.id;
+      line.productId = batch.productId;
+      line.name = productName(batch.productId);
+      line.content = batch.content || '';
+      line.bestBefore = batch.bestBefore || '';
+      line.storage = batch.storage || '';
+      line.batchQuantity = batch.quantity;
+    }
+    line.removeQty = clampQty(parseInt(editQtyNum.value, 10), editQtyMax);
+    line.confidence = 'high'; // manually confirmed — no longer worth flagging
+
+    editModal.classList.remove('show');
+    editingContext = null;
+    onApply();
+    return;
+  }
+
   const subId = editSubcategorySelect.value || null;
   const ctx = contextFor(subId);
 
@@ -662,9 +842,66 @@ editApplyBtn.addEventListener('click', () => {
 async function registerLines(lines) {
   const nowIso = new Date().toISOString();
   const newProductIds = new Map(); // dedupes a repeated newProductName within one turn
-  const summaries = [];
+  const inSummaries = [];
+  const outSummaries = [];
+  const undoRecords = [];
 
   for (const line of lines) {
+    if (line.direction === 'out') {
+      // batchIndex/allBatches are mutated in place below, so a second line
+      // in the same turn referencing the same batch sees the already-
+      // decremented (or already-deleted) state here — no separate
+      // per-turn bookkeeping needed.
+      const batch = batchIndex.get(line.batchId);
+      if (!batch || batch.quantity <= 0) {
+        throw new Error(`"${line.name}" ist nicht mehr im Bestand — bitte Vorschlag verwerfen und erneut diktieren.`);
+      }
+      const removeQty = clampQty(line.removeQty, batch.quantity);
+
+      const ref = doc(db, 'stockItems', batch.id);
+      const originalBatch = { ...batch };
+      delete originalBatch.id;
+      let deletedProduct = null;
+
+      if (removeQty >= batch.quantity) {
+        await deleteDoc(ref);
+        allBatches = allBatches.filter((b) => b.id !== batch.id);
+        batchIndex.delete(batch.id);
+
+        const stillStocked = allBatches.some((b) => b.productId === batch.productId);
+        if (!stillStocked && !targets.products[batch.productId]) {
+          const product = productIndex.get(batch.productId);
+          if (product) {
+            await deleteDoc(doc(db, 'products', batch.productId));
+            deletedProduct = { ...product };
+            allProducts = allProducts.filter((p) => p.id !== batch.productId);
+            productIndex.delete(batch.productId);
+          }
+        }
+      } else {
+        const updated = { ...originalBatch, quantity: batch.quantity - removeQty, updatedAt: nowIso };
+        await setDoc(ref, updated);
+        const withId = { id: batch.id, ...updated };
+        batchIndex.set(batch.id, withId);
+        const idx = allBatches.findIndex((b) => b.id === batch.id);
+        if (idx >= 0) allBatches[idx] = withId;
+      }
+
+      const logDoc = await addDoc(collection(db, 'stockLog'), {
+        action: 'out',
+        productName: line.name,
+        quantity: removeQty,
+        details: batch.details || '',
+        content: batch.content || '',
+        bestBefore: batch.bestBefore || '',
+        createdAt: nowIso,
+      });
+
+      undoRecords.push({ batchId: batch.id, originalBatch, deletedProduct, stockLogId: logDoc.id });
+      outSummaries.push(`${removeQty}× ${line.name}${batch.content ? ' (' + batch.content + ')' : ''}`);
+      continue;
+    }
+
     if (!line.subcategoryId) {
       throw new Error(`Kategorie für "${line.name}" fehlt — bitte antippen und auswählen.`);
     }
@@ -722,8 +959,8 @@ async function registerLines(lines) {
       createdAt: nowIso,
     });
 
-    summaries.push(`${line.quantity}× ${line.name}${content ? ' (' + content + ')' : ''}`);
+    inSummaries.push(`${line.quantity}× ${line.name}${content ? ' (' + content + ')' : ''}`);
   }
 
-  return '✅ Eingelagert: ' + summaries.join(', ');
+  return { inSummaries, outSummaries, undoRecords };
 }

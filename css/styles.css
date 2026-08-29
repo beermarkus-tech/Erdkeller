@@ -3821,15 +3821,51 @@ nav.bottomnav button .icon {
   font-weight: 600;
 }
 
+.dictate-bubble.app.confirmation .dictate-confirmation-line + .dictate-confirmation-line {
+  margin-top: 4px;
+}
+
+.dictate-undo-btn {
+  margin-top: 8px;
+  border: 1px solid var(--ok);
+  background: white;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ok);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
 .dictate-bubble.app.pending {
   color: #8a8776;
   font-style: italic;
 }
 
 .dictate-proposal-line {
-  padding: 8px 4px;
+  padding: 8px 4px 8px 10px;
   border-bottom: 1px solid var(--stone);
+  border-left: 3px solid var(--cellar);
   cursor: pointer;
+}
+
+.dictate-proposal-line.out {
+  border-left-color: var(--rust);
+}
+
+.dictate-line-confidence {
+  color: var(--warn);
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.dictate-edit-sheet.out-mode .dictate-in-only {
+  display: none;
+}
+
+.dictate-edit-sheet:not(.out-mode) .dictate-out-only {
+  display: none;
 }
 
 .dictate-proposal-line:last-of-type {
@@ -3890,7 +3926,8 @@ nav.bottomnav button .icon {
 
 .dictate-live {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 19px;
+  line-height: 1.4;
   font-style: italic;
   color: #6b6a5f;
 }
