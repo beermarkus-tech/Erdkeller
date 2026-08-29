@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=131';
+import { db, functions } from './firebase-init.js?v=132';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -634,11 +634,17 @@ function renderProposalLine(line, onTap, onToggle) {
 
   const toggleBtn = document.createElement('button');
   toggleBtn.type = 'button';
-  toggleBtn.className = 'dictate-line-toggle';
-  toggleBtn.textContent = line.direction === 'out' ? '⇄ Einlagern' : '⇄ Entnehmen';
+  // Same color+symbol language as the two big Einlagern/Entnehmen buttons
+  // on the Bestand home screen (.big-btn.in/.out) — this button shows the
+  // line's CURRENT direction (green ⬇ = wird eingelagert, rust ⬆ = wird
+  // entnommen) and flips it on tap, so it doubles as a state indicator.
+  toggleBtn.className = 'dictate-line-toggle' + (line.direction === 'out' ? ' out' : '');
+  toggleBtn.textContent = line.direction === 'out' ? '⬆' : '⬇';
   const toggleDisabled = line.direction === 'in' && !canToggleDirection(line);
   toggleBtn.disabled = toggleDisabled;
-  if (toggleDisabled) toggleBtn.title = 'Kein Bestand dieses Produkts vorhanden';
+  toggleBtn.title = toggleDisabled
+    ? 'Kein Bestand dieses Produkts vorhanden'
+    : (line.direction === 'out' ? 'Entnehmen — antippen für Einlagern' : 'Einlagern — antippen für Entnehmen');
   toggleBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     onToggle();

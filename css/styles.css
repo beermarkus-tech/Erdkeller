@@ -3845,8 +3845,8 @@ nav.bottomnav button .icon {
 
 .dictate-proposal-line {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: stretch;
+  gap: 10px;
   padding: 8px 4px 8px 10px;
   border-bottom: 1px solid var(--stone);
   border-left: 3px solid var(--cellar);
@@ -3864,15 +3864,24 @@ nav.bottomnav button .icon {
 
 .dictate-line-toggle {
   flex-shrink: 0;
-  border: 1px solid var(--stone-dark);
-  background: white;
-  border-radius: 8px;
-  padding: 5px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--charcoal);
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 12px;
+  background: var(--cellar);
+  color: var(--paper);
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
+}
+
+.dictate-line-toggle.out {
+  background: var(--rust);
+}
+
+.dictate-line-toggle:active {
+  transform: scale(0.95);
 }
 
 .dictate-line-toggle:disabled {
