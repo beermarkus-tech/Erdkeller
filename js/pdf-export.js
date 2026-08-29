@@ -10,7 +10,7 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=123';
+import { db } from './firebase-init.js?v=124';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -96,55 +96,72 @@ function bullet(pdf, y, text, opts = {}) {
 
 // A drawn empty checkbox square + label + right-aligned meta text — used
 // only by the Wartung section, which per Markus's call must always print
-// blank (never today's checked/due state). A light gray rule under each
-// item separates rows the way a real paper checklist wants.
+// blank (never today's checked/due state). Each item is a fixed-height
+// cell with the text vertically centered inside it (cellPad above/below
+// the text block) and the gray rule drawn at the cell's own bottom edge —
+// so the line sits below the text's descenders instead of cutting
+// through it, and the next item's text starts with equal padding below
+// that same line.
 function checkboxLine(pdf, y, text, meta) {
-  y = ensure(pdf, y, LINE_H);
+  const lineStep = LINE_H - 1;
+  const cellPad = 2.4;
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(10);
-  pdf.rect(MARGIN, y - 3.3, 3.5, 3.5);
-  pdf.text(text, MARGIN + 6, y);
+  const lines = pdf.splitTextToSize(text, CONTENT_W - 6);
+  const rowH = lines.length * lineStep + cellPad * 2;
+  y = ensure(pdf, y, rowH);
+  const rowTop = y;
+  const baseline = rowTop + cellPad + lineStep * 0.8;
+  pdf.rect(MARGIN, baseline - 3, 3.5, 3.5);
+  lines.forEach((line, li) => {
+    pdf.text(line, MARGIN + 6, baseline + li * lineStep);
+  });
   if (meta) {
     pdf.setFontSize(8.5);
     const metaW = pdf.getTextWidth(meta);
-    pdf.text(meta, MARGIN + CONTENT_W - metaW, y);
+    pdf.text(meta, MARGIN + CONTENT_W - metaW, baseline);
     pdf.setFontSize(10);
   }
-  const lineY = y + 1.8;
+  y = rowTop + rowH;
   pdf.setDrawColor(210);
   pdf.setLineWidth(0.15);
-  pdf.line(MARGIN, lineY, MARGIN + CONTENT_W, lineY);
+  pdf.line(MARGIN, y, MARGIN + CONTENT_W, y);
   pdf.setDrawColor(0);
   pdf.setLineWidth(0.2);
-  return y + LINE_H;
+  return y;
 }
 
-// One numbered crisis step, deliberately its own helper rather than a
-// bodyText call: bigger type, a bold number, a gray rule and real vertical
-// air below each step — this is meant to work as an actual crisis
-// checklist glanced at under stress, not a dense paragraph.
+// One numbered crisis step — bigger type, a bold number, vertically
+// centered within its own cell (same fixed-cell-then-rule-at-the-bottom
+// shape as checkboxLine above), plus a few mm of extra air after the rule
+// before the next step starts. Meant to work as an actual checklist
+// glanced at under stress, not a dense paragraph.
 function crisisStep(pdf, y, index, text) {
   const stepLineH = 6.5;
+  const cellPad = 3;
   const numText = `${index}.`;
   const numWidth = 9;
   pdf.setFontSize(12);
   pdf.setFont('helvetica', 'normal');
   const lines = pdf.splitTextToSize(text, CONTENT_W - numWidth);
-  y = ensure(pdf, y, lines.length * stepLineH + 9);
+  const rowH = lines.length * stepLineH + cellPad * 2;
+  y = ensure(pdf, y, rowH + 3);
+  const rowTop = y;
+  const baseline = rowTop + cellPad + stepLineH * 0.75;
   pdf.setFont('helvetica', 'bold');
-  pdf.text(numText, MARGIN, y);
+  pdf.text(numText, MARGIN, baseline);
   pdf.setFont('helvetica', 'normal');
   lines.forEach((line, li) => {
-    pdf.text(line, MARGIN + numWidth, y + li * stepLineH);
+    pdf.text(line, MARGIN + numWidth, baseline + li * stepLineH);
   });
-  const ruleY = y + (lines.length - 1) * stepLineH + 4;
+  y = rowTop + rowH;
   pdf.setDrawColor(190);
   pdf.setLineWidth(0.2);
-  pdf.line(MARGIN, ruleY, MARGIN + CONTENT_W, ruleY);
+  pdf.line(MARGIN, y, MARGIN + CONTENT_W, y);
   pdf.setDrawColor(0);
   pdf.setLineWidth(0.2);
   pdf.setFontSize(10);
-  return ruleY + 5;
+  return y + 3;
 }
 
 function spacer(y, mult = 1) {
@@ -170,15 +187,82 @@ function image(pdf, y, dataUri, maxW = 70, maxH = 70) {
   return y + h + LINE_H;
 }
 
-// Wrapping table: columns = [{header, width, align, get(row)}], widths in
-// mm, align: 'right' for numeric columns. A light gray rule under every
-// row, and the header row redraws itself whenever a row's own page break
-// lands it on a fresh page — checked via jsPDF's own page count rather
-// than guessing, so it's exact regardless of how tall any given row is.
+// jsPDF's own fonts have no emoji glyphs at all (WinAnsi encoding), so a
+// taxonomy/crisis-type symbol like 🥫 or ⚡ can never render as PDF text —
+// there's no vector outline for it in any font jsPDF can embed. Instead,
+// rasterize the character through a plain <canvas> (the browser's own
+// text renderer DOES draw full-color emoji there, same glyphs the app
+// itself shows on screen) and embed the result as a small PNG. Cached by
+// character since the same handful of symbols repeat throughout a
+// document.
+const symbolImageCache = new Map();
+function symbolImageDataUrl(char) {
+  if (!char) return null;
+  if (symbolImageCache.has(char)) return symbolImageCache.get(char);
+  let url = null;
+  try {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.font = `${Math.round(size * 0.78)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(char, size / 2, size / 2 + size * 0.04);
+    url = canvas.toDataURL('image/png');
+  } catch (err) {
+    url = null;
+  }
+  symbolImageCache.set(char, url);
+  return url;
+}
+
+// A subheading with an optional small symbol icon to its left (rendered
+// via symbolImageDataUrl above) — used by the Krise section for each
+// crisis type's own icon, the same way the live crisis-type list shows it.
+function subheadingWithIcon(pdf, y, sym, text) {
+  y = ensure(pdf, y, LINE_H * 1.6);
+  const img = sym ? symbolImageDataUrl(sym) : null;
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(12);
+  pdf.text(text, MARGIN + (img ? 7 : 0), y);
+  if (img) pdf.addImage(img, 'PNG', MARGIN, y - 4.2, 5, 5);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(10);
+  return y + LINE_H * 1.6;
+}
+
+// A flat-color progress bar: a light gray track the full column width,
+// with a colored fill representing pct (0-100), plus a thin outline —
+// the PDF equivalent of the app's own .dash-cat-bar-fill/.dash-hero-bar.
+function drawBar(pdf, x, y, w, h, pct, color) {
+  pdf.setDrawColor(180);
+  pdf.setLineWidth(0.15);
+  pdf.setFillColor(230, 230, 230);
+  pdf.rect(x, y, w, h, 'FD');
+  const fillW = (Math.max(0, Math.min(100, pct)) / 100) * w;
+  if (fillW > 0.3) {
+    pdf.setFillColor(color[0], color[1], color[2]);
+    pdf.rect(x, y, fillW, h, 'F');
+  }
+  pdf.setDrawColor(0);
+  pdf.setLineWidth(0.2);
+}
+
+// Wrapping table: columns = [{header, width, align, icon(row), get(row)}],
+// widths in mm, align: 'right' for numeric columns, icon(row) an optional
+// getter returning a symbol character to render before the first line of
+// that cell (left-aligned columns only). Each row is a fixed-height cell
+// with its text block vertically centered inside (cellPad above/below),
+// and the gray rule drawn at the cell's own bottom edge — so it never
+// cuts through the row's own text or the next row's. The header row
+// redraws itself whenever a row's own page break lands it on a fresh
+// page, checked via jsPDF's own page count rather than guessing.
 function table(pdf, y, columns, rows) {
   const tableWidth = columns.reduce((s, c) => s + c.width, 0);
   const lineStep = LINE_H - 1;
-  const rowGap = 2;
+  const cellPad = 2.4;
 
   function textX(col, x, text) {
     return col.align === 'right' ? x + col.width - 2 - pdf.getTextWidth(text) : x;
@@ -192,43 +276,54 @@ function table(pdf, y, columns, rows) {
     pdf.setLineWidth(0.2);
   }
 
-  function drawHeader(yy) {
+  function drawHeader(rowTop) {
+    const rowH = lineStep + cellPad * 2;
+    const baseline = rowTop + cellPad + lineStep * 0.8;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
     let x = MARGIN;
     columns.forEach((col) => {
-      pdf.text(col.header, textX(col, x, col.header), yy);
+      pdf.text(col.header, textX(col, x, col.header), baseline);
       x += col.width;
     });
-    yy += 1.5;
-    grayLine(yy);
-    yy += lineStep;
+    grayLine(rowTop + rowH);
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    return yy;
+    return rowTop + rowH;
   }
 
-  y = ensure(pdf, y, LINE_H * 2);
+  y = ensure(pdf, y, lineStep + cellPad * 2 + 2);
   y = drawHeader(y);
 
   rows.forEach((row) => {
     const cellLines = columns.map((col) => pdf.splitTextToSize(String(col.get(row) ?? ''), col.width - 2));
     const rowLines = Math.max(...cellLines.map((l) => l.length), 1);
-    const rowHeight = rowLines * lineStep + rowGap;
+    const rowH = rowLines * lineStep + cellPad * 2;
     const pageBefore = pdf.internal.getNumberOfPages();
-    y = ensure(pdf, y, rowHeight);
+    y = ensure(pdf, y, rowH);
     if (pdf.internal.getNumberOfPages() !== pageBefore) y = drawHeader(y);
 
+    const rowTop = y;
+    const baseline = rowTop + cellPad + lineStep * 0.8;
     let x = MARGIN;
+    pdf.setFontSize(9);
     columns.forEach((col, i) => {
+      let tx0 = x;
+      if (col.icon) {
+        const sym = col.icon(row);
+        const img = sym ? symbolImageDataUrl(sym) : null;
+        if (img) {
+          pdf.addImage(img, 'PNG', x, baseline - 3.2, 3.6, 3.6);
+          tx0 += 5;
+        }
+      }
       cellLines[i].forEach((line, li) => {
-        pdf.text(line, textX(col, x, line), y + li * lineStep);
+        const tx = li === 0 ? tx0 : x;
+        pdf.text(line, col.align === 'right' ? textX(col, x, line) : tx, baseline + li * lineStep);
       });
       x += col.width;
     });
-    y += (rowLines - 1) * lineStep + 3;
+    y = rowTop + rowH;
     grayLine(y);
-    y += rowGap;
   });
   pdf.setFontSize(10);
   return y;
@@ -433,6 +528,23 @@ function pct(current, target) {
   return (current / target) * 100;
 }
 
+// Same thresholds and colors as js/dashboard.js's own stateFor/CSS
+// (--ok/--warn/--danger) — converted to RGB triples for jsPDF's
+// setFillColor, which has no notion of CSS custom properties.
+function stateFor(p, hasTarget = true) {
+  if (!hasTarget) return 'none';
+  if (p >= 100) return 'ok';
+  if (p >= 60) return 'warn';
+  return 'danger';
+}
+
+function stateColor(state) {
+  if (state === 'ok') return [74, 107, 79];
+  if (state === 'warn') return [184, 99, 47];
+  if (state === 'danger') return [156, 59, 46];
+  return [190, 190, 190];
+}
+
 function weeksOfCoverage(currentKg, targetKg, planning) {
   const days = autonomyDaysVal(planning);
   if (!targetKg || targetKg <= 0 || days <= 0) return null;
@@ -555,6 +667,68 @@ async function loadTargetGraph() {
   };
 }
 
+// --- Übersicht's graphical rows -----------------------------------------
+// Mirrors the live dashboard's own hero cards and category cards
+// (js/dashboard.js's renderHero/renderCategoryList) as an actual bar
+// graphic rather than plain text, per Markus's request — same color
+// thresholds, same current/target figures, right-aligned.
+
+function drawTotalBar(pdf, y, current, target) {
+  y = ensure(pdf, y, 10);
+  const p = pct(current, target);
+  const state = stateFor(p, target != null && target > 0);
+  const figText = `${round2(current)} / ${round2(target)} kg (${Math.round(p)} %)`;
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(11);
+  const figW = pdf.getTextWidth(figText);
+  pdf.text(figText, MARGIN + CONTENT_W - figW, y);
+  pdf.setFont('helvetica', 'normal');
+  drawBar(pdf, MARGIN, y + 1.5, CONTENT_W, 4, p, stateColor(state));
+  return y + 9;
+}
+
+// One category/subcategory row: icon, name, a bar, current/target kg
+// right-aligned, and a gray rule at the row's own bottom edge (same
+// fixed-cell-then-rule shape as table()/checkboxLine/crisisStep above).
+function categoryGraphRow(pdf, y, sym, name, current, target, isCategory) {
+  const indent = isCategory ? 0 : 6;
+  const iconSize = isCategory ? 4.5 : 3.6;
+  const rowH = isCategory ? 13 : 9.5;
+  y = ensure(pdf, y, rowH);
+  const rowTop = y;
+  const textY = rowTop + (isCategory ? 5 : 4.2);
+  const textX0 = MARGIN + indent + (sym ? iconSize + 1.5 : 0);
+
+  const img = sym ? symbolImageDataUrl(sym) : null;
+  if (img) pdf.addImage(img, 'PNG', MARGIN + indent, textY - iconSize + 1.2, iconSize, iconSize);
+
+  pdf.setFont('helvetica', isCategory ? 'bold' : 'normal');
+  pdf.setFontSize(isCategory ? 10.5 : 9);
+  pdf.text(name, textX0, textY);
+
+  const p = pct(current, target);
+  const state = stateFor(p, target != null);
+  const figText = `${round2(current)} / ${round2(target)} kg`;
+  pdf.setFontSize(isCategory ? 9 : 8);
+  const figW = pdf.getTextWidth(figText);
+  pdf.text(figText, MARGIN + CONTENT_W - figW, textY);
+
+  const barY = textY + 1.6;
+  const barX = textX0;
+  const barW = MARGIN + CONTENT_W - textX0;
+  drawBar(pdf, barX, barY, barW, isCategory ? 3 : 2.2, p, stateColor(state));
+
+  y = rowTop + rowH;
+  pdf.setDrawColor(200);
+  pdf.setLineWidth(0.15);
+  pdf.line(MARGIN, y, MARGIN + CONTENT_W, y);
+  pdf.setDrawColor(0);
+  pdf.setLineWidth(0.2);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(10);
+  return y;
+}
+
 // --- Section builders ------------------------------------------------------
 // Each takes the shared jsPDF instance and draws starting at y = MARGIN —
 // the caller (createBtn's click handler) is responsible for calling
@@ -579,7 +753,7 @@ async function buildDashboardSection(pdf) {
   const weeksTarget = days > 0 ? days / 7 : null;
 
   y = subheading(pdf, y, 'Lebensmittel gesamt');
-  y = bodyText(pdf, y, `${round2(currentKgAll)} kg / ${round2(targetKgAll)} kg (${Math.round(pct(currentKgAll, targetKgAll))} % gedeckt)`);
+  y = drawTotalBar(pdf, y, currentKgAll, targetKgAll);
   if (weeks != null && weeksTarget != null) {
     y = bodyText(pdf, y, `Reicht ca. ${round2(Math.min(weeks, 999))} von ${round2(weeksTarget)} Wochen.`);
   }
@@ -591,7 +765,7 @@ async function buildDashboardSection(pdf) {
     y = subheading(pdf, y, 'Wasser gesamt');
     if (waterTarget != null) {
       const wWeeks = weeksOfCoverage(waterCurrent, waterTarget, planning);
-      y = bodyText(pdf, y, `${round2(waterCurrent)} l / ${round2(waterTarget)} l (${Math.round(pct(waterCurrent, waterTarget))} % gedeckt)`);
+      y = drawTotalBar(pdf, y, waterCurrent, waterTarget);
       if (wWeeks != null && weeksTarget != null) {
         y = bodyText(pdf, y, `Reicht ca. ${round2(Math.min(wWeeks, 999))} von ${round2(weeksTarget)} Wochen.`);
       }
@@ -606,14 +780,17 @@ async function buildDashboardSection(pdf) {
     y = bodyText(pdf, y, 'Keine Lebensmittel-Ziele gesetzt.');
   }
   rows.forEach((row) => {
-    y = bodyText(pdf, y, `${row.cat.name}: ${round2(row.currentKg)} kg / ${round2(row.targetKg)} kg`, { bold: true });
+    y = categoryGraphRow(pdf, y, row.cat.sym, row.cat.name, row.currentKg, row.targetKg, true);
     row.subs.forEach(({ sub, targetKg, currentKg }) => {
       if (targetKg == null) return;
-      y = bodyText(pdf, y, `${sub.name}: ${round2(currentKg)} kg / ${round2(targetKg)} kg`, { indent: 5, size: 9 });
+      y = categoryGraphRow(pdf, y, sub.sym, sub.name, currentKg, targetKg, false);
     });
   });
 
-  y = spacer(y);
+  // Own page, per Markus's request — MHD-Alarme and Einkaufsliste each
+  // read as their own report, not a continuation of the Kategorien graphs.
+  pdf.addPage();
+  y = MARGIN;
   y = subheading(pdf, y, 'MHD-Alarme');
   const nowIdx = nowMonthIndex();
   const bands = [
@@ -633,7 +810,8 @@ async function buildDashboardSection(pdf) {
   });
   if (!anyAlert) y = bodyText(pdf, y, 'Nichts läuft in den nächsten 12 Monaten ab.');
 
-  y = spacer(y);
+  pdf.addPage();
+  y = MARGIN;
   y = subheading(pdf, y, 'Einkaufsliste');
   const shopping = computeShoppingList(subStock, rows, targetsDoc, productIndex, allBatches, taxonomy, household, planning);
   if (shopping.length === 0) {
@@ -646,9 +824,11 @@ async function buildDashboardSection(pdf) {
     });
     groups.forEach((items, groupName) => {
       y = bodyText(pdf, y, groupName, { bold: true, size: 9 });
-      items.forEach((item) => {
-        y = bodyText(pdf, y, `${item.name}: +${formatShoppingNeed(item)}`, { indent: 5, size: 9 });
-      });
+      y = table(pdf, y, [
+        { header: 'Artikel', width: 130, get: (r) => r.name },
+        { header: 'Fehlt', width: 50, align: 'right', get: (r) => formatShoppingNeed(r) },
+      ], items);
+      y = spacer(y, 0.5);
     });
   }
 }
@@ -726,10 +906,7 @@ async function buildCrisisSection(pdf) {
     return;
   }
   types.forEach((type) => {
-    // No type.sym here — jsPDF's core fonts (WinAnsi-encoded) have no
-    // emoji glyphs at all, so the app's crisis-type symbols simply can't
-    // render in this PDF; the name alone is what actually prints.
-    y = subheading(pdf, y, type.name || '');
+    y = subheadingWithIcon(pdf, y, type.sym, type.name || '');
     (type.steps || []).forEach((step, i) => {
       y = crisisStep(pdf, y, i + 1, step.text || '');
     });
@@ -832,7 +1009,7 @@ async function buildTargetsSection(pdf) {
   const macroGroupIds = computeMacroGroups(taxonomy);
 
   const ZIELE_COLS = (nameHeader) => [
-    { header: nameHeader, width: 130, get: (r) => r.name },
+    { header: nameHeader, width: 130, icon: (r) => r.sym, get: (r) => r.name },
     { header: 'Ziel', width: 50, align: 'right', get: (r) => r.target },
   ];
 
@@ -842,7 +1019,7 @@ async function buildTargetsSection(pdf) {
     (type.categories || []).forEach((cat) => {
       const source = categoryTargetSource(type, cat, macroGroupIds, household, planning, targetsDoc);
       const targetKg = categoryDisplayTarget(cat, source, targetsDoc);
-      catRows.push({ name: cat.name, target: targetKg != null ? `${round2(targetKg)} kg` : '–' });
+      catRows.push({ name: cat.name, sym: cat.sym, target: targetKg != null ? `${round2(targetKg)} kg` : '–' });
     });
   });
   y = subheading(pdf, y, 'Kategorien');
@@ -861,7 +1038,9 @@ async function buildTargetsSection(pdf) {
       const catKg = categoryDisplayTarget(cat, source, targetsDoc);
       (cat.subcategories || []).forEach((sub) => {
         const subTarget = subcategoryDisplayTarget(cat, sub, source, catKg, targetsDoc);
-        subRows.push({ name: `${sub.name} (${cat.name})`, target: subTarget != null ? `${round2(subTarget)} kg` : '–' });
+        subRows.push({
+          name: `${sub.name} (${cat.name})`, sym: sub.sym, target: subTarget != null ? `${round2(subTarget)} kg` : '–',
+        });
       });
     });
   });
