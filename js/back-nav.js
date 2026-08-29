@@ -26,6 +26,9 @@ const recipeEditModalEl = document.getElementById('recipe-edit-modal');
 const recipeEditBackBtn = document.getElementById('recipe-edit-back-btn');
 const recipeViewModalEl = document.getElementById('recipe-view-modal');
 const recipeViewCloseBtn = document.getElementById('recipe-view-close-btn');
+const dictateEditModalEl = document.getElementById('dictate-edit-modal');
+const dictateModalEl = document.getElementById('dictate-modal');
+const dictateCloseBtn = document.getElementById('dictate-close-btn');
 const checklistsEditToggleBtn = document.getElementById('checklists-edit-toggle');
 const checkinFlowEl = document.getElementById('stock-flow');
 const checkinBackBtn = document.getElementById('checkin-back-btn');
@@ -92,6 +95,14 @@ window.addEventListener('popstate', () => {
     recipeEditBackBtn.click();
   } else if (recipeViewModalEl.classList.contains('show')) {
     recipeViewCloseBtn.click();
+  } else if (dictateEditModalEl.classList.contains('show')) {
+    // Diktieren's correction sheet has no dedicated close button, only
+    // backdrop-click-to-close (js/dictate.js) — a synthetic click on the
+    // overlay itself reproduces that exactly, since the handler only
+    // checks e.target === the overlay element.
+    dictateEditModalEl.click();
+  } else if (dictateModalEl.classList.contains('show')) {
+    dictateCloseBtn.click();
   } else if (checklistsEditNested()) {
     checklistsEditToggleBtn.click();
   } else if (settingsNested()) {

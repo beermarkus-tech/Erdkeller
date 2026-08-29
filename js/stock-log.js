@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=126';
+import { db } from './firebase-init.js?v=127';
 import {
   collection, getDocs, query, orderBy, limit, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
