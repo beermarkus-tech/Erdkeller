@@ -10,7 +10,7 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=124';
+import { db } from './firebase-init.js?v=125';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -45,6 +45,10 @@ const PAGE_W = 210;
 const PAGE_H = 297;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 const LINE_H = 5;
+// A clearly visible gap before the next group/subsection header — used
+// wherever the previous build's spacing between a list's last item and
+// the next header read as "no distance at all".
+const SECTION_GAP = 8;
 
 function ensure(pdf, y, needed) {
   if (y + needed > PAGE_H - MARGIN) {
@@ -326,6 +330,47 @@ function table(pdf, y, columns, rows) {
     grayLine(y);
   });
   pdf.setFontSize(10);
+  return y;
+}
+
+// A full-width colored band behind a section label — e.g. MHD-Alarme's
+// "Bereits erreicht"/"Nächste 6 Monate" headers, tinted the same way the
+// app's own alert rows are (--danger-bg/--warn-bg with --danger/--warn
+// text), so the severity reads at a glance without opening the app.
+function bandHeaderBar(pdf, y, label, bg, fg) {
+  y = ensure(pdf, y, 9);
+  pdf.setFillColor(bg[0], bg[1], bg[2]);
+  pdf.rect(MARGIN, y - 4.6, CONTENT_W, 7, 'F');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10);
+  pdf.setTextColor(fg[0], fg[1], fg[2]);
+  pdf.text(label, MARGIN + 3, y);
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(10);
+  return y + 6;
+}
+
+// Lays a flat list of items into two side-by-side columns, zig-zag order
+// (item 0 → left row 0, item 1 → right row 0, item 2 → left row 1, ...).
+// Each row-pair is measured before drawing and the two columns always
+// advance together, so a page break (checked once per pair via the
+// shared ensure()) never leaves the columns out of sync with each other.
+// measure(item, colWidth) returns the row's own height in mm;
+// draw(pdf, x, y, colWidth, item) draws it at that x/y.
+function twoColumnFlatList(pdf, y, items, measure, draw) {
+  const gap = 8;
+  const colW = (CONTENT_W - gap) / 2;
+  const colX = [MARGIN, MARGIN + colW + gap];
+  for (let i = 0; i < items.length; i += 2) {
+    const a = items[i];
+    const b = items[i + 1];
+    const rowH = Math.max(measure(a, colW), b ? measure(b, colW) : 0);
+    y = ensure(pdf, y, rowH);
+    draw(pdf, colX[0], y, colW, a);
+    if (b) draw(pdf, colX[1], y, colW, b);
+    y += rowH;
+  }
   return y;
 }
 
@@ -794,19 +839,37 @@ async function buildDashboardSection(pdf) {
   y = subheading(pdf, y, 'MHD-Alarme');
   const nowIdx = nowMonthIndex();
   const bands = [
-    { label: 'Bereits erreicht', min: -Infinity, max: nowIdx },
-    { label: 'Nächste 6 Monate', min: nowIdx + 1, max: nowIdx + 6 },
-    { label: 'Monate 7–12', min: nowIdx + 7, max: nowIdx + 12 },
+    { label: 'Bereits erreicht', min: -Infinity, max: nowIdx, bg: [245, 228, 223], fg: [156, 59, 46] },
+    { label: 'Nächste 6 Monate', min: nowIdx + 1, max: nowIdx + 6, bg: [247, 233, 218], fg: [184, 99, 47] },
+    { label: 'Monate 7–12', min: nowIdx + 7, max: nowIdx + 12, bg: [228, 225, 214], fg: [46, 64, 52] },
   ];
   let anyAlert = false;
   bands.forEach((band) => {
     const alerts = computeAlerts(allBatches, productIndex, band.min, band.max);
     if (alerts.length === 0) return;
     anyAlert = true;
-    y = bodyText(pdf, y, band.label, { bold: true, size: 9 });
-    alerts.forEach((a) => {
-      y = bodyText(pdf, y, `${a.product.name} — MHD ${a.batch.bestBefore}`, { indent: 5, size: 9 });
-    });
+    y = bandHeaderBar(pdf, y, band.label, band.bg, band.fg);
+    y = twoColumnFlatList(
+      pdf,
+      y,
+      alerts,
+      () => LINE_H + 1.5,
+      (pdf2, x, yy, w, a) => {
+        pdf2.setFont('helvetica', 'normal');
+        pdf2.setFontSize(9);
+        const name = pdf2.splitTextToSize(a.product.name, w - 22)[0];
+        pdf2.text(name, x, yy);
+        const dateText = a.batch.bestBefore;
+        const dw = pdf2.getTextWidth(dateText);
+        pdf2.text(dateText, x + w - dw, yy);
+        pdf2.setDrawColor(210);
+        pdf2.setLineWidth(0.15);
+        pdf2.line(x, yy + 1.6, x + w, yy + 1.6);
+        pdf2.setDrawColor(0);
+        pdf2.setLineWidth(0.2);
+      },
+    );
+    y += SECTION_GAP;
   });
   if (!anyAlert) y = bodyText(pdf, y, 'Nichts läuft in den nächsten 12 Monaten ab.');
 
@@ -822,54 +885,131 @@ async function buildDashboardSection(pdf) {
       if (!groups.has(item.group)) groups.set(item.group, []);
       groups.get(item.group).push(item);
     });
-    groups.forEach((items, groupName) => {
-      y = bodyText(pdf, y, groupName, { bold: true, size: 9 });
-      y = table(pdf, y, [
-        { header: 'Artikel', width: 130, get: (r) => r.name },
-        { header: 'Fehlt', width: 50, align: 'right', get: (r) => formatShoppingNeed(r) },
-      ], items);
-      y = spacer(y, 0.5);
-    });
+    const groupEntries = [...groups.entries()];
+    const rowStep = LINE_H - 1 + 1.8;
+    y = twoColumnFlatList(
+      pdf,
+      y,
+      groupEntries,
+      (g) => LINE_H * 1.3 + g[1].length * rowStep + SECTION_GAP,
+      (pdf2, x, yy, w, [groupName, items]) => {
+        pdf2.setFont('helvetica', 'bold');
+        pdf2.setFontSize(9);
+        pdf2.text(groupName, x, yy);
+        let iy = yy + LINE_H * 1.3;
+        pdf2.setFont('helvetica', 'normal');
+        items.forEach((item) => {
+          pdf2.setFontSize(9);
+          const name = pdf2.splitTextToSize(item.name, w - 22)[0];
+          pdf2.text(name, x, iy);
+          const needText = formatShoppingNeed(item);
+          const nw = pdf2.getTextWidth(needText);
+          pdf2.text(needText, x + w - nw, iy);
+          pdf2.setDrawColor(210);
+          pdf2.setLineWidth(0.15);
+          pdf2.line(x, iy + 1.6, x + w, iy + 1.6);
+          pdf2.setDrawColor(0);
+          pdf2.setLineWidth(0.2);
+          iy += rowStep;
+        });
+      },
+    );
   }
 }
+
+// Bestand's per-Unterkategorie table — columns tuned to sum to
+// CONTENT_W now that the breadcrumb is conveyed by the group heading
+// above the table instead of a column of its own.
+const STOCK_COLUMNS = [
+  { header: 'Produkt', width: 45, get: (r) => r.product },
+  { header: 'Details', width: 35, get: (r) => r.details },
+  { header: 'Menge', width: 15, align: 'right', get: (r) => r.quantity },
+  { header: 'Inhalt', width: 25, get: (r) => r.content },
+  { header: 'MHD', width: 20, get: (r) => r.bestBefore },
+  { header: 'Lagerort', width: 40, get: (r) => r.storage },
+];
 
 async function buildStockSection(pdf) {
   let y = MARGIN;
   y = heading(pdf, y, 'Bestand');
 
-  const [batchesSnap, productsSnap] = await Promise.all([
+  const [batchesSnap, productsSnap, taxSnap] = await Promise.all([
     getDocs(collection(db, 'stockItems')),
     getDocs(collection(db, 'products')),
+    getDoc(doc(db, 'config', 'taxonomy')),
   ]);
-  const productNames = new Map(productsSnap.docs.map((d) => [d.id, d.data().name || '']));
-  const rows = batchesSnap.docs.map((d) => {
+  const products = new Map(productsSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
+  const taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
+
+  // subcategoryId -> { sub, cat } — the live link (via product.subcategoryId),
+  // used both for grouping and to look up each subcategory/category's own
+  // symbol, since a stock batch itself only stores denormalized text.
+  const subIndex = new Map();
+  taxonomy.types.forEach((type) => {
+    (type.categories || []).forEach((cat) => {
+      (cat.subcategories || []).forEach((sub) => {
+        subIndex.set(sub.id, { sub, cat });
+      });
+    });
+  });
+
+  const bySub = new Map();
+  const fallbackGroups = new Map();
+  batchesSnap.docs.forEach((d) => {
     const b = d.data();
-    return {
-      product: productNames.get(b.productId) || '',
-      breadcrumb: [b.type, b.category, b.subcategory].filter(Boolean).join(' › '),
+    const product = products.get(b.productId);
+    const info = product ? subIndex.get(product.subcategoryId) : null;
+    const row = {
+      product: product ? product.name : '',
       details: b.details || '',
       quantity: b.quantity ?? '',
       content: b.content || '',
       bestBefore: b.bestBefore || '',
       storage: b.storage || '',
     };
+    if (info) {
+      if (!bySub.has(info.sub.id)) bySub.set(info.sub.id, []);
+      bySub.get(info.sub.id).push(row);
+    } else {
+      // Orphaned batch (deleted product) or a legacy row with no matching
+      // taxonomy id — still printed, grouped by its own stored breadcrumb
+      // text, just without a symbol.
+      const key = [b.type, b.category, b.subcategory].join('|');
+      if (!fallbackGroups.has(key)) {
+        fallbackGroups.set(key, {
+          label: [b.category, b.subcategory].filter(Boolean).join(' › ') || b.type || 'Unbekannt', rows: [],
+        });
+      }
+      fallbackGroups.get(key).rows.push(row);
+    }
   });
-  rows.sort((a, b) => (a.breadcrumb + a.product).localeCompare(b.breadcrumb + b.product));
 
-  const columns = [
-    { header: 'Produkt', width: 35, get: (r) => r.product },
-    { header: 'Typ › Kategorie › Unterkat.', width: 45, get: (r) => r.breadcrumb },
-    { header: 'Details', width: 30, get: (r) => r.details },
-    { header: 'Menge', width: 15, align: 'right', get: (r) => r.quantity },
-    { header: 'Inhalt', width: 20, get: (r) => r.content },
-    { header: 'MHD', width: 15, get: (r) => r.bestBefore },
-    { header: 'Lagerort', width: 20, get: (r) => r.storage },
-  ];
-  if (rows.length === 0) {
-    bodyText(pdf, y, 'Kein Bestand vorhanden.');
-    return;
-  }
-  table(pdf, y, columns, rows);
+  // Food-classed types first, per Markus's call, then everything else —
+  // each type's own admin-curated category/subcategory order preserved.
+  const foodTypes = taxonomy.types.filter((t) => typeClass(t) === 'food');
+  const otherTypes = taxonomy.types.filter((t) => typeClass(t) !== 'food');
+
+  let any = false;
+  [...foodTypes, ...otherTypes].forEach((type) => {
+    (type.categories || []).forEach((cat) => {
+      (cat.subcategories || []).forEach((sub) => {
+        const groupRows = bySub.get(sub.id);
+        if (!groupRows || groupRows.length === 0) return;
+        any = true;
+        y += SECTION_GAP;
+        y = subheadingWithIcon(pdf, y, sub.sym || cat.sym, `${cat.name} › ${sub.name}`);
+        y = table(pdf, y, STOCK_COLUMNS, groupRows);
+      });
+    });
+  });
+  fallbackGroups.forEach((group) => {
+    any = true;
+    y += SECTION_GAP;
+    y = subheadingWithIcon(pdf, y, null, group.label);
+    y = table(pdf, y, STOCK_COLUMNS, group.rows);
+  });
+
+  if (!any) bodyText(pdf, y, 'Kein Bestand vorhanden.');
 }
 
 async function buildMaintenanceSection(pdf) {
@@ -886,12 +1026,12 @@ async function buildMaintenanceSection(pdf) {
     return;
   }
   lists.forEach((list) => {
+    y += SECTION_GAP;
     y = subheading(pdf, y, list.name || '');
     (list.items || []).forEach((item) => {
       const freq = FREQ_LABELS[item.frequency] || item.frequency || '';
       y = checkboxLine(pdf, y, item.text || '', freq);
     });
-    y = spacer(y, 0.6);
   });
 }
 
@@ -905,12 +1045,15 @@ async function buildCrisisSection(pdf) {
     bodyText(pdf, y, 'Keine Krisentypen vorhanden.');
     return;
   }
-  types.forEach((type) => {
+  types.forEach((type, i) => {
+    if (i > 0) {
+      pdf.addPage();
+      y = MARGIN;
+    }
     y = subheadingWithIcon(pdf, y, type.sym, type.name || '');
-    (type.steps || []).forEach((step, i) => {
-      y = crisisStep(pdf, y, i + 1, step.text || '');
+    (type.steps || []).forEach((step, si) => {
+      y = crisisStep(pdf, y, si + 1, step.text || '');
     });
-    y = spacer(y, 1.2);
   });
 }
 
@@ -1029,7 +1172,7 @@ async function buildTargetsSection(pdf) {
     y = table(pdf, y, ZIELE_COLS('Kategorie'), catRows);
   }
 
-  y = spacer(y);
+  y += SECTION_GAP;
   const subRows = [];
   taxonomy.types.forEach((type) => {
     if (typeClass(type) !== 'food') return;
@@ -1051,7 +1194,7 @@ async function buildTargetsSection(pdf) {
     y = table(pdf, y, ZIELE_COLS('Unterkategorie'), subRows);
   }
 
-  y = spacer(y);
+  y += SECTION_GAP;
   const productIds = Object.keys(targetsDoc.products || {});
   const prodRows = [];
   productIds.forEach((id) => {
