@@ -26,6 +26,14 @@ const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
 
 const MODEL = 'claude-haiku-4-5-20251001';
 
+// The "Erdkeller" API key is a personal, identity-linked key valid across
+// all of Markus's workspaces, so every request must state which workspace
+// it acts in (Anthropic rejects it otherwise with a 400). Using a
+// dedicated "Erdkeller" workspace (rather than Default/Claude Code) keeps
+// this feature's own AI usage/cost trackable in isolation. Not a secret —
+// workspace ids aren't credentials — so it's a plain constant.
+const WORKSPACE_ID = 'wrkspc_01Jo4yTb1qQ9rm7HKucFZ6ys';
+
 function buildTaxonomyLines(taxonomy) {
   const lines = [];
   (taxonomy.types || []).forEach((type) => {
@@ -110,6 +118,7 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey] }, async (request) 
         'content-type': 'application/json',
         'x-api-key': anthropicApiKey.value(),
         'anthropic-version': '2023-06-01',
+        'anthropic-workspace-id': WORKSPACE_ID,
       },
       body: JSON.stringify({
         model: MODEL,
