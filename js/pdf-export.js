@@ -10,7 +10,7 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=122';
+import { db } from './firebase-init.js?v=123';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -96,7 +96,8 @@ function bullet(pdf, y, text, opts = {}) {
 
 // A drawn empty checkbox square + label + right-aligned meta text — used
 // only by the Wartung section, which per Markus's call must always print
-// blank (never today's checked/due state).
+// blank (never today's checked/due state). A light gray rule under each
+// item separates rows the way a real paper checklist wants.
 function checkboxLine(pdf, y, text, meta) {
   y = ensure(pdf, y, LINE_H);
   pdf.setFont('helvetica', 'normal');
@@ -109,7 +110,41 @@ function checkboxLine(pdf, y, text, meta) {
     pdf.text(meta, MARGIN + CONTENT_W - metaW, y);
     pdf.setFontSize(10);
   }
+  const lineY = y + 1.8;
+  pdf.setDrawColor(210);
+  pdf.setLineWidth(0.15);
+  pdf.line(MARGIN, lineY, MARGIN + CONTENT_W, lineY);
+  pdf.setDrawColor(0);
+  pdf.setLineWidth(0.2);
   return y + LINE_H;
+}
+
+// One numbered crisis step, deliberately its own helper rather than a
+// bodyText call: bigger type, a bold number, a gray rule and real vertical
+// air below each step — this is meant to work as an actual crisis
+// checklist glanced at under stress, not a dense paragraph.
+function crisisStep(pdf, y, index, text) {
+  const stepLineH = 6.5;
+  const numText = `${index}.`;
+  const numWidth = 9;
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'normal');
+  const lines = pdf.splitTextToSize(text, CONTENT_W - numWidth);
+  y = ensure(pdf, y, lines.length * stepLineH + 9);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(numText, MARGIN, y);
+  pdf.setFont('helvetica', 'normal');
+  lines.forEach((line, li) => {
+    pdf.text(line, MARGIN + numWidth, y + li * stepLineH);
+  });
+  const ruleY = y + (lines.length - 1) * stepLineH + 4;
+  pdf.setDrawColor(190);
+  pdf.setLineWidth(0.2);
+  pdf.line(MARGIN, ruleY, MARGIN + CONTENT_W, ruleY);
+  pdf.setDrawColor(0);
+  pdf.setLineWidth(0.2);
+  pdf.setFontSize(10);
+  return ruleY + 5;
 }
 
 function spacer(y, mult = 1) {
@@ -135,38 +170,65 @@ function image(pdf, y, dataUri, maxW = 70, maxH = 70) {
   return y + h + LINE_H;
 }
 
-// Simple wrapping table: columns = [{header, width, get(row)}], widths in mm.
-// No repeated header on page breaks — acceptable for this household-scale
-// data (dozens to low hundreds of rows), kept simple rather than adding
-// recursive header-redraw bookkeeping for a "nice to have" polish item.
+// Wrapping table: columns = [{header, width, align, get(row)}], widths in
+// mm, align: 'right' for numeric columns. A light gray rule under every
+// row, and the header row redraws itself whenever a row's own page break
+// lands it on a fresh page — checked via jsPDF's own page count rather
+// than guessing, so it's exact regardless of how tall any given row is.
 function table(pdf, y, columns, rows) {
+  const tableWidth = columns.reduce((s, c) => s + c.width, 0);
+  const lineStep = LINE_H - 1;
+  const rowGap = 2;
+
+  function textX(col, x, text) {
+    return col.align === 'right' ? x + col.width - 2 - pdf.getTextWidth(text) : x;
+  }
+
+  function grayLine(yy) {
+    pdf.setDrawColor(190);
+    pdf.setLineWidth(0.2);
+    pdf.line(MARGIN, yy, MARGIN + tableWidth, yy);
+    pdf.setDrawColor(0);
+    pdf.setLineWidth(0.2);
+  }
+
+  function drawHeader(yy) {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
+    let x = MARGIN;
+    columns.forEach((col) => {
+      pdf.text(col.header, textX(col, x, col.header), yy);
+      x += col.width;
+    });
+    yy += 1.5;
+    grayLine(yy);
+    yy += lineStep;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    return yy;
+  }
+
   y = ensure(pdf, y, LINE_H * 2);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9);
-  let x = MARGIN;
-  columns.forEach((col) => {
-    pdf.text(col.header, x, y);
-    x += col.width;
-  });
-  y += 1;
-  pdf.setLineWidth(0.2);
-  pdf.line(MARGIN, y, MARGIN + columns.reduce((s, c) => s + c.width, 0), y);
-  y += LINE_H - 1;
-  pdf.setFont('helvetica', 'normal');
+  y = drawHeader(y);
 
   rows.forEach((row) => {
     const cellLines = columns.map((col) => pdf.splitTextToSize(String(col.get(row) ?? ''), col.width - 2));
     const rowLines = Math.max(...cellLines.map((l) => l.length), 1);
-    const rowHeight = rowLines * (LINE_H - 1) + 1;
+    const rowHeight = rowLines * lineStep + rowGap;
+    const pageBefore = pdf.internal.getNumberOfPages();
     y = ensure(pdf, y, rowHeight);
-    let cx = MARGIN;
+    if (pdf.internal.getNumberOfPages() !== pageBefore) y = drawHeader(y);
+
+    let x = MARGIN;
     columns.forEach((col, i) => {
       cellLines[i].forEach((line, li) => {
-        pdf.text(line, cx, y + li * (LINE_H - 1));
+        pdf.text(line, textX(col, x, line), y + li * lineStep);
       });
-      cx += col.width;
+      x += col.width;
     });
-    y += rowHeight;
+    y += (rowLines - 1) * lineStep + 3;
+    grayLine(y);
+    y += rowGap;
   });
   pdf.setFontSize(10);
   return y;
@@ -618,7 +680,7 @@ async function buildStockSection(pdf) {
     { header: 'Produkt', width: 35, get: (r) => r.product },
     { header: 'Typ › Kategorie › Unterkat.', width: 45, get: (r) => r.breadcrumb },
     { header: 'Details', width: 30, get: (r) => r.details },
-    { header: 'Menge', width: 15, get: (r) => r.quantity },
+    { header: 'Menge', width: 15, align: 'right', get: (r) => r.quantity },
     { header: 'Inhalt', width: 20, get: (r) => r.content },
     { header: 'MHD', width: 15, get: (r) => r.bestBefore },
     { header: 'Lagerort', width: 20, get: (r) => r.storage },
@@ -664,11 +726,14 @@ async function buildCrisisSection(pdf) {
     return;
   }
   types.forEach((type) => {
-    y = subheading(pdf, y, `${type.sym ? type.sym + ' ' : ''}${type.name || ''}`);
+    // No type.sym here — jsPDF's core fonts (WinAnsi-encoded) have no
+    // emoji glyphs at all, so the app's crisis-type symbols simply can't
+    // render in this PDF; the name alone is what actually prints.
+    y = subheading(pdf, y, type.name || '');
     (type.steps || []).forEach((step, i) => {
-      y = bodyText(pdf, y, `${i + 1}. ${step.text || ''}`, { size: 11 });
+      y = crisisStep(pdf, y, i + 1, step.text || '');
     });
-    y = spacer(y, 0.6);
+    y = spacer(y, 1.2);
   });
 }
 
@@ -687,7 +752,14 @@ async function buildContactsSection(pdf) {
     if (c.phone) y = bodyText(pdf, y, `Telefon: ${c.phone}`, { size: 9 });
     if (c.address) y = bodyText(pdf, y, `Adresse: ${c.address}`, { size: 9 });
     if (c.notes) y = bodyText(pdf, y, `Notizen: ${c.notes}`, { size: 9 });
-    y = spacer(y, 0.5);
+    y = spacer(y, 0.6);
+    y = ensure(pdf, y, 3);
+    pdf.setDrawColor(190);
+    pdf.setLineWidth(0.2);
+    pdf.line(MARGIN, y, MARGIN + CONTENT_W, y);
+    pdf.setDrawColor(0);
+    pdf.setLineWidth(0.2);
+    y = spacer(y, 0.8);
   }
 
   if (emergency.length > 0) {
@@ -731,7 +803,11 @@ async function buildRecipesSection(pdf) {
     bodyText(pdf, y, 'Keine Rezepte vorhanden.');
     return;
   }
-  recipes.forEach((recipe) => {
+  recipes.forEach((recipe, i) => {
+    if (i > 0) {
+      pdf.addPage();
+      y = MARGIN;
+    }
     y = subheading(pdf, y, recipe.title || '(ohne Titel)');
     if (recipe.tags && recipe.tags.length) {
       y = bodyText(pdf, y, `Tags: ${recipe.tags.join(', ')}`, { size: 9 });
@@ -755,22 +831,29 @@ async function buildTargetsSection(pdf) {
   } = await loadTargetGraph();
   const macroGroupIds = computeMacroGroups(taxonomy);
 
-  y = subheading(pdf, y, 'Kategorien');
-  let anyCat = false;
+  const ZIELE_COLS = (nameHeader) => [
+    { header: nameHeader, width: 130, get: (r) => r.name },
+    { header: 'Ziel', width: 50, align: 'right', get: (r) => r.target },
+  ];
+
+  const catRows = [];
   taxonomy.types.forEach((type) => {
     if (typeClass(type) !== 'food') return;
     (type.categories || []).forEach((cat) => {
       const source = categoryTargetSource(type, cat, macroGroupIds, household, planning, targetsDoc);
       const targetKg = categoryDisplayTarget(cat, source, targetsDoc);
-      anyCat = true;
-      y = bodyText(pdf, y, `${cat.name}: ${targetKg != null ? round2(targetKg) + ' kg' : '–'}`);
+      catRows.push({ name: cat.name, target: targetKg != null ? `${round2(targetKg)} kg` : '–' });
     });
   });
-  if (!anyCat) y = bodyText(pdf, y, 'Keine Kategorien vorhanden.');
+  y = subheading(pdf, y, 'Kategorien');
+  if (catRows.length === 0) {
+    y = bodyText(pdf, y, 'Keine Kategorien vorhanden.');
+  } else {
+    y = table(pdf, y, ZIELE_COLS('Kategorie'), catRows);
+  }
 
   y = spacer(y);
-  y = subheading(pdf, y, 'Unterkategorien');
-  let anySub = false;
+  const subRows = [];
   taxonomy.types.forEach((type) => {
     if (typeClass(type) !== 'food') return;
     (type.categories || []).forEach((cat) => {
@@ -778,25 +861,31 @@ async function buildTargetsSection(pdf) {
       const catKg = categoryDisplayTarget(cat, source, targetsDoc);
       (cat.subcategories || []).forEach((sub) => {
         const subTarget = subcategoryDisplayTarget(cat, sub, source, catKg, targetsDoc);
-        anySub = true;
-        y = bodyText(pdf, y, `${sub.name} (${cat.name}): ${subTarget != null ? round2(subTarget) + ' kg' : '–'}`, { size: 9 });
+        subRows.push({ name: `${sub.name} (${cat.name})`, target: subTarget != null ? `${round2(subTarget)} kg` : '–' });
       });
     });
   });
-  if (!anySub) y = bodyText(pdf, y, 'Keine Unterkategorien vorhanden.');
+  y = subheading(pdf, y, 'Unterkategorien');
+  if (subRows.length === 0) {
+    y = bodyText(pdf, y, 'Keine Unterkategorien vorhanden.');
+  } else {
+    y = table(pdf, y, ZIELE_COLS('Unterkategorie'), subRows);
+  }
 
   y = spacer(y);
-  y = subheading(pdf, y, 'Produktziele');
   const productIds = Object.keys(targetsDoc.products || {});
-  if (productIds.length === 0) {
+  const prodRows = [];
+  productIds.forEach((id) => {
+    const product = productIndex.get(id);
+    if (!product) return;
+    const target = targetsDoc.products[id];
+    prodRows.push({ name: product.name, target: `${round2(computeAmount(target))} ${unitLabelFor(target.unit)}` });
+  });
+  y = subheading(pdf, y, 'Produktziele');
+  if (prodRows.length === 0) {
     y = bodyText(pdf, y, 'Keine Produktziele vorhanden.');
   } else {
-    productIds.forEach((id) => {
-      const product = productIndex.get(id);
-      if (!product) return;
-      const target = targetsDoc.products[id];
-      y = bodyText(pdf, y, `${product.name}: ${round2(computeAmount(target))} ${unitLabelFor(target.unit)}`, { size: 9 });
-    });
+    table(pdf, y, ZIELE_COLS('Produkt'), prodRows);
   }
 }
 
