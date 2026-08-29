@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=130';
+import { db, functions } from './firebase-init.js?v=131';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -395,6 +395,57 @@ function resolveLine(item) {
   return null;
 }
 
+// --- Manual direction override (the AI's in/out call is a guess; this is
+// the escape hatch for when it guessed wrong) -----------------------------
+
+function canToggleDirection(line) {
+  if (line.direction === 'out') return true; // out -> in is always possible
+  if (line.isNew || !line.productId) return false; // nothing to check out yet
+  return allBatches.some((b) => b.productId === line.productId);
+}
+
+function toggleLineDirection(line) {
+  if (line.direction === 'out') {
+    const product = productIndex.get(line.productId);
+    const ctx = product ? contextFor(product.subcategoryId) : null;
+    return {
+      direction: 'in',
+      isNew: false,
+      productId: line.productId,
+      name: line.name,
+      unitType: product ? product.unitType : 'kg',
+      subcategoryId: product ? (product.subcategoryId || null) : null,
+      typeName: ctx ? ctx.type.name : '',
+      typeSym: ctx ? ctx.type.sym : '',
+      categoryName: ctx ? ctx.category.name : '',
+      categorySym: ctx ? ctx.category.sym : '',
+      subcategoryName: ctx ? ctx.subcategory.name : '',
+      subcategorySym: ctx ? ctx.subcategory.sym : '',
+      quantity: line.removeQty,
+      content: line.content || '',
+      details: '',
+      bestBefore: line.bestBefore || '',
+      storage: line.storage || '',
+    };
+  }
+
+  if (!canToggleDirection(line)) return line; // toggle button is disabled in this case anyway
+  const candidates = allBatches.filter((b) => b.productId === line.productId);
+  const batch = candidates.find((b) => b.content === line.content) || candidates[0];
+  return {
+    direction: 'out',
+    batchId: batch.id,
+    productId: batch.productId,
+    name: productName(batch.productId),
+    content: batch.content || '',
+    bestBefore: batch.bestBefore || '',
+    storage: batch.storage || '',
+    batchQuantity: batch.quantity,
+    removeQty: clampQty(line.quantity, batch.quantity),
+    confidence: 'high', // manually chosen — no need to flag
+  };
+}
+
 async function handleTranscript(transcript) {
   appendUserBubble(transcript);
   const pendingBubble = appendPendingBubble('Analysiere…');
@@ -521,15 +572,19 @@ function lineBreadcrumb(line) {
   return [line.typeName, line.categoryName, line.subcategoryName].filter(Boolean).join(' › ');
 }
 
-function renderProposalLine(line, onTap) {
+function renderProposalLine(line, onTap, onToggle) {
   const row = document.createElement('div');
   row.className = 'dictate-proposal-line' + (line.direction === 'out' ? ' out' : '');
+
+  const content = document.createElement('div');
+  content.className = 'dictate-line-content';
+  row.appendChild(content);
 
   if (line.direction === 'out') {
     const pathEl = document.createElement('div');
     pathEl.className = 'dictate-line-path';
     pathEl.textContent = 'Entnehmen';
-    row.appendChild(pathEl);
+    content.appendChild(pathEl);
 
     const mainEl = document.createElement('div');
     mainEl.className = 'dictate-line-main';
@@ -541,46 +596,56 @@ function renderProposalLine(line, onTap) {
       confEl.title = 'Unsichere Chargen-Zuordnung — bitte prüfen';
       mainEl.appendChild(confEl);
     }
-    row.appendChild(mainEl);
+    content.appendChild(mainEl);
 
     const meta2El = document.createElement('div');
     meta2El.className = 'dictate-line-meta2';
     meta2El.textContent = batchMetaLine({ quantity: line.batchQuantity, content: line.content, bestBefore: line.bestBefore, storage: line.storage });
-    row.appendChild(meta2El);
+    content.appendChild(meta2El);
+  } else {
+    const pathEl = document.createElement('div');
+    pathEl.className = 'dictate-line-path';
+    const sym = line.subcategorySym || line.categorySym || line.typeSym || '';
+    pathEl.textContent = (sym ? sym + ' ' : '') + (lineBreadcrumb(line) || 'Kategorie auswählen');
+    content.appendChild(pathEl);
 
-    row.addEventListener('click', onTap);
-    return row;
+    const mainEl = document.createElement('div');
+    mainEl.className = 'dictate-line-main';
+    mainEl.textContent = `${line.quantity}× ${line.name}`;
+    if (line.content) {
+      const metaSpan = document.createElement('span');
+      metaSpan.className = 'dictate-line-meta';
+      metaSpan.textContent = ' · ' + line.content;
+      mainEl.appendChild(metaSpan);
+    }
+    content.appendChild(mainEl);
+
+    const meta2Parts = [];
+    if (line.bestBefore) meta2Parts.push('MHD ' + line.bestBefore);
+    if (line.storage) meta2Parts.push(line.storage);
+    if (line.isNew) meta2Parts.push('neues Produkt');
+    if (meta2Parts.length) {
+      const meta2El = document.createElement('div');
+      meta2El.className = 'dictate-line-meta2';
+      meta2El.textContent = meta2Parts.join(' · ');
+      content.appendChild(meta2El);
+    }
   }
 
-  const pathEl = document.createElement('div');
-  pathEl.className = 'dictate-line-path';
-  const sym = line.subcategorySym || line.categorySym || line.typeSym || '';
-  pathEl.textContent = (sym ? sym + ' ' : '') + (lineBreadcrumb(line) || 'Kategorie auswählen');
-  row.appendChild(pathEl);
+  const toggleBtn = document.createElement('button');
+  toggleBtn.type = 'button';
+  toggleBtn.className = 'dictate-line-toggle';
+  toggleBtn.textContent = line.direction === 'out' ? '⇄ Einlagern' : '⇄ Entnehmen';
+  const toggleDisabled = line.direction === 'in' && !canToggleDirection(line);
+  toggleBtn.disabled = toggleDisabled;
+  if (toggleDisabled) toggleBtn.title = 'Kein Bestand dieses Produkts vorhanden';
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    onToggle();
+  });
+  row.appendChild(toggleBtn);
 
-  const mainEl = document.createElement('div');
-  mainEl.className = 'dictate-line-main';
-  mainEl.textContent = `${line.quantity}× ${line.name}`;
-  if (line.content) {
-    const metaSpan = document.createElement('span');
-    metaSpan.className = 'dictate-line-meta';
-    metaSpan.textContent = ' · ' + line.content;
-    mainEl.appendChild(metaSpan);
-  }
-  row.appendChild(mainEl);
-
-  const meta2Parts = [];
-  if (line.bestBefore) meta2Parts.push('MHD ' + line.bestBefore);
-  if (line.storage) meta2Parts.push(line.storage);
-  if (line.isNew) meta2Parts.push('neues Produkt');
-  if (meta2Parts.length) {
-    const meta2El = document.createElement('div');
-    meta2El.className = 'dictate-line-meta2';
-    meta2El.textContent = meta2Parts.join(' · ');
-    row.appendChild(meta2El);
-  }
-
-  row.addEventListener('click', onTap);
+  content.addEventListener('click', onTap);
   return row;
 }
 
@@ -593,7 +658,11 @@ function appendProposalBubble(lines) {
   function rerender() {
     linesWrap.innerHTML = '';
     lines.forEach((line, i) => {
-      linesWrap.appendChild(renderProposalLine(line, () => openEditSheet(lines, i, rerender)));
+      linesWrap.appendChild(renderProposalLine(
+        line,
+        () => openEditSheet(lines, i, rerender),
+        () => { lines[i] = toggleLineDirection(lines[i]); rerender(); },
+      ));
     });
   }
   rerender();

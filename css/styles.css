@@ -3844,14 +3844,40 @@ nav.bottomnav button .icon {
 }
 
 .dictate-proposal-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 4px 8px 10px;
   border-bottom: 1px solid var(--stone);
   border-left: 3px solid var(--cellar);
-  cursor: pointer;
 }
 
 .dictate-proposal-line.out {
   border-left-color: var(--rust);
+}
+
+.dictate-line-content {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.dictate-line-toggle {
+  flex-shrink: 0;
+  border: 1px solid var(--stone-dark);
+  background: white;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--charcoal);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+.dictate-line-toggle:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .dictate-line-confidence {
