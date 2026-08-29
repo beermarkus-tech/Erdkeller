@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=128';
+import { db, functions } from './firebase-init.js?v=129';
 import {
   collection, getDocs, doc, getDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -159,35 +159,27 @@ modal.addEventListener('click', (e) => { if (e.target === modal) closeDictateMod
 const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognizer = null;
 let recording = false;
+let stopRequested = false;
+let accumulatedTranscript = '';
 
-function startRecording() {
-  if (!SpeechRecognitionCtor) {
-    appendErrorBubbleSimple('Spracherkennung wird auf diesem Gerät/Browser nicht unterstützt.');
-    return;
-  }
-  if (recording) return;
-
+// Android Chrome's continuous mode has a long-standing bug: it
+// periodically re-finalizes the *whole* utterance heard so far as a
+// brand-new "final" result instead of just the new words, so anything
+// that sums every final result across the session snowballs into
+// duplicated text ("zehn zehn Gläser zehn Gläser..."). continuous:false
+// sessions are reliable — each one ends cleanly after a single utterance
+// with exactly one final result — so we chain sessions manually
+// (restarting in onend) to keep listening across pauses without ever
+// enabling continuous mode.
+function runRecognitionSession() {
   recognizer = new SpeechRecognitionCtor();
   recognizer.lang = 'de-DE';
-  recognizer.continuous = true;
+  recognizer.continuous = false;
   recognizer.interimResults = true;
 
-  let finalTranscript = '';
-
-  recognizer.onstart = () => {
-    recording = true;
-    micBtn.classList.add('recording');
-    setHint('Höre zu… nochmal tippen zum Beenden');
-    liveEl.classList.remove('hidden');
-    liveEl.textContent = '';
-  };
+  let sessionFinal = '';
 
   recognizer.onresult = (event) => {
-    // event.results holds the whole session's results so far (it only
-    // grows, never shrinks) — rebuilding finalTranscript from scratch on
-    // every firing, rather than appending using event.resultIndex, avoids
-    // duplicating text on engines (Android Chrome included) that re-fire
-    // already-finalized results with a resultIndex that doesn't advance.
     let final = '';
     let interim = '';
     for (let i = 0; i < event.results.length; i++) {
@@ -198,32 +190,60 @@ function startRecording() {
         interim += result[0].transcript;
       }
     }
-    finalTranscript = final;
-    liveEl.textContent = (finalTranscript + ' ' + interim).trim();
+    sessionFinal = final;
+    liveEl.textContent = (accumulatedTranscript + ' ' + final + ' ' + interim).trim();
   };
 
   recognizer.onerror = (event) => {
     console.error('SpeechRecognition error', event.error);
     if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+      stopRequested = true;
       resetMicUi();
       appendErrorBubbleSimple('Mikrofon-Zugriff wurde verweigert — bitte in den Browser-Einstellungen erlauben.');
     }
-    // Other errors (e.g. no-speech) are left to onend, which already
-    // handles "nothing usable was said" via the empty-transcript check.
+    // Other errors (e.g. no-speech during a pause between items) are left
+    // to onend, which restarts the next session automatically.
   };
 
   recognizer.onend = () => {
-    resetMicUi();
-    const text = finalTranscript.trim();
-    if (text) handleTranscript(text);
+    if (sessionFinal) {
+      accumulatedTranscript = (accumulatedTranscript + ' ' + sessionFinal).trim();
+    }
+    if (stopRequested) {
+      resetMicUi();
+      const text = accumulatedTranscript.trim();
+      accumulatedTranscript = '';
+      if (text) handleTranscript(text);
+    } else {
+      runRecognitionSession();
+    }
   };
 
   try {
     recognizer.start();
   } catch (err) {
     console.error(err);
+    stopRequested = true;
     resetMicUi();
   }
+}
+
+function startRecording() {
+  if (!SpeechRecognitionCtor) {
+    appendErrorBubbleSimple('Spracherkennung wird auf diesem Gerät/Browser nicht unterstützt.');
+    return;
+  }
+  if (recording) return;
+
+  recording = true;
+  stopRequested = false;
+  accumulatedTranscript = '';
+  micBtn.classList.add('recording');
+  setHint('Höre zu… nochmal tippen zum Beenden');
+  liveEl.classList.remove('hidden');
+  liveEl.textContent = '';
+
+  runRecognitionSession();
 }
 
 function resetMicUi() {
@@ -235,6 +255,7 @@ function resetMicUi() {
 
 function stopRecording() {
   if (recognizer && recording) {
+    stopRequested = true;
     recognizer.stop();
   }
 }
