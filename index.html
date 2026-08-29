@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=121">
-<link rel="icon" href="icons/icon-192.png?v=121">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=121">
+<link rel="manifest" href="manifest.json?v=122">
+<link rel="icon" href="icons/icon-192.png?v=122">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=122">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=121">
+<link rel="stylesheet" href="css/styles.css?v=122">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 121</div>
+<div id="build-tag" class="build-tag">Build 122</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -595,6 +595,11 @@
         <div class="settings-card" data-target="export">
           <span class="sym">🔄</span>
           <div class="sc-text"><div class="sc-title">Sicherung</div><div class="sc-sub">Export &amp; Wiederherstellung</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="settings-card" data-target="pdf">
+          <span class="sym">🖨️</span>
+          <div class="sc-text"><div class="sc-title">PDF-Export</div><div class="sc-sub">Drucken &amp; Sichern</div></div>
           <span class="chev">›</span>
         </div>
       </div>
@@ -1237,6 +1242,58 @@
           <p id="import-status" class="taxonomy-status"></p>
         </div>
       </div>
+
+      <div class="settings-panel hidden" id="settings-panel-pdf">
+        <div class="sticky-panel-header">
+          <div class="panel-header-row">
+            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
+          </div>
+        </div>
+        <p class="settings-note">Erzeugt eine PDF-Datei zum Herunterladen — kein Druckdialog. Jeder ausgewählte Abschnitt beginnt auf einer neuen Seite.</p>
+
+        <div class="tax-expand-row">
+          <button class="select-mode-btn" id="pdf-select-all-btn" type="button">Alle auswählen</button>
+          <button class="select-mode-btn" id="pdf-select-none-btn" type="button">Alle abwählen</button>
+        </div>
+
+        <div class="product-list">
+          <div class="stock-product-row">
+            <input type="checkbox" class="pdf-section-check" id="pdf-section-dashboard" data-pdf-section="dashboard" checked>
+            <label for="pdf-section-dashboard" class="export-row-text"><span class="pname">Übersicht</span><span class="pmeta">Stand heute: Bestand vs. Ziel, MHD-Alarme, Einkaufsliste</span></label>
+          </div>
+          <div class="stock-product-row">
+            <input type="checkbox" class="pdf-section-check" id="pdf-section-stock" data-pdf-section="stock" checked>
+            <label for="pdf-section-stock" class="export-row-text"><span class="pname">Bestand</span><span class="pmeta">Alle Chargen mit Produkt, Menge, MHD, Lagerort</span></label>
+          </div>
+          <div class="stock-product-row">
+            <input type="checkbox" class="pdf-section-check" id="pdf-section-maintenance" data-pdf-section="maintenance" checked>
+            <label for="pdf-section-maintenance" class="export-row-text"><span class="pname">Checkliste – Wartung</span><span class="pmeta">Alle Aufgaben mit Häufigkeit, leere Kästchen zum Ausfüllen</span></label>
+          </div>
+          <div class="stock-product-row">
+            <input type="checkbox" class="pdf-section-check" id="pdf-section-crisis" data-pdf-section="crisis" checked>
+            <label for="pdf-section-crisis" class="export-row-text"><span class="pname">Checkliste – Krise</span><span class="pmeta">Alle Krisentypen mit nummerierten Schritten</span></label>
+          </div>
+          <div class="stock-product-row">
+            <input type="checkbox" class="pdf-section-check" id="pdf-section-contacts" data-pdf-section="contacts" checked>
+            <label for="pdf-section-contacts" class="export-row-text"><span class="pname">Kontakte</span><span class="pmeta">Notruf zuerst, dann alle weiteren Kontakte</span></label>
+          </div>
+          <div class="stock-product-row">
+            <input type="checkbox" class="pdf-section-check" id="pdf-section-notes" data-pdf-section="notes" checked>
+            <label for="pdf-section-notes" class="export-row-text"><span class="pname">Notizen</span><span class="pmeta">Titel, Text und Foto je Notiz</span></label>
+          </div>
+          <div class="stock-product-row">
+            <input type="checkbox" class="pdf-section-check" id="pdf-section-recipes" data-pdf-section="recipes" checked>
+            <label for="pdf-section-recipes" class="export-row-text"><span class="pname">Rezepte</span><span class="pmeta">Titel, Tags, Zutaten und Zubereitung je Rezept</span></label>
+          </div>
+          <div class="stock-product-row">
+            <input type="checkbox" class="pdf-section-check" id="pdf-section-targets" data-pdf-section="targets" checked>
+            <label for="pdf-section-targets" class="export-row-text"><span class="pname">Ziele</span><span class="pmeta">Konfigurierte Zielmengen je Kategorie/Unterkategorie/Produkt</span></label>
+          </div>
+        </div>
+
+        <button type="button" class="select-mode-btn" id="pdf-create-btn">PDF erstellen</button>
+        <p id="pdf-status" class="taxonomy-status"></p>
+      </div>
     </div>
   </main>
 
@@ -1259,32 +1316,34 @@
      the same number as the Build tag above on every deploy — that's what
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
-<script src="js/app.js?v=121"></script>
-<script type="module" src="js/auth.js?v=121"></script>
-<script type="module" src="js/app-shell.js?v=121"></script>
-<script type="module" src="js/account-menu.js?v=121"></script>
-<script type="module" src="js/refresh-button.js?v=121"></script>
-<script type="module" src="js/settings-nav.js?v=121"></script>
-<script type="module" src="js/data-tabs.js?v=121"></script>
-<script type="module" src="js/taxonomy.js?v=121"></script>
-<script type="module" src="js/storage-locations.js?v=121"></script>
-<script type="module" src="js/year-colors.js?v=121"></script>
-<script type="module" src="js/stock-checkin.js?v=121"></script>
-<script type="module" src="js/stock-checkout.js?v=121"></script>
-<script type="module" src="js/stock-table.js?v=121"></script>
-<script type="module" src="js/dashboard.js?v=121"></script>
-<script type="module" src="js/targets.js?v=121"></script>
-<script type="module" src="js/planning.js?v=121"></script>
-<script type="module" src="js/notifications.js?v=121"></script>
-<script type="module" src="js/checklists.js?v=121"></script>
-<script type="module" src="js/info-nav.js?v=121"></script>
-<script type="module" src="js/contacts.js?v=121"></script>
-<script type="module" src="js/notes.js?v=121"></script>
-<script type="module" src="js/recipes.js?v=121"></script>
-<script type="module" src="js/backup-tabs.js?v=121"></script>
-<script type="module" src="js/backup.js?v=121"></script>
-<script type="module" src="js/admin-log.js?v=121"></script>
-<script type="module" src="js/people.js?v=121"></script>
-<script type="module" src="js/back-nav.js?v=121"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="js/app.js?v=122"></script>
+<script type="module" src="js/auth.js?v=122"></script>
+<script type="module" src="js/app-shell.js?v=122"></script>
+<script type="module" src="js/account-menu.js?v=122"></script>
+<script type="module" src="js/refresh-button.js?v=122"></script>
+<script type="module" src="js/settings-nav.js?v=122"></script>
+<script type="module" src="js/data-tabs.js?v=122"></script>
+<script type="module" src="js/taxonomy.js?v=122"></script>
+<script type="module" src="js/storage-locations.js?v=122"></script>
+<script type="module" src="js/year-colors.js?v=122"></script>
+<script type="module" src="js/stock-checkin.js?v=122"></script>
+<script type="module" src="js/stock-checkout.js?v=122"></script>
+<script type="module" src="js/stock-table.js?v=122"></script>
+<script type="module" src="js/dashboard.js?v=122"></script>
+<script type="module" src="js/targets.js?v=122"></script>
+<script type="module" src="js/planning.js?v=122"></script>
+<script type="module" src="js/notifications.js?v=122"></script>
+<script type="module" src="js/checklists.js?v=122"></script>
+<script type="module" src="js/info-nav.js?v=122"></script>
+<script type="module" src="js/contacts.js?v=122"></script>
+<script type="module" src="js/notes.js?v=122"></script>
+<script type="module" src="js/recipes.js?v=122"></script>
+<script type="module" src="js/backup-tabs.js?v=122"></script>
+<script type="module" src="js/backup.js?v=122"></script>
+<script type="module" src="js/admin-log.js?v=122"></script>
+<script type="module" src="js/people.js?v=122"></script>
+<script type="module" src="js/pdf-export.js?v=122"></script>
+<script type="module" src="js/back-nav.js?v=122"></script>
 </body>
 </html>

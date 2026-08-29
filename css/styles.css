@@ -460,6 +460,26 @@ nav.bottomnav button .icon {
   line-height: 1.6;
 }
 
+/* PDF export's section-picker rows (Build 122) — checkbox + label, not a
+   click-to-open row like most .stock-product-row consumers, so the
+   pointer cursor from that base rule would be misleading here. */
+#settings-panel-pdf .stock-product-row {
+  cursor: default;
+}
+
+.pdf-section-check {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-right: 12px;
+  accent-color: var(--cellar);
+  cursor: pointer;
+}
+
+#settings-panel-pdf label.export-row-text {
+  cursor: pointer;
+}
+
 .taxonomy-status {
   font-size: 12px;
   color: #6b6a5f;
