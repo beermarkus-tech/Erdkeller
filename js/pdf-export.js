@@ -10,7 +10,7 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=125';
+import { db } from './firebase-init.js?v=126';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -49,6 +49,10 @@ const LINE_H = 5;
 // wherever the previous build's spacing between a list's last item and
 // the next header read as "no distance at all".
 const SECTION_GAP = 8;
+// A bit more air than SECTION_GAP for Bestand's own subcategory groups
+// and Ziele's Kategorien/Unterkategorien/Produktziele subsections —
+// Markus's call after seeing SECTION_GAP already in place elsewhere.
+const GROUP_GAP = 12;
 
 function ensure(pdf, y, needed) {
   if (y + needed > PAGE_H - MARGIN) {
@@ -76,6 +80,21 @@ function subheading(pdf, y, text) {
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(10);
   return y + LINE_H * 1.6;
+}
+
+// Same as subheading() but with less trailing air below it — used only
+// where a table's own header row follows immediately (Ziele's three
+// subsections), so the gap under "Kategorien" before the table's own
+// "Kategorie | Ziel" row doesn't read as bigger than the gap between one
+// whole subsection and the next.
+function subheadingTight(pdf, y, text) {
+  y = ensure(pdf, y, LINE_H * 1.6);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(12);
+  pdf.text(text, MARGIN, y);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(10);
+  return y + LINE_H * 0.9;
 }
 
 function bodyText(pdf, y, text, opts = {}) {
@@ -351,27 +370,38 @@ function bandHeaderBar(pdf, y, label, bg, fg) {
   return y + 6;
 }
 
-// Lays a flat list of items into two side-by-side columns, zig-zag order
-// (item 0 → left row 0, item 1 → right row 0, item 2 → left row 1, ...).
-// Each row-pair is measured before drawing and the two columns always
-// advance together, so a page break (checked once per pair via the
-// shared ensure()) never leaves the columns out of sync with each other.
-// measure(item, colWidth) returns the row's own height in mm;
+// Lays two pre-split lists into side-by-side columns, each one stacked
+// top-to-bottom fully independently of the other — items in the left
+// column sit directly below each other regardless of what the right
+// column is doing next to them, same as the live app's own CSS-column
+// shopping list (no forced row-by-row alignment between the two, which
+// left odd gaps whenever one side's blocks were much taller/shorter than
+// the other's). Both columns' total heights are measured up front, so
+// only a single page-break decision is needed for the whole pair — if
+// the taller column doesn't fit what's left of the current page, both
+// start together at the top of a fresh one.
+// measure(item, colWidth) returns the item's own height in mm;
 // draw(pdf, x, y, colWidth, item) draws it at that x/y.
-function twoColumnFlatList(pdf, y, items, measure, draw) {
+function renderTwoColumns(pdf, y, leftItems, rightItems, measure, draw) {
   const gap = 8;
   const colW = (CONTENT_W - gap) / 2;
   const colX = [MARGIN, MARGIN + colW + gap];
-  for (let i = 0; i < items.length; i += 2) {
-    const a = items[i];
-    const b = items[i + 1];
-    const rowH = Math.max(measure(a, colW), b ? measure(b, colW) : 0);
-    y = ensure(pdf, y, rowH);
-    draw(pdf, colX[0], y, colW, a);
-    if (b) draw(pdf, colX[1], y, colW, b);
-    y += rowH;
+  const columns = [leftItems, rightItems];
+  const heights = columns.map((col) => col.reduce((s, item) => s + measure(item, colW), 0));
+  const maxHeight = Math.max(...heights, 0);
+  if (y + maxHeight > PAGE_H - MARGIN) {
+    pdf.addPage();
+    y = MARGIN;
   }
-  return y;
+  const startY = y;
+  columns.forEach((col, ci) => {
+    let cy = startY;
+    col.forEach((item) => {
+      draw(pdf, colX[ci], cy, colW, item);
+      cy += measure(item, colW);
+    });
+  });
+  return startY + maxHeight;
 }
 
 // --- Shared target/stock computation ------------------------------------
@@ -849,10 +879,12 @@ async function buildDashboardSection(pdf) {
     if (alerts.length === 0) return;
     anyAlert = true;
     y = bandHeaderBar(pdf, y, band.label, band.bg, band.fg);
-    y = twoColumnFlatList(
+    const alertHalf = Math.ceil(alerts.length / 2);
+    y = renderTwoColumns(
       pdf,
       y,
-      alerts,
+      alerts.slice(0, alertHalf),
+      alerts.slice(alertHalf),
       () => LINE_H + 1.5,
       (pdf2, x, yy, w, a) => {
         pdf2.setFont('helvetica', 'normal');
@@ -885,13 +917,25 @@ async function buildDashboardSection(pdf) {
       if (!groups.has(item.group)) groups.set(item.group, []);
       groups.get(item.group).push(item);
     });
-    const groupEntries = [...groups.entries()];
     const rowStep = LINE_H - 1 + 1.8;
-    y = twoColumnFlatList(
+    const measureGroup = (g) => LINE_H * 1.3 + g[1].length * rowStep + SECTION_GAP;
+    // Same greedy bin-pack as the live Einkaufsliste tab (js/dashboard.js's
+    // renderShoppingList): whole groups assigned to whichever column
+    // currently holds less content, never split mid-group.
+    const columns = [[], []];
+    const columnHeights = [0, 0];
+    groups.forEach((items, groupName) => {
+      const g = [groupName, items];
+      const target = columnHeights[0] <= columnHeights[1] ? 0 : 1;
+      columns[target].push(g);
+      columnHeights[target] += measureGroup(g);
+    });
+    y = renderTwoColumns(
       pdf,
       y,
-      groupEntries,
-      (g) => LINE_H * 1.3 + g[1].length * rowStep + SECTION_GAP,
+      columns[0],
+      columns[1],
+      measureGroup,
       (pdf2, x, yy, w, [groupName, items]) => {
         pdf2.setFont('helvetica', 'bold');
         pdf2.setFontSize(9);
@@ -996,7 +1040,7 @@ async function buildStockSection(pdf) {
         const groupRows = bySub.get(sub.id);
         if (!groupRows || groupRows.length === 0) return;
         any = true;
-        y += SECTION_GAP;
+        y += GROUP_GAP;
         y = subheadingWithIcon(pdf, y, sub.sym || cat.sym, `${cat.name} › ${sub.name}`);
         y = table(pdf, y, STOCK_COLUMNS, groupRows);
       });
@@ -1004,7 +1048,7 @@ async function buildStockSection(pdf) {
   });
   fallbackGroups.forEach((group) => {
     any = true;
-    y += SECTION_GAP;
+    y += GROUP_GAP;
     y = subheadingWithIcon(pdf, y, null, group.label);
     y = table(pdf, y, STOCK_COLUMNS, group.rows);
   });
@@ -1165,14 +1209,14 @@ async function buildTargetsSection(pdf) {
       catRows.push({ name: cat.name, sym: cat.sym, target: targetKg != null ? `${round2(targetKg)} kg` : '–' });
     });
   });
-  y = subheading(pdf, y, 'Kategorien');
+  y = subheadingTight(pdf, y, 'Kategorien');
   if (catRows.length === 0) {
     y = bodyText(pdf, y, 'Keine Kategorien vorhanden.');
   } else {
     y = table(pdf, y, ZIELE_COLS('Kategorie'), catRows);
   }
 
-  y += SECTION_GAP;
+  y += GROUP_GAP;
   const subRows = [];
   taxonomy.types.forEach((type) => {
     if (typeClass(type) !== 'food') return;
@@ -1187,14 +1231,14 @@ async function buildTargetsSection(pdf) {
       });
     });
   });
-  y = subheading(pdf, y, 'Unterkategorien');
+  y = subheadingTight(pdf, y, 'Unterkategorien');
   if (subRows.length === 0) {
     y = bodyText(pdf, y, 'Keine Unterkategorien vorhanden.');
   } else {
     y = table(pdf, y, ZIELE_COLS('Unterkategorie'), subRows);
   }
 
-  y += SECTION_GAP;
+  y += GROUP_GAP;
   const productIds = Object.keys(targetsDoc.products || {});
   const prodRows = [];
   productIds.forEach((id) => {
@@ -1203,7 +1247,7 @@ async function buildTargetsSection(pdf) {
     const target = targetsDoc.products[id];
     prodRows.push({ name: product.name, target: `${round2(computeAmount(target))} ${unitLabelFor(target.unit)}` });
   });
-  y = subheading(pdf, y, 'Produktziele');
+  y = subheadingTight(pdf, y, 'Produktziele');
   if (prodRows.length === 0) {
     y = bodyText(pdf, y, 'Keine Produktziele vorhanden.');
   } else {
