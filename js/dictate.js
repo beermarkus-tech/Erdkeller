@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=127';
+import { db, functions } from './firebase-init.js?v=128';
 import {
   collection, getDocs, doc, getDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -183,15 +183,22 @@ function startRecording() {
   };
 
   recognizer.onresult = (event) => {
+    // event.results holds the whole session's results so far (it only
+    // grows, never shrinks) — rebuilding finalTranscript from scratch on
+    // every firing, rather than appending using event.resultIndex, avoids
+    // duplicating text on engines (Android Chrome included) that re-fire
+    // already-finalized results with a resultIndex that doesn't advance.
+    let final = '';
     let interim = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
+    for (let i = 0; i < event.results.length; i++) {
       const result = event.results[i];
       if (result.isFinal) {
-        finalTranscript += result[0].transcript;
+        final += result[0].transcript;
       } else {
         interim += result[0].transcript;
       }
     }
+    finalTranscript = final;
     liveEl.textContent = (finalTranscript + ' ' + interim).trim();
   };
 
