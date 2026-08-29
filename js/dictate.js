@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=132';
+import { db, functions } from './firebase-init.js?v=133';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -315,13 +315,29 @@ function normalizeBestBefore(v) {
 }
 
 function resolveStorage(v) {
-  if (typeof v !== 'string' || !v.trim()) return storageLocations[0] || '';
+  // Empty when not dictated, rather than silently guessing the first
+  // storage location — a wrong silent guess is worse than an explicit
+  // "missing" flag the proposal line surfaces for the user to fill in.
+  if (typeof v !== 'string' || !v.trim()) return '';
   const q = v.trim().toLowerCase();
   const match = storageLocations.find((loc) => {
     const lq = loc.toLowerCase();
     return lq === q || lq.includes(q) || q.includes(lq);
   });
-  return match || storageLocations[0] || '';
+  return match || '';
+}
+
+function breadcrumbFieldsFor(subcategoryId) {
+  const ctx = contextFor(subcategoryId);
+  return {
+    subcategoryId: subcategoryId || null,
+    typeName: ctx ? ctx.type.name : '',
+    typeSym: ctx ? ctx.type.sym : '',
+    categoryName: ctx ? ctx.category.name : '',
+    categorySym: ctx ? ctx.category.sym : '',
+    subcategoryName: ctx ? ctx.subcategory.name : '',
+    subcategorySym: ctx ? ctx.subcategory.sym : '',
+  };
 }
 
 function contextFor(subcategoryId) {
@@ -331,7 +347,17 @@ function contextFor(subcategoryId) {
 function resolveLine(item) {
   if (item && item.direction === 'out') {
     const batch = batchIndex.get(item.matchedBatchId);
-    if (!batch) return null; // no batch in stock for this product — dropped, same as an unresolvable 'in' line
+    if (!batch) {
+      // Genuinely nothing in stock matched — shown as its own "not
+      // available" row rather than silently dropped, so the user sees
+      // their dictation was heard even though there's nothing to act on.
+      return {
+        direction: 'out',
+        unresolved: true,
+        name: (item.attemptedName && String(item.attemptedName).trim()) || 'Unbekanntes Produkt',
+      };
+    }
+    const product = productIndex.get(batch.productId);
     return {
       direction: 'out',
       batchId: batch.id,
@@ -343,6 +369,7 @@ function resolveLine(item) {
       batchQuantity: batch.quantity,
       removeQty: clampQty(normalizeQty(item.quantity), batch.quantity),
       confidence: item.confidence === 'medium' || item.confidence === 'low' ? item.confidence : 'high',
+      ...breadcrumbFieldsFor(product ? product.subcategoryId : null),
     };
   }
   if (item && item.matchedProductId) {
@@ -399,6 +426,7 @@ function resolveLine(item) {
 // the escape hatch for when it guessed wrong) -----------------------------
 
 function canToggleDirection(line) {
+  if (line.unresolved) return false; // nothing found — no batch/product to toggle from
   if (line.direction === 'out') return true; // out -> in is always possible
   if (line.isNew || !line.productId) return false; // nothing to check out yet
   return allBatches.some((b) => b.productId === line.productId);
@@ -443,6 +471,7 @@ function toggleLineDirection(line) {
     batchQuantity: batch.quantity,
     removeQty: clampQty(line.quantity, batch.quantity),
     confidence: 'high', // manually chosen — no need to flag
+    ...breadcrumbFieldsFor(batch.productId ? (productIndex.get(batch.productId) || {}).subcategoryId : null),
   };
 }
 
@@ -532,6 +561,13 @@ function appendConfirmationBubble(result) {
   const div = document.createElement('div');
   div.className = 'dictate-bubble app confirmation';
 
+  if (!result.inSummaries.length && !result.outSummaries.length) {
+    div.textContent = 'Nichts zu registrieren — alle Zeilen waren nicht auflösbar.';
+    chatEl.appendChild(div);
+    scrollChatToBottom();
+    return;
+  }
+
   if (result.inSummaries.length) {
     const p = document.createElement('div');
     p.className = 'dictate-confirmation-line';
@@ -574,16 +610,49 @@ function lineBreadcrumb(line) {
 
 function renderProposalLine(line, onTap, onToggle) {
   const row = document.createElement('div');
-  row.className = 'dictate-proposal-line' + (line.direction === 'out' ? ' out' : '');
+  row.className = 'dictate-proposal-line'
+    + (line.direction === 'out' ? ' out' : '')
+    + (line.unresolved ? ' unresolved' : '');
+
+  if (!line.unresolved) {
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    // Same color+symbol language as the two big Einlagern/Entnehmen
+    // buttons on the Bestand home screen (.big-btn.in/.out) — this button
+    // shows the line's CURRENT direction (green ⬇ = wird eingelagert,
+    // rust ⬆ = wird entnommen) and flips it on tap, so it doubles as a
+    // state indicator, not just a control.
+    toggleBtn.className = 'dictate-line-toggle' + (line.direction === 'out' ? ' out' : '');
+    toggleBtn.textContent = line.direction === 'out' ? '⬆' : '⬇';
+    const toggleDisabled = line.direction === 'in' && !canToggleDirection(line);
+    toggleBtn.disabled = toggleDisabled;
+    toggleBtn.title = toggleDisabled
+      ? 'Kein Bestand dieses Produkts vorhanden'
+      : (line.direction === 'out' ? 'Entnehmen — antippen für Einlagern' : 'Einlagern — antippen für Entnehmen');
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onToggle();
+    });
+    row.appendChild(toggleBtn);
+  }
 
   const content = document.createElement('div');
   content.className = 'dictate-line-content';
   row.appendChild(content);
 
+  if (line.unresolved) {
+    const mainEl = document.createElement('div');
+    mainEl.className = 'dictate-line-main';
+    mainEl.textContent = `❌ „${line.name}“ nicht im Bestand gefunden`;
+    content.appendChild(mainEl);
+    return row; // nothing to tap into or toggle — informational only
+  }
+
   if (line.direction === 'out') {
     const pathEl = document.createElement('div');
     pathEl.className = 'dictate-line-path';
-    pathEl.textContent = 'Entnehmen';
+    const sym = line.subcategorySym || line.categorySym || line.typeSym || '';
+    pathEl.textContent = (sym ? sym + ' ' : '') + (lineBreadcrumb(line) || 'Kategorie unbekannt');
     content.appendChild(pathEl);
 
     const mainEl = document.createElement('div');
@@ -622,34 +691,13 @@ function renderProposalLine(line, onTap, onToggle) {
 
     const meta2Parts = [];
     if (line.bestBefore) meta2Parts.push('MHD ' + line.bestBefore);
-    if (line.storage) meta2Parts.push(line.storage);
+    meta2Parts.push(line.storage || '⚠ Lagerort fehlt');
     if (line.isNew) meta2Parts.push('neues Produkt');
-    if (meta2Parts.length) {
-      const meta2El = document.createElement('div');
-      meta2El.className = 'dictate-line-meta2';
-      meta2El.textContent = meta2Parts.join(' · ');
-      content.appendChild(meta2El);
-    }
+    const meta2El = document.createElement('div');
+    meta2El.className = 'dictate-line-meta2' + (line.storage ? '' : ' missing');
+    meta2El.textContent = meta2Parts.join(' · ');
+    content.appendChild(meta2El);
   }
-
-  const toggleBtn = document.createElement('button');
-  toggleBtn.type = 'button';
-  // Same color+symbol language as the two big Einlagern/Entnehmen buttons
-  // on the Bestand home screen (.big-btn.in/.out) — this button shows the
-  // line's CURRENT direction (green ⬇ = wird eingelagert, rust ⬆ = wird
-  // entnommen) and flips it on tap, so it doubles as a state indicator.
-  toggleBtn.className = 'dictate-line-toggle' + (line.direction === 'out' ? ' out' : '');
-  toggleBtn.textContent = line.direction === 'out' ? '⬆' : '⬇';
-  const toggleDisabled = line.direction === 'in' && !canToggleDirection(line);
-  toggleBtn.disabled = toggleDisabled;
-  toggleBtn.title = toggleDisabled
-    ? 'Kein Bestand dieses Produkts vorhanden'
-    : (line.direction === 'out' ? 'Entnehmen — antippen für Einlagern' : 'Einlagern — antippen für Entnehmen');
-  toggleBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    onToggle();
-  });
-  row.appendChild(toggleBtn);
 
   content.addEventListener('click', onTap);
   return row;
@@ -787,8 +835,17 @@ editQtyNum.addEventListener('blur', () => {
   editQtyNum.value = String(clampQty(n, editQtyMax));
 });
 
-function populateEditStorageSelect() {
+function populateEditStorageSelect(selected) {
   editStorageSelect.innerHTML = '';
+  if (!selected) {
+    // No blank option once a real location is picked — this placeholder
+    // exists so opening the sheet on a not-yet-set line doesn't silently
+    // look like the first storage location was already chosen.
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '— Lagerort wählen —';
+    editStorageSelect.appendChild(placeholder);
+  }
   storageLocations.forEach((loc) => {
     const opt = document.createElement('option');
     opt.value = loc;
@@ -855,7 +912,7 @@ function openEditSheet(lines, index, onApply) {
   editDetailsInput.value = line.details || '';
   editContentInput.value = line.content || '';
   editBestBeforeInput.value = bestBeforeToMonthInput(line.bestBefore);
-  populateEditStorageSelect();
+  populateEditStorageSelect(line.storage);
   if (line.storage) editStorageSelect.value = line.storage;
 
   editModal.classList.add('show');
@@ -922,6 +979,8 @@ async function registerLines(lines) {
   const undoRecords = [];
 
   for (const line of lines) {
+    if (line.unresolved) continue; // informational-only row — nothing to write
+
     if (line.direction === 'out') {
       // batchIndex/allBatches are mutated in place below, so a second line
       // in the same turn referencing the same batch sees the already-

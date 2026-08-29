@@ -3847,13 +3847,23 @@ nav.bottomnav button .icon {
   display: flex;
   align-items: stretch;
   gap: 10px;
-  padding: 8px 4px 8px 10px;
+  padding: 8px 10px 8px 4px;
   border-bottom: 1px solid var(--stone);
   border-left: 3px solid var(--cellar);
 }
 
 .dictate-proposal-line.out {
   border-left-color: var(--rust);
+}
+
+.dictate-proposal-line.unresolved {
+  border-left-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.dictate-proposal-line.unresolved .dictate-line-main {
+  color: var(--danger);
+  font-weight: 600;
 }
 
 .dictate-line-content {
@@ -3865,11 +3875,14 @@ nav.bottomnav button .icon {
 .dictate-line-toggle {
   flex-shrink: 0;
   aspect-ratio: 1;
+  min-width: 64px;
+  min-height: 64px;
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--cellar);
   color: var(--paper);
-  font-size: 22px;
+  font-size: 34px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3887,6 +3900,11 @@ nav.bottomnav button .icon {
 .dictate-line-toggle:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+.dictate-line-meta2.missing {
+  color: var(--warn);
+  font-weight: 600;
 }
 
 .dictate-line-confidence {
