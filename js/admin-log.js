@@ -1,4 +1,4 @@
-import { renderRecentLog, deleteAllLogs } from './stock-log.js?v=139';
+import { renderRecentLog, deleteAllLogs } from './stock-log.js?v=140';
 
 const logCard = document.querySelector('.settings-card[data-target="log"]');
 const logListEl = document.getElementById('admin-log-list');

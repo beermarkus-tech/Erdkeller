@@ -3920,6 +3920,13 @@ nav.bottomnav button .icon {
   font-weight: 600;
 }
 
+.dictate-line-path.missing {
+  color: var(--warn);
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .dictate-line-confidence {
   color: var(--warn);
   font-weight: 700;
@@ -3962,6 +3969,17 @@ nav.bottomnav button .icon {
   margin-top: 1px;
 }
 
+.dictate-proposal-hint {
+  color: var(--warn);
+  font-weight: 600;
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.dictate-proposal-hint.hidden {
+  display: none;
+}
+
 .dictate-proposal-actions {
   display: flex;
   gap: 8px;
@@ -3984,6 +4002,12 @@ nav.bottomnav button .icon {
   flex: 1;
   margin-top: 0;
   padding: 10px;
+}
+
+.dictate-proposal-actions .confirm-btn:disabled {
+  background: var(--stone-dark);
+  color: #8a8776;
+  cursor: default;
 }
 
 .dictate-retry-btn {

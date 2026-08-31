@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=139';
+import { db, functions } from './firebase-init.js?v=140';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -732,9 +732,9 @@ function renderProposalLine(line, onTap, onToggle) {
     content.appendChild(meta2El);
   } else {
     const pathEl = document.createElement('div');
-    pathEl.className = 'dictate-line-path';
+    pathEl.className = 'dictate-line-path' + (line.subcategoryId ? '' : ' missing');
     const sym = line.subcategorySym || line.categorySym || line.typeSym || '';
-    pathEl.textContent = (sym ? sym + ' ' : '') + (lineBreadcrumb(line) || 'Kategorie auswählen');
+    pathEl.textContent = (sym ? sym + ' ' : '') + (lineBreadcrumb(line) || '⚠ Kategorie fehlt — antippen');
     content.appendChild(pathEl);
 
     const mainEl = document.createElement('div');
@@ -762,23 +762,18 @@ function renderProposalLine(line, onTap, onToggle) {
   return row;
 }
 
+// A line needs attention (blocks Registrieren) when it's a resolved 'in'
+// line missing category or storage — 'out' lines and unresolved rows have
+// nothing equivalent to fill in, so they never block.
+function lineNeedsAttention(line) {
+  return !line.unresolved && line.direction !== 'out' && (!line.subcategoryId || !line.storage);
+}
+
 function appendProposalBubble(lines) {
   const div = document.createElement('div');
   div.className = 'dictate-bubble app proposal';
   const linesWrap = document.createElement('div');
   div.appendChild(linesWrap);
-
-  function rerender() {
-    linesWrap.innerHTML = '';
-    lines.forEach((line, i) => {
-      linesWrap.appendChild(renderProposalLine(
-        line,
-        () => openEditSheet(lines, i, rerender),
-        () => { lines[i] = toggleLineDirection(lines[i]); rerender(); },
-      ));
-    });
-  }
-  rerender();
 
   const actions = document.createElement('div');
   actions.className = 'dictate-proposal-actions';
@@ -809,8 +804,28 @@ function appendProposalBubble(lines) {
     }
   });
 
+  const hintEl = document.createElement('div');
+  hintEl.className = 'dictate-proposal-hint';
+  hintEl.textContent = '⚠ Bitte fehlende Kategorie/Lagerort antippen und ausfüllen';
+
+  function rerender() {
+    linesWrap.innerHTML = '';
+    lines.forEach((line, i) => {
+      linesWrap.appendChild(renderProposalLine(
+        line,
+        () => openEditSheet(lines, i, rerender),
+        () => { lines[i] = toggleLineDirection(lines[i]); rerender(); },
+      ));
+    });
+    const blocked = lines.some(lineNeedsAttention);
+    confirmBtn.disabled = blocked;
+    hintEl.classList.toggle('hidden', !blocked);
+  }
+  rerender();
+
   actions.appendChild(discardBtn);
   actions.appendChild(confirmBtn);
+  div.appendChild(hintEl);
   div.appendChild(actions);
 
   chatEl.appendChild(div);
