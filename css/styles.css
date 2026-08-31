@@ -377,18 +377,20 @@ nav.bottomnav button .icon {
 /* Keeps a settings panel's title/back button (and, for Daten, the
    Taxonomie/Lagerorte/Jahresfarben tab bar) pinned while only the panel's
    actual list content scrolls beneath it, inside <main>'s scroll region.
-   <main>'s own 18px top padding (this is always the first element inside
-   a .settings-panel, itself flush against that padding) sits BEFORE this
-   element in normal flow — sticky's "top: 0" is measured against the
-   scroll region's padding edge, so without compensating for that padding
-   here, the header visibly slides through those 18px before it actually
-   catches and locks in place, and scrolled-past content is briefly
-   visible above it during that slide (the "moving before sticking" /
-   "content bleeding through" both describe this same gap). Pulling the
-   element up by that exact amount with a negative margin, then padding
-   the same amount back in, moves the gap INSIDE the sticky box itself —
-   same visual spacing, but now the whole thing (gap included) sticks as
-   one unit with zero slack. */
+   MOBILE ONLY below (the tablet override further down resets this back
+   out — tablet's story is different, see its own comment): <main>'s own
+   18px top padding (this element is always the first inside a
+   .settings-panel, itself flush against that padding) sits BEFORE this
+   element in normal flow on mobile — sticky's "top: 0" is measured
+   against the scroll region's padding edge, so without compensating for
+   that padding here, the header visibly slides through those 18px before
+   it actually catches and locks in place, and scrolled-past content is
+   briefly visible above it during that slide (the "moving before
+   sticking" / "content bleeding through" both describe this same gap).
+   Pulling the element up by that exact amount with a negative margin,
+   then padding the same amount back in, moves the gap INSIDE the sticky
+   box itself — same visual spacing, but now the whole thing (gap
+   included) sticks as one unit with zero slack. */
 .sticky-panel-header {
   position: sticky;
   top: 0;
@@ -2739,17 +2741,19 @@ nav.bottomnav button .icon {
   color: var(--danger);
 }
 
-/* "Bestand bearbeiten" stays pinned while the form fields below it
-   scroll inside the modal's own scroll region — same negative-margin/
-   padding-compensate trick as .sticky-panel-header above, just against
-   .modal-sheet's own 20px top padding instead of <main>'s. */
+/* "Bestand bearbeiten" stays pinned while the form fields below it scroll
+   inside the modal's own scroll region. Deliberately NOT the negative-
+   margin/padding-compensate trick .sticky-panel-header uses above — that
+   combination (position: sticky plus a negative margin on the same
+   element) visibly clipped this title's own content on a real device,
+   so this only touches the properties it needs and leaves the small
+   scroll-catch-up gap alone (a minor cosmetic gap here is a much smaller
+   problem than the clipping was). */
 #table-edit-modal .modal-title {
   position: sticky;
   top: 0;
   z-index: 2;
   background: white;
-  margin: -20px 0 14px;
-  padding-top: 20px;
 }
 
 .table-edit-actions {
@@ -2952,9 +2956,18 @@ nav.bottomnav button .icon {
 
   /* Stack below .tablet-header (which is sticky at top:0 here) rather than
      both sticking to the same position and overlapping. The 56px fallback
-     only matters before app-shell.js's first measurement runs. */
+     only matters before app-shell.js's first measurement runs. Also undo
+     the base rule's -18px/18px gap-compensation trick entirely here: that
+     value is <main>'s MOBILE top padding (18px) — on tablet <main>'s own
+     top padding is 32px (see the tablet `main` rule below) AND this
+     element no longer sits flush against it anyway (.tablet-header, with
+     its own height and margin-bottom, comes first) — applying mobile's
+     18px here just pulled the header 18px into space it doesn't own,
+     overlapping .tablet-header and the content around it. */
   .sticky-panel-header {
     top: var(--tablet-header-stack, 56px);
+    margin-top: 0;
+    padding-top: 0;
   }
 }
 
