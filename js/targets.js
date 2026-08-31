@@ -1,23 +1,28 @@
-// Ziele — SPEC.md Section 7. Three flat, independently collapsible sections
-// (no more Type→Category→Subcategory tree — a category/subcategory now
-// appears in exactly one place, never duplicated across a summary area and
-// a tree row):
-//   - Kategorien: every category's target. "Aus" categories are fully
-//     manual (flat kg/Stk, or Personen×Tage) — click the badge, edit, save.
-//     Kalorien categories sharing a macro (Kohlenhydrate/Protein/Fett) split
-//     that macro's global kcal target between them via a ±5% stepper (see
+// Ziele — SPEC.md Section 7. Three top-level tabs (Kategorien/Lebensmittel/
+// Sonstiges); a category/subcategory appears in exactly one place, never
+// duplicated across a summary area and a tree row:
+//   - Kategorien tab: two independently collapsible sections. Kategorien —
+//     every food category's target, EXCEPT any category tagged "Nicht
+//     genutzt" in Taxonomie (categoryPlanningMode 'off') — those are
+//     excluded entirely, not shown as manual/editable rows, by explicit
+//     design call (see renderCategoriesSection's own comment). Kalorien
+//     categories sharing a macro (Kohlenhydrate/Protein/Fett) split that
+//     macro's global kcal target between them via a ±5% stepper (see
 //     stepSplit below); Diversität categories compute independently, no
 //     stepper. Wasser-classed types don't appear here at all — water has
 //     exactly one global target (Planung's rate), no per-category split,
-//     see js/dashboard.js's water hero.
-//   - Unterkategorien: every subcategory's target, grouped by parent
-//     category. Manual under an "Aus" parent; split off the parent's
-//     computed total (same ±5% stepper) under a computed parent.
-//   - Produktziele: manual overrides, independent of everything above.
+//     see js/dashboard.js's water hero. Unterkategorien — every
+//     subcategory's target, grouped by parent category, for every category
+//     regardless of "Nicht genutzt" (a category with no category-level
+//     target can still carry per-subcategory manual ones); manual under an
+//     "Aus" parent, split off the parent's computed total (same ±5%
+//     stepper) under a computed parent.
+//   - Lebensmittel / Sonstiges tabs: each its own flat Produktziele list —
+//     manual per-product overrides, independent of everything above.
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=144';
+import { db } from './firebase-init.js?v=145';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -595,28 +600,17 @@ function renderDiversitySection() {
   return frag;
 }
 
-// Lebensmittel-only (Sonstiges categories/subcategories no longer carry
-// their own targets at all — Sonstiges targets live purely at the product
-// level now, see renderNonfoodProductTargets below).
-function renderManualCategoriesGroup() {
-  const frag = document.createDocumentFragment();
-  let any = false;
-  taxonomy.types.forEach((type) => {
-    if (typeClass(type) !== 'food') return;
-    const manualCats = (type.categories || []).filter((cat) => categoryTargetSource(type, cat).kind === 'off');
-    if (manualCats.length === 0) return;
-    any = true;
-    const header = document.createElement('div');
-    header.className = 'targets-subgroup-label';
-    header.textContent = type.name;
-    frag.appendChild(header);
-    manualCats.forEach((cat) => {
-      frag.appendChild(makeRow(cat.sym, cat.name, targets.categories[cat.id], 'categories', cat.id, 'kg'));
-    });
-  });
-  return any ? frag : null;
-}
-
+// A category tagged "Nicht genutzt" in Taxonomie (categoryPlanningMode
+// 'off') never appears in this section at all, by Markus's explicit
+// call — "nicht genutzt" means excluded from category-level target
+// setting entirely, not just defaulted to a manual/off state. Any
+// targets.categories[id] value already stored for one stays untouched
+// in Firestore (nothing here deletes it) but is unreachable in this UI
+// unless the category's mode is switched away from "Nicht genutzt"
+// again in Taxonomie. Unterkategorien is unaffected by this — a
+// "Nicht genutzt" category's subcategories can still carry their own
+// manual targets (see renderSubcategoryGroupFor), a deliberately
+// different, still-useful case.
 function renderCategoriesSection() {
   categoriesListEl.innerHTML = '';
   if (peopleCount() > 0 && autonomyDaysVal() > 0) {
@@ -626,11 +620,9 @@ function renderCategoriesSection() {
   } else {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = 'Haushalt und Autonomiedauer in Planung eingeben, um berechnete Ziele zu sehen — manuelle Kategorien stehen unten.';
+    p.textContent = 'Haushalt und Autonomiedauer in Planung eingeben, um berechnete Ziele zu sehen.';
     categoriesListEl.appendChild(p);
   }
-  const manualGroup = renderManualCategoriesGroup();
-  if (manualGroup) categoriesListEl.appendChild(manualGroup);
   if (!categoriesListEl.children.length) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
@@ -802,7 +794,10 @@ function renderNonfoodProductTargets(ids) {
     .forEach(({ cat, subs }) => {
       const catHeader = document.createElement('div');
       catHeader.className = 'targets-subgroup-label';
-      catHeader.textContent = cat.name;
+      // Symbols here too now, matching the Lebensmittel list's own
+      // productContextLabel() formatting — same cat.sym/sub.sym prefix
+      // convention, just as group headers instead of an inline .pmeta line.
+      catHeader.textContent = cat.sym ? `${cat.sym} ${cat.name}` : cat.name;
       nonfoodProductTargetsList.appendChild(catHeader);
 
       Array.from(subs.values())
@@ -814,7 +809,7 @@ function renderNonfoodProductTargets(ids) {
           if (sub.name !== cat.name) {
             const subHeader = document.createElement('div');
             subHeader.className = 'targets-subgroup-label';
-            subHeader.textContent = sub.name;
+            subHeader.textContent = sub.sym ? `${sub.sym} ${sub.name}` : sub.name;
             nonfoodProductTargetsList.appendChild(subHeader);
           }
           productIds
