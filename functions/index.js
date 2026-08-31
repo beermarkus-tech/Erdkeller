@@ -81,10 +81,12 @@ ${batchLines.join('\n') || '(keine)'}
 Für "direction":"in" gib GENAU eines von zwei weiteren Feldsets zurück:
 
 1) Passt zu einem bekannten Produkt (auch bei leicht abweichender Schreibweise/Aussprache/Umlauten):
-{"direction": "in", "matchedProductId": "<id aus der Produktliste oben>", "quantity": <Zahl>, "content": "<z.B. 800g, oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": "<Text oder null>"}
+{"direction": "in", "matchedProductId": "<id EXAKT aus der Produktliste oben kopiert>", "productNameHeard": "<Produktname wie gehört/gematcht>", "quantity": <Zahl>, "content": "<z.B. 800g, oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": "<Text oder null>"}
 
 2) Kein bekanntes Produkt passt (neues Produkt):
 {"direction": "in", "newProductName": "<Name>", "suggestedSubcategoryId": "<id aus der Liste oben, oder null wenn unklar>", "confidence": "high"|"medium"|"low", "quantity": <Zahl>, "content": "<... oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": "<... oder null>", "guessedUnitType": "kg"|"l"|"stueck"}
+
+WICHTIG zu "matchedProductId"/"matchedBatchId"/"suggestedSubcategoryId": IMMER exakt (Zeichen für Zeichen) aus der jeweiligen Liste oben kopieren, NIE selbst erfinden oder aus dem Produktnamen ableiten. Diese IDs sind zufällige Firestore-Strings (z.B. "aB3xY9kLm2pQrS7tU4vW", ~20 Zeichen, KEINE Bindestriche) — niemals ein UUID-artiges Format mit Bindestrichen (z.B. "0209ef0d-ef14-...") erzeugen, das ist immer erfunden. Bei Unsicherheit, ob eine ID exakt stimmt, lieber Format 2 (neues Produkt) verwenden als eine falsche ID zu raten.
 
 Für "direction":"out" gib zurück:
 {"direction": "out", "matchedBatchId": "<batchId aus der Bestandsliste oben, oder null>", "attemptedName": "<Produktname wie gehört, NUR wenn matchedBatchId null ist, sonst null>", "quantity": <Zahl>, "confidence": "high"|"medium"|"low"}

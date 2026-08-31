@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=137';
+import { db, functions } from './firebase-init.js?v=138';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -374,7 +374,37 @@ function resolveLine(item) {
   }
   if (item && item.matchedProductId) {
     const product = productIndex.get(item.matchedProductId);
-    if (!product) return null; // stale/unknown id from the model — skip defensively
+    if (!product) {
+      // The model claimed a match but the id doesn't resolve — occasionally
+      // an invented/hallucinated id rather than one copied from the actual
+      // product list (confirmed in practice: Haiku returning a UUID-shaped
+      // string when Firestore's own ids never look like that). Recovering
+      // as an editable new-product line (using whatever name text it gave
+      // us) beats silently dropping the whole line and showing "nicht
+      // verstanden" for something the user clearly did say — the missing
+      // category just means the proposal needs one tap to complete.
+      const fallbackName = (item.productNameHeard && String(item.productNameHeard).trim()) || null;
+      if (!fallbackName) return null;
+      return {
+        direction: 'in',
+        isNew: true,
+        productId: null,
+        name: fallbackName,
+        unitType: 'kg',
+        subcategoryId: null,
+        typeName: '',
+        typeSym: '',
+        categoryName: '',
+        categorySym: '',
+        subcategoryName: '',
+        subcategorySym: '',
+        quantity: normalizeQty(item.quantity),
+        content: (item.content || '').trim(),
+        details: '',
+        bestBefore: normalizeBestBefore(item.bestBefore),
+        storage: resolveStorage(item.storage),
+      };
+    }
     const ctx = contextFor(product.subcategoryId);
     return {
       direction: 'in',
