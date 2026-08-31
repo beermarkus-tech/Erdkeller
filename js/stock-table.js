@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=146';
-import { PALETTE } from './year-colors.js?v=146';
-import { openAddFlow } from './stock-checkin.js?v=146';
-import { switchTabWithoutReset } from './app-shell.js?v=146';
+import { db } from './firebase-init.js?v=147';
+import { PALETTE } from './year-colors.js?v=147';
+import { openAddFlow } from './stock-checkin.js?v=147';
+import { switchTabWithoutReset } from './app-shell.js?v=147';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -176,6 +176,30 @@ function findSubcategoryContext(subcategoryId) {
     }
   }
   return null;
+}
+
+// Typ › Kategorie › Unterkategorie, symbols included — resolved live from
+// Taxonomie via the product's own subcategoryId (same approach as
+// js/targets.js's productContextLabel), not from a batch's own frozen
+// type/category/subcategory text snapshot: that snapshot never carried
+// symbols in the first place, and resolving live also means a rename in
+// Taxonomie shows up here immediately instead of staying stuck at
+// whatever the text said at check-in time. Falls back to that frozen
+// snapshot only when live resolution fails (orphaned/deleted subcategory).
+function rowBreadcrumb(batch) {
+  const product = productIndex.get(batch.productId);
+  const ctx = product ? findSubcategoryContext(product.subcategoryId) : null;
+  if (!ctx) {
+    return [batch.type, batch.category, batch.subcategory].filter(Boolean).join(' › ');
+  }
+  const { type, cat, sub } = ctx;
+  const typePart = type.sym ? `${type.sym} ${type.name}` : type.name;
+  const catPart = cat.sym ? `${cat.sym} ${cat.name}` : cat.name;
+  // A Wasser subcategory's name mirrors its category (js/taxonomy.js's
+  // ensureWaterSubcategory) — skip the redundant repeat.
+  if (sub.name === cat.name) return `${typePart} › ${catPart}`;
+  const subPart = sub.sym ? `${sub.sym} ${sub.name}` : sub.name;
+  return `${typePart} › ${catPart} › ${subPart}`;
 }
 
 // --- Products without any stock (Build 96, revised Build 98) --------------
@@ -492,7 +516,7 @@ function renderRow(batch) {
 
   const subEl = document.createElement('span');
   subEl.className = 'table-row-sub';
-  subEl.textContent = `${batch.subcategory || ''} › ${batch.category || ''} › ${batch.type || ''}`;
+  subEl.textContent = rowBreadcrumb(batch);
 
   textWrap.appendChild(nameEl);
   textWrap.appendChild(metaEl);

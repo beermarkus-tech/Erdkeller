@@ -376,10 +376,24 @@ nav.bottomnav button .icon {
 
 /* Keeps a settings panel's title/back button (and, for Daten, the
    Taxonomie/Lagerorte/Jahresfarben tab bar) pinned while only the panel's
-   actual list content scrolls beneath it, inside <main>'s scroll region. */
+   actual list content scrolls beneath it, inside <main>'s scroll region.
+   <main>'s own 18px top padding (this is always the first element inside
+   a .settings-panel, itself flush against that padding) sits BEFORE this
+   element in normal flow — sticky's "top: 0" is measured against the
+   scroll region's padding edge, so without compensating for that padding
+   here, the header visibly slides through those 18px before it actually
+   catches and locks in place, and scrolled-past content is briefly
+   visible above it during that slide (the "moving before sticking" /
+   "content bleeding through" both describe this same gap). Pulling the
+   element up by that exact amount with a negative margin, then padding
+   the same amount back in, moves the gap INSIDE the sticky box itself —
+   same visual spacing, but now the whole thing (gap included) sticks as
+   one unit with zero slack. */
 .sticky-panel-header {
   position: sticky;
   top: 0;
+  margin-top: -18px;
+  padding-top: 18px;
   background: var(--paper);
   z-index: 5;
 }
@@ -2261,10 +2275,15 @@ nav.bottomnav button .icon {
 
 /* Some modal-sheet content (search bar, product list, form fields) has no
    padding of its own and was touching the sheet's — and so the screen's —
-   edges. Scoped to a wrapper rather than added to .modal-sheet itself so
-   it doesn't reflow the date-picker's edge-to-edge picker-row. */
+   edges. Left/right only, as two longhand properties rather than the
+   `padding` shorthand: several call sites apply this directly to
+   .modal-sheet itself (not a separate inner wrapper) alongside its own
+   `padding: 20px 0 0`, and a shorthand here would win outright and wipe
+   that top padding to 0 — which is exactly what left a title like "Neues
+   Produkt" or "Bestand bearbeiten" touching the very top of the sheet. */
 .modal-body-padded {
-  padding: 0 20px;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 
 .modal-title {
@@ -2718,6 +2737,19 @@ nav.bottomnav button .icon {
 
 .danger-btn {
   color: var(--danger);
+}
+
+/* "Bestand bearbeiten" stays pinned while the form fields below it
+   scroll inside the modal's own scroll region — same negative-margin/
+   padding-compensate trick as .sticky-panel-header above, just against
+   .modal-sheet's own 20px top padding instead of <main>'s. */
+#table-edit-modal .modal-title {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: white;
+  margin: -20px 0 14px;
+  padding-top: 20px;
 }
 
 .table-edit-actions {
