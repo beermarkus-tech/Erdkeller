@@ -17,7 +17,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=143';
+import { db } from './firebase-init.js?v=144';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -57,22 +57,22 @@ const pickerModalTitle = pickerModal.querySelector('.modal-title');
 const pickerSearch = document.getElementById('target-picker-search');
 const pickerList = document.getElementById('target-picker-list');
 // Which tab's "+ Produktziel hinzufügen" opened the shared picker —
-// determines which products the search matches and which subcategories
-// the inline "+ Neues Produkt anlegen" form offers.
+// determines which products the search matches and which "+ Neues
+// Produkt anlegen" modal (and subcategory list) it opens.
 let pickerFoodClass = 'food';
 
-const newProductForm = document.getElementById('target-new-product-form');
+const newProductModal = document.getElementById('target-new-product-food-modal');
 const newProductNameInput = document.getElementById('target-new-product-name');
 const newProductUnitButtons = document.querySelectorAll('#target-new-product-unit-toggle .unit-btn');
 const newProductSubcategorySelect = document.getElementById('target-new-product-subcategory');
 const newProductCreateBtn = document.getElementById('target-new-product-create-btn');
 let newProductUnit = 'kg';
 
-// Sonstiges' own "+ Neues Produkt anlegen" — a separate modal (not the
-// Lebensmittel form above expanded in place), since it also folds in the
-// target amount itself (one save instead of create-then-auto-open-the-
-// edit-modal) and offers the open Stück/Flaschen/Dosen/Säcke/custom unit
-// picker instead of the fixed Kilogramm/Stück toggle.
+// Sonstiges' own "+ Neues Produkt anlegen" modal — same own-modal shape
+// as the Lebensmittel one above, but folds the target amount itself in
+// too (one save instead of create-then-auto-open-the-edit-modal) and
+// offers the open Stück/Flaschen/Dosen/Säcke/custom unit picker instead
+// of the fixed Kilogramm/Stück toggle.
 const BASE_UNITS = ['kg', 'l', 'Stück', 'Flaschen', 'Dosen', 'Säcke'];
 const nonfoodNewProductModal = document.getElementById('target-new-product-nonfood-modal');
 const nonfoodNewNameInput = document.getElementById('target-nonfood-new-name');
@@ -913,30 +913,16 @@ function renderPickerList(filterText) {
   addRow.className = 'stock-product-row add-new';
   addRow.textContent = '+ Neues Produkt anlegen';
   addRow.addEventListener('click', () => {
+    // Both classes close the picker and open their own small dedicated
+    // modal — never expanded in place inside the (possibly 50-row) match
+    // list, which used to bury the form off-screen with no visible sign
+    // the tap had done anything.
+    pickerModal.classList.remove('show');
     if (pickerFoodClass === 'nonfood') {
-      // Sonstiges gets its own separate, cleaner modal — not this same
-      // picker modal expanded in place — that also folds the target
-      // amount itself in, saving the create-then-auto-open-the-edit-modal
-      // hop the Lebensmittel path below still does.
-      pickerModal.classList.remove('show');
       openNonfoodNewProductModal(filterText);
-      return;
+    } else {
+      openNewProductModal(filterText);
     }
-    newProductNameInput.value = filterText || '';
-    newProductUnit = 'kg';
-    newProductUnitButtons.forEach((b) => b.classList.toggle('active', b.dataset.unit === 'kg'));
-    renderNewProductSubcategoryOptions();
-    newProductForm.classList.remove('hidden');
-    // The form renders below the (possibly long, up to 50-row) match list
-    // it shares a scroll container with — without this it silently opens
-    // off-screen below the fold and looks like the tap did nothing at all,
-    // which is exactly the "I cannot create a new product" report this
-    // fixes.
-    requestAnimationFrame(() => {
-      newProductForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      newProductNameInput.focus();
-      newProductNameInput.select();
-    });
   });
   pickerList.appendChild(addRow);
 
@@ -983,7 +969,6 @@ function openPicker(foodClass) {
   pickerFoodClass = foodClass;
   pickerModalTitle.textContent = foodClass === 'food' ? 'Produkt wählen (Lebensmittel)' : 'Produkt wählen (Sonstiges)';
   pickerSearch.value = '';
-  newProductForm.classList.add('hidden');
   renderPickerList('');
   pickerModal.classList.add('show');
 }
@@ -991,13 +976,24 @@ function openPicker(foodClass) {
 addProductTargetBtn.addEventListener('click', () => openPicker('food'));
 addProductTargetNonfoodBtn.addEventListener('click', () => openPicker('nonfood'));
 
-pickerSearch.addEventListener('input', () => {
-  newProductForm.classList.add('hidden');
-  renderPickerList(pickerSearch.value);
-});
+pickerSearch.addEventListener('input', () => renderPickerList(pickerSearch.value));
 
 pickerModal.addEventListener('click', (e) => {
   if (e.target === pickerModal) pickerModal.classList.remove('show');
+});
+
+// --- Lebensmittel: new product, own modal (target set in a follow-up step) --
+
+function openNewProductModal(filterText) {
+  newProductNameInput.value = filterText || '';
+  newProductUnit = 'kg';
+  newProductUnitButtons.forEach((b) => b.classList.toggle('active', b.dataset.unit === 'kg'));
+  renderNewProductSubcategoryOptions();
+  newProductModal.classList.add('show');
+}
+
+newProductModal.addEventListener('click', (e) => {
+  if (e.target === newProductModal) newProductModal.classList.remove('show');
 });
 
 // --- Sonstiges: new product + folded-in target ---------------------------
@@ -1134,8 +1130,7 @@ newProductCreateBtn.addEventListener('click', async () => {
     // to saveTargets() below, since the admin can dismiss the target-edit
     // modal that follows without saving a target at all.
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
-    newProductForm.classList.add('hidden');
-    pickerModal.classList.remove('show');
+    newProductModal.classList.remove('show');
     openEdit('products', product.id, product.name, product.unitType);
   } catch (err) {
     alert('Fehler beim Anlegen: ' + err.message);

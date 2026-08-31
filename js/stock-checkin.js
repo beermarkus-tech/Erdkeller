@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=143';
-import { renderRecentLog } from './stock-log.js?v=143';
-import { renderResultLines } from './format-batch.js?v=143';
-import { switchTabWithoutReset } from './app-shell.js?v=143';
+import { db } from './firebase-init.js?v=144';
+import { renderRecentLog } from './stock-log.js?v=144';
+import { renderResultLines } from './format-batch.js?v=144';
+import { switchTabWithoutReset } from './app-shell.js?v=144';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
