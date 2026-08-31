@@ -423,6 +423,15 @@ nav.bottomnav button .icon {
   margin: 18px 0 0;
 }
 
+/* Ziele's three explanatory notes sit at the very top of their tab,
+   with no earlier sibling to collapse a top margin against — .settings-
+   note's own zero bottom-margin (by design elsewhere, see above) left
+   them touching the next element. Scoped to this screen rather than
+   widening .settings-note's own margin everywhere it's used. */
+.ziele-tab > .settings-note {
+  margin-bottom: 16px;
+}
+
 /* Settings → Export's static rows — the text-wrap shape every other
    .stock-product-row consumer (Kontakte, Personen) sets via inline JS
    styles since their rows are JS-generated; this one is static HTML, so

@@ -1,28 +1,25 @@
 // Ziele — SPEC.md Section 7. Three top-level tabs (Kategorien/Lebensmittel/
 // Sonstiges); a category/subcategory appears in exactly one place, never
 // duplicated across a summary area and a tree row:
-//   - Kategorien tab: two independently collapsible sections. Kategorien —
-//     every food category's target, EXCEPT any category tagged "Nicht
-//     genutzt" in Taxonomie (categoryPlanningMode 'off') — those are
-//     excluded entirely, not shown as manual/editable rows, by explicit
-//     design call (see renderCategoriesSection's own comment). Kalorien
-//     categories sharing a macro (Kohlenhydrate/Protein/Fett) split that
-//     macro's global kcal target between them via a ±5% stepper (see
-//     stepSplit below); Diversität categories compute independently, no
-//     stepper. Wasser-classed types don't appear here at all — water has
-//     exactly one global target (Planung's rate), no per-category split,
-//     see js/dashboard.js's water hero. Unterkategorien — every
-//     subcategory's target, grouped by parent category, for every category
-//     regardless of "Nicht genutzt" (a category with no category-level
-//     target can still carry per-subcategory manual ones); manual under an
-//     "Aus" parent, split off the parent's computed total (same ±5%
-//     stepper) under a computed parent.
-//   - Lebensmittel / Sonstiges tabs: each its own flat Produktziele list —
-//     manual per-product overrides, independent of everything above.
+//   - Kategorien tab: two independently collapsible sections, Kategorien
+//     and Unterkategorien, BOTH excluding any category tagged "Nicht
+//     genutzt" in Taxonomie (categoryPlanningMode 'off') entirely — not
+//     shown as manual/editable rows at either level, by explicit design
+//     call (see renderCategoriesSection/renderSubcategoryGroupFor's own
+//     comments). Kalorien categories sharing a macro (Kohlenhydrate/
+//     Protein/Fett) split that macro's global kcal target between them via
+//     a ±5% stepper (see stepSplit below); Diversität categories compute
+//     independently, no stepper. Wasser-classed types don't appear here at
+//     all — water has exactly one global target (Planung's rate), no
+//     per-category split, see js/dashboard.js's water hero.
+//   - Lebensmittel / Sonstiges tabs: each its own flat Produktziele list,
+//     identical look (name + category/subcategory breadcrumb + target
+//     badge, no group headers) — manual per-product overrides, independent
+//     of everything above.
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=145';
+import { db } from './firebase-init.js?v=146';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -69,6 +66,8 @@ let pickerFoodClass = 'food';
 const newProductModal = document.getElementById('target-new-product-food-modal');
 const newProductNameInput = document.getElementById('target-new-product-name');
 const newProductUnitButtons = document.querySelectorAll('#target-new-product-unit-toggle .unit-btn');
+const newProductAmountLabel = document.getElementById('target-new-product-amount-label');
+const newProductAmountInput = document.getElementById('target-new-product-amount');
 const newProductSubcategorySelect = document.getElementById('target-new-product-subcategory');
 const newProductCreateBtn = document.getElementById('target-new-product-create-btn');
 let newProductUnit = 'kg';
@@ -411,36 +410,6 @@ function formatTargetLabel(target) {
   return `${target.people}×${target.days}T (${amt} ${u})`;
 }
 
-// --- Manual row (Aus categories/subcategories, products) ----------------
-
-function makeRow(sym, name, target, level, id, unit) {
-  const head = document.createElement('div');
-  head.className = level === 'categories' ? 'tax-cat-head' : 'tax-sub-row';
-
-  const symEl = document.createElement('span');
-  symEl.className = 'sym';
-  symEl.textContent = sym || '';
-
-  const nameEl = document.createElement('span');
-  nameEl.className = 'tax-name-display';
-  nameEl.textContent = name;
-
-  const badge = document.createElement('button');
-  badge.type = 'button';
-  badge.className = 'target-badge' + (target ? ' has-target' : '');
-  badge.textContent = formatTargetLabel(target);
-  badge.addEventListener('click', () => openEdit(level, id, name, unit));
-
-  head.appendChild(symEl);
-  head.appendChild(nameEl);
-  head.appendChild(badge);
-  return head;
-}
-
-function renderManualSubRow(sub) {
-  return makeRow(sub.sym, sub.name, targets.subcategories[sub.id], 'subcategories', sub.id, 'kg');
-}
-
 // --- Computed category (Kalorien / Diversität) ---------------------------
 // Wasser-classed types never reach this — they're filtered out before the
 // Kategorien/Unterkategorien sections render at all (see includeFoodTypes
@@ -602,15 +571,13 @@ function renderDiversitySection() {
 
 // A category tagged "Nicht genutzt" in Taxonomie (categoryPlanningMode
 // 'off') never appears in this section at all, by Markus's explicit
-// call — "nicht genutzt" means excluded from category-level target
-// setting entirely, not just defaulted to a manual/off state. Any
-// targets.categories[id] value already stored for one stays untouched
-// in Firestore (nothing here deletes it) but is unreachable in this UI
-// unless the category's mode is switched away from "Nicht genutzt"
-// again in Taxonomie. Unterkategorien is unaffected by this — a
-// "Nicht genutzt" category's subcategories can still carry their own
-// manual targets (see renderSubcategoryGroupFor), a deliberately
-// different, still-useful case.
+// call — "nicht genutzt" means excluded from target setting entirely
+// (both here and in Unterkategorien below, see renderSubcategoryGroupFor),
+// not just defaulted to a manual/off state. Any targets.categories[id]/
+// targets.subcategories[id] value already stored stays untouched in
+// Firestore (nothing here deletes it) but is unreachable in this UI
+// unless the category's mode is switched away from "Nicht genutzt" again
+// in Taxonomie.
 function renderCategoriesSection() {
   categoriesListEl.innerHTML = '';
   if (peopleCount() > 0 && autonomyDaysVal() > 0) {
@@ -637,33 +604,26 @@ function renderSubcategoryGroupFor(type, cat) {
   const subs = cat.subcategories || [];
   if (subs.length === 0) return null;
   const source = categoryTargetSource(type, cat);
+  // "Nicht genutzt" excludes a category from target setting entirely —
+  // same rule as renderCategoriesSection above, applied here too so a
+  // category hidden from Kategorien doesn't reappear one section down.
+  if (source.kind === 'off') return null;
 
   const frag = document.createDocumentFragment();
   const header = document.createElement('div');
   header.className = 'targets-subgroup-label';
   // The parent category's own total, so the split below reads as "X kg
-  // divided into these subcategories" rather than a bare name — computed
-  // categories show their live figure, manual ones show whatever target
-  // is set on the category itself (if any).
-  let totalText = null;
-  if (source.kind !== 'off') {
-    totalText = source.kg != null ? formatComputedAmount(source.kg, cat) : 'Daten unvollständig';
-  } else if (targets.categories[cat.id]) {
-    totalText = formatTargetLabel(targets.categories[cat.id]);
-  }
-  header.textContent = totalText ? `${cat.name} — ${totalText}` : cat.name;
+  // divided into these subcategories" rather than a bare name.
+  const totalText = source.kg != null ? formatComputedAmount(source.kg, cat) : 'Daten unvollständig';
+  header.textContent = `${cat.name} — ${totalText}`;
   frag.appendChild(header);
-
-  if (source.kind === 'off') {
-    subs.forEach((sub) => frag.appendChild(renderManualSubRow(sub)));
-  } else {
-    frag.appendChild(renderSubSplitGroup(cat, source));
-  }
+  frag.appendChild(renderSubSplitGroup(cat, source));
   return frag;
 }
 
 // Lebensmittel-only — Sonstiges subcategories no longer carry their own
-// targets (see renderNonfoodProductTargets below).
+// targets (Sonstiges targets live purely at the product level, see
+// renderProductTargets below).
 function renderSubcategoriesSection(listEl) {
   listEl.innerHTML = '';
   let any = false;
@@ -705,10 +665,9 @@ function productContextLabel(product) {
   return `${catPart} › ${subPart}`;
 }
 
-// showContext is on for the flat Lebensmittel list (renderProductTargetList
-// below) — the Sonstiges list is already grouped by category/subcategory
-// via its own headers (renderNonfoodProductTargets), so repeating the same
-// text per row there would just be noise.
+// showContext gives each row its own category/subcategory breadcrumb —
+// used by both Produktziele lists now (Lebensmittel and Sonstiges look
+// identical: one flat list, no group headers, see renderProductTargets).
 function makeProductTargetRow(productId, { showContext = false } = {}) {
   const product = productIndex.get(productId);
   const name = product ? product.name : '(unbekanntes Produkt)';
@@ -754,80 +713,6 @@ function renderProductTargetList(listEl, ids) {
   ids.forEach((productId) => listEl.appendChild(makeProductTargetRow(productId, { showContext: true })));
 }
 
-// Sonstiges no longer has its own Kategorien/Unterkategorien targets (see
-// renderManualCategoriesGroup/renderSubcategoriesSection above, both
-// Lebensmittel-only now) — this is the only place a Sonstiges target lives
-// at all, so it's grouped by category → subcategory, reusing the exact
-// same .targets-subgroup-label header those sections used to show, rather
-// than left as one flat list. A product whose subcategory no longer
-// resolves (deleted in Taxonomie since the target was set) still shows,
-// under a fallback group, rather than silently vanishing from view.
-function renderNonfoodProductTargets(ids) {
-  nonfoodProductTargetsList.innerHTML = '';
-  if (ids.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'screen-placeholder';
-    empty.textContent = 'Keine Produktziele.';
-    nonfoodProductTargetsList.appendChild(empty);
-    return;
-  }
-
-  const groups = new Map(); // categoryId -> { cat, subs: Map<subId, { sub, productIds }> }
-  const fallback = [];
-  ids.forEach((productId) => {
-    const product = productIndex.get(productId);
-    const ctx = product ? findSubcategoryContext(product.subcategoryId) : null;
-    if (!ctx) {
-      fallback.push(productId);
-      return;
-    }
-    const { cat, sub } = ctx;
-    if (!groups.has(cat.id)) groups.set(cat.id, { cat, subs: new Map() });
-    const group = groups.get(cat.id);
-    if (!group.subs.has(sub.id)) group.subs.set(sub.id, { sub, productIds: [] });
-    group.subs.get(sub.id).productIds.push(productId);
-  });
-
-  const byName = (a, b) => a.localeCompare(b, 'de');
-  Array.from(groups.values())
-    .sort((a, b) => byName(a.cat.name, b.cat.name))
-    .forEach(({ cat, subs }) => {
-      const catHeader = document.createElement('div');
-      catHeader.className = 'targets-subgroup-label';
-      // Symbols here too now, matching the Lebensmittel list's own
-      // productContextLabel() formatting — same cat.sym/sub.sym prefix
-      // convention, just as group headers instead of an inline .pmeta line.
-      catHeader.textContent = cat.sym ? `${cat.sym} ${cat.name}` : cat.name;
-      nonfoodProductTargetsList.appendChild(catHeader);
-
-      Array.from(subs.values())
-        .sort((a, b) => byName(a.sub.name, b.sub.name))
-        .forEach(({ sub, productIds }) => {
-          // A Wasser subcategory's name mirrors its category (js/taxonomy.js's
-          // ensureWaterSubcategory) — skip the redundant sub-header rather
-          // than showing "Trinkwasser — Trinkwasser".
-          if (sub.name !== cat.name) {
-            const subHeader = document.createElement('div');
-            subHeader.className = 'targets-subgroup-label';
-            subHeader.textContent = sub.sym ? `${sub.sym} ${sub.name}` : sub.name;
-            nonfoodProductTargetsList.appendChild(subHeader);
-          }
-          productIds
-            .slice()
-            .sort((a, b) => byName(productIndex.get(a)?.name || '', productIndex.get(b)?.name || ''))
-            .forEach((productId) => nonfoodProductTargetsList.appendChild(makeProductTargetRow(productId)));
-        });
-    });
-
-  if (fallback.length > 0) {
-    const header = document.createElement('div');
-    header.className = 'targets-subgroup-label';
-    header.textContent = 'Ohne Kategorie';
-    nonfoodProductTargetsList.appendChild(header);
-    fallback.forEach((productId) => nonfoodProductTargetsList.appendChild(makeProductTargetRow(productId)));
-  }
-}
-
 // Every product target is unambiguously Lebensmittel, Wasser, or Sonstiges
 // via its own subcategory's parent type, so — unlike Kategorien/
 // Unterkategorien, which read the taxonomy tree directly — this splits the
@@ -846,7 +731,7 @@ function renderProductTargets() {
     (cls === 'other' ? nonfoodIds : foodIds).push(id);
   });
   renderProductTargetList(productTargetsList, foodIds);
-  renderNonfoodProductTargets(nonfoodIds);
+  renderProductTargetList(nonfoodProductTargetsList, nonfoodIds);
 }
 
 function syncUnitToggle() {
@@ -977,12 +862,15 @@ pickerModal.addEventListener('click', (e) => {
   if (e.target === pickerModal) pickerModal.classList.remove('show');
 });
 
-// --- Lebensmittel: new product, own modal (target set in a follow-up step) --
+// --- Lebensmittel: new product, own modal (target folded in, same as
+// Sonstiges' own modal below) ------------------------------------------
 
 function openNewProductModal(filterText) {
   newProductNameInput.value = filterText || '';
   newProductUnit = 'kg';
   newProductUnitButtons.forEach((b) => b.classList.toggle('active', b.dataset.unit === 'kg'));
+  newProductAmountInput.value = '';
+  newProductAmountLabel.textContent = `Ziel-Menge (${unitLabel(newProductUnit)})`;
   renderNewProductSubcategoryOptions();
   newProductModal.classList.add('show');
 }
@@ -1095,18 +983,24 @@ newProductUnitButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
     newProductUnit = btn.dataset.unit;
     newProductUnitButtons.forEach((b) => b.classList.toggle('active', b === btn));
+    newProductAmountLabel.textContent = `Ziel-Menge (${unitLabel(newProductUnit)})`;
   });
 });
 
 newProductCreateBtn.addEventListener('click', async () => {
   const name = newProductNameInput.value.trim();
   const subcategoryId = newProductSubcategorySelect.value;
+  const amount = Number(newProductAmountInput.value);
   if (!name) {
     alert('Bitte einen Produktnamen eingeben.');
     return;
   }
   if (!subcategoryId) {
     alert('Bitte eine Unterkategorie wählen.');
+    return;
+  }
+  if (newProductAmountInput.value === '' || Number.isNaN(amount)) {
+    alert('Bitte eine Ziel-Menge eingeben.');
     return;
   }
   if (findDuplicateProductName(name)) {
@@ -1119,14 +1013,16 @@ newProductCreateBtn.addEventListener('click', async () => {
     const product = { id: newDoc.id, name, subcategoryId, unitType: newProductUnit };
     allProducts.push(product);
     productIndex.set(product.id, product);
-    // Other modules (Bestand's guided flow, Übersicht) cache the product
-    // list in memory too and only reload on this event — same bug class
-    // as js/taxonomy.js's saveTaxonomy fix. Fired here rather than left
-    // to saveTargets() below, since the admin can dismiss the target-edit
-    // modal that follows without saving a target at all.
-    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+    // Product targets are always flat (see openEdit's own comment on
+    // isProduct) so folding it in here — one modal, one save — is safe
+    // the same way Sonstiges' own new-product modal already does it.
+    targets.products[product.id] = { mode: 'flat', amount, unit: newProductUnit };
     newProductModal.classList.remove('show');
-    openEdit('products', product.id, product.name, product.unitType);
+    await saveTargets();
+    // saveTargets() already dispatches erdkeller:refresh (reloads the
+    // product catalog everywhere else too) — nothing further needed here
+    // beyond re-rendering this screen's own state.
+    render();
   } catch (err) {
     alert('Fehler beim Anlegen: ' + err.message);
     console.error(err);
