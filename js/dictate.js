@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=136';
+import { db, functions } from './firebase-init.js?v=137';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -495,11 +495,12 @@ async function handleTranscript(transcript) {
   if (lines.length === 0) {
     // The function call succeeded but nothing resolved — could be a
     // genuinely empty/off-topic transcript, or every item failed to match
-    // client-side despite the model returning something. Logged so this
-    // is diagnosable from a browser console without needing a Cloud
-    // Function log lookup for every case.
+    // client-side despite the model returning something. Logged to the
+    // console AND shown right in the bubble (Build 137, temporary), since
+    // a browser console isn't practically reachable on a phone/tablet.
     console.warn('Diktieren: no lines resolved from parseDictation items', items);
-    appendErrorBubble('Das habe ich nicht verstanden.', transcript);
+    const debugDetail = items.length ? JSON.stringify(items, null, 1) : '(leeres items-Array)';
+    appendErrorBubble('Das habe ich nicht verstanden.', transcript, debugDetail);
     return;
   }
   appendProposalBubble(lines);
@@ -532,12 +533,22 @@ function appendErrorBubbleSimple(message) {
   scrollChatToBottom();
 }
 
-function appendErrorBubble(message, transcript) {
+function appendErrorBubble(message, transcript, debugDetail) {
   const div = document.createElement('div');
   div.className = 'dictate-bubble app error';
   const p = document.createElement('div');
   p.textContent = message;
   div.appendChild(p);
+  if (debugDetail) {
+    // Temporary (Build 137): surfaces what the AI actually returned right
+    // in the chat, since a browser console isn't practically reachable on
+    // a phone/tablet — remove once "Das habe ich nicht verstanden" is no
+    // longer a mystery in practice.
+    const pre = document.createElement('pre');
+    pre.className = 'dictate-debug-detail';
+    pre.textContent = debugDetail;
+    div.appendChild(pre);
+  }
   const retryBtn = document.createElement('button');
   retryBtn.type = 'button';
   retryBtn.className = 'select-mode-btn dictate-retry-btn';

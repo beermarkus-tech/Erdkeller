@@ -3977,6 +3977,21 @@ nav.bottomnav button .icon {
   margin-top: 6px;
 }
 
+.dictate-debug-detail {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+  color: var(--charcoal);
+}
+
 .dictate-live {
   padding: 8px 12px;
   font-size: 19px;
