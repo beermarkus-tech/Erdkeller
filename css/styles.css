@@ -2047,6 +2047,7 @@ nav.bottomnav button .icon {
    number-input style. */
 .form-group input[type="text"],
 .form-group input[type="tel"],
+.form-group input[type="month"],
 .form-group select {
   width: 100%;
   padding: 13px 14px;
@@ -3898,8 +3899,20 @@ nav.bottomnav button .icon {
 }
 
 .dictate-line-toggle:disabled {
-  opacity: 0.35;
+  /* A plain opacity cut on the dark cellar green washes out to a flat
+     gray at this size — reads as "broken/invalid" rather than "nothing
+     to toggle to yet" (the normal state for a brand-new product with no
+     existing batch to check out from). A pale tint of the same hue keeps
+     it recognizably "still Einlagern", just non-interactive. */
+  opacity: 1;
+  background: rgba(46, 64, 52, 0.14);
+  color: var(--cellar);
   cursor: default;
+}
+
+.dictate-line-toggle.out:disabled {
+  background: rgba(161, 90, 46, 0.14);
+  color: var(--rust);
 }
 
 .dictate-line-meta2.missing {
@@ -4048,4 +4061,21 @@ nav.bottomnav button .icon {
 
 .dictate-edit-sheet .form-group {
   margin-bottom: 14px;
+}
+
+.dictate-edit-taxonomy-row {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 900px) {
+  .dictate-edit-taxonomy-row {
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .dictate-edit-taxonomy-row .form-group {
+    flex: 1;
+    min-width: 0;
+  }
 }

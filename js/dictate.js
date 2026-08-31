@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=138';
+import { db, functions } from './firebase-init.js?v=139';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -342,6 +342,18 @@ function breadcrumbFieldsFor(subcategoryId) {
 
 function contextFor(subcategoryId) {
   return subcategoryId ? subcategoryIndex.get(subcategoryId) : null;
+}
+
+// subcategoryIndex is built by iterating the whole taxonomy in order
+// (buildSubcategoryIndex), so its first entry is a real, always-valid
+// subcategory as long as the household has configured any taxonomy at
+// all — used as a last-resort default so the edit sheet's "Übernehmen"
+// can never save a still-empty category (confirmed as a real failure
+// mode: an edge-case type/category combo with zero subcategories left
+// the select empty, so reading its .value produced '' every time).
+function firstAvailableSubcategoryId() {
+  const first = subcategoryIndex.keys().next();
+  return first.done ? null : first.value;
 }
 
 function resolveLine(item) {
@@ -992,7 +1004,7 @@ editApplyBtn.addEventListener('click', () => {
     return;
   }
 
-  const subId = editSubcategorySelect.value || null;
+  const subId = editSubcategorySelect.value || firstAvailableSubcategoryId();
   const ctx = contextFor(subId);
 
   line.subcategoryId = subId;
