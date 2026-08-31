@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=134';
-import { renderRecentLog } from './stock-log.js?v=134';
-import { renderResultLines } from './format-batch.js?v=134';
-import { switchTabWithoutReset } from './app-shell.js?v=134';
+import { db } from './firebase-init.js?v=135';
+import { renderRecentLog } from './stock-log.js?v=135';
+import { renderResultLines } from './format-batch.js?v=135';
+import { switchTabWithoutReset } from './app-shell.js?v=135';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -139,6 +139,17 @@ async function loadConfig() {
     console.error(err);
   }
   startCheckinBtn.disabled = !configLoadOk;
+}
+
+// A product's name lives once on /products, shared by every batch that
+// references it (renaming there is deliberately catalog-wide) — nothing
+// stops a second, fully independent /products doc with the same name
+// otherwise, which then tracks its own stock/target totally separately
+// under an identical-looking label. Checked case-insensitively since
+// "Bohnen"/"bohnen" would otherwise slip past a naive match.
+function findDuplicateProductName(name) {
+  const q = name.trim().toLowerCase();
+  return allProducts.find((p) => p.name.trim().toLowerCase() === q) || null;
 }
 
 function buildSubcategoryIndex() {
@@ -428,7 +439,11 @@ globalSearchInput.addEventListener('input', () => renderGlobalSearchResults(glob
 
 function updateContentFieldForUnit() {
   contentFieldGroup.classList.toggle('hidden', !isCurrentUnitFractional());
-  contentFieldLabel.textContent = currentUnitType() === 'l' ? 'Inhalt (z.B. 800ml)' : 'Inhalt (z.B. 500g)';
+  // Wasser (unitType 'l') is genuinely liter-only — no ambiguity to show.
+  // The kg/ml toggle otherwise treats weight and volume as interchangeable
+  // for this household's tracking purposes (1l ≈ 1kg), so its content
+  // field's hint reflects both, matching the toggle's own "kg/ml" label.
+  contentFieldLabel.textContent = currentUnitType() === 'l' ? 'Inhalt (z.B. 800ml)' : 'Inhalt (z.B. 500g / 800ml)';
 }
 
 function setUnitToggle(unit) {
@@ -600,6 +615,14 @@ checkinConfirmBtn.addEventListener('click', async () => {
   if (selection.isNewProduct) {
     const name = detailNewNameInput.value.trim();
     if (!name) {
+      detailNewNameInput.focus();
+      return;
+    }
+    const dupe = findDuplicateProductName(name);
+    if (dupe) {
+      const ctx = subcategoryIndex.get(dupe.subcategoryId);
+      const path = ctx ? `${ctx.type.name} › ${ctx.category.name} › ${ctx.subcategory.name}` : 'einer anderen Kategorie';
+      alert(`„${name}" gibt es bereits (unter ${path}) — bitte über die Produktsuche auswählen statt neu anzulegen, sonst entstehen zwei getrennte Chargenlisten für denselben Namen.`);
       detailNewNameInput.focus();
       return;
     }

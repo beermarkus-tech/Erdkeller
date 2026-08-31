@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=134';
+import { db, functions } from './firebase-init.js?v=135';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -493,6 +493,12 @@ async function handleTranscript(transcript) {
   pendingBubble.remove();
   const lines = items.map(resolveLine).filter(Boolean);
   if (lines.length === 0) {
+    // The function call succeeded but nothing resolved — could be a
+    // genuinely empty/off-topic transcript, or every item failed to match
+    // client-side despite the model returning something. Logged so this
+    // is diagnosable from a browser console without needing a Cloud
+    // Function log lookup for every case.
+    console.warn('Diktieren: no lines resolved from parseDictation items', items);
     appendErrorBubble('Das habe ich nicht verstanden.', transcript);
     return;
   }
@@ -1036,31 +1042,47 @@ async function registerLines(lines) {
       continue;
     }
 
-    if (!line.subcategoryId) {
-      throw new Error(`Kategorie für "${line.name}" fehlt — bitte antippen und auswählen.`);
-    }
-    const ctx = subcategoryIndex.get(line.subcategoryId);
-    if (!ctx) {
-      throw new Error(`Unbekannte Kategorie für "${line.name}".`);
-    }
-
     let productId = line.productId;
     if (line.isNew) {
       const dedupeKey = line.name.trim().toLowerCase();
       if (newProductIds.has(dedupeKey)) {
         productId = newProductIds.get(dedupeKey);
       } else {
-        const newDoc = await addDoc(collection(db, 'products'), {
-          name: line.name.trim(),
-          subcategoryId: line.subcategoryId,
-          unitType: line.unitType,
-        });
-        productId = newDoc.id;
-        newProductIds.set(dedupeKey, productId);
-        const newProduct = { id: productId, name: line.name.trim(), subcategoryId: line.subcategoryId, unitType: line.unitType };
-        allProducts.push(newProduct);
-        productIndex.set(productId, newProduct);
+        // The model proposed this as a brand-new product, but the catalog
+        // already has one with this exact name (a matching miss on its
+        // part, or a manual edit-sheet rename that happens to collide) —
+        // reuse the real product instead of creating a second, identically-
+        // named /products doc that would silently fragment this item's
+        // stock/target across two disconnected catalog entries. The
+        // existing product's own subcategory/unit win over the line's
+        // guessed ones, since those are now known-correct.
+        const existing = allProducts.find((p) => p.name.trim().toLowerCase() === dedupeKey);
+        if (existing) {
+          productId = existing.id;
+          line.subcategoryId = existing.subcategoryId;
+          line.unitType = existing.unitType;
+          newProductIds.set(dedupeKey, productId);
+        } else {
+          const newDoc = await addDoc(collection(db, 'products'), {
+            name: line.name.trim(),
+            subcategoryId: line.subcategoryId,
+            unitType: line.unitType,
+          });
+          productId = newDoc.id;
+          newProductIds.set(dedupeKey, productId);
+          const newProduct = { id: productId, name: line.name.trim(), subcategoryId: line.subcategoryId, unitType: line.unitType };
+          allProducts.push(newProduct);
+          productIndex.set(productId, newProduct);
+        }
       }
+    }
+
+    if (!line.subcategoryId) {
+      throw new Error(`Kategorie für "${line.name}" fehlt — bitte antippen und auswählen.`);
+    }
+    const ctx = subcategoryIndex.get(line.subcategoryId);
+    if (!ctx) {
+      throw new Error(`Unbekannte Kategorie für "${line.name}".`);
     }
 
     const isFractional = line.unitType === 'kg' || line.unitType === 'l';

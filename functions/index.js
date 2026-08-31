@@ -183,5 +183,14 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey] }, async (request) 
     throw new HttpsError('internal', 'Antwort konnte nicht gelesen werden.');
   }
 
+  // A silent "not understood" on the client (zero resolvable lines) is
+  // otherwise a dead end to debug — the raw model text is the one thing
+  // that actually explains it (wrong shape, unexpected wrapping object,
+  // a genuinely empty array), so log it whenever the parsed result isn't
+  // a non-empty array rather than only on a hard parse failure.
+  if (!Array.isArray(items) || items.length === 0) {
+    console.warn('parseDictation: parsed to no usable items', { transcript, raw: textBlock.text });
+  }
+
   return { items: Array.isArray(items) ? items : [] };
 });

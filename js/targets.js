@@ -17,7 +17,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=134';
+import { db } from './firebase-init.js?v=135';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -109,6 +109,15 @@ let targets = {
 let household = { members: [] };
 let planning = { autonomyDays: null, macroSplit: {} };
 let loadOk = false;
+
+// A product's name lives once on /products, shared by every batch that
+// references it — nothing stops a second, independent /products doc with
+// the same name otherwise, tracking its own stock/target totally
+// separately under an identical-looking label. Checked case-insensitively.
+function findDuplicateProductName(name) {
+  const q = name.trim().toLowerCase();
+  return allProducts.find((p) => p.name.trim().toLowerCase() === q) || null;
+}
 
 // Which categories currently feed each macro's split (planningMode
 // 'calorie', a macroType set, and a usable kcalPerKg) — recomputed at the
@@ -1056,6 +1065,10 @@ nonfoodNewCreateBtn.addEventListener('click', async () => {
     alert('Bitte eine Ziel-Menge eingeben.');
     return;
   }
+  if (findDuplicateProductName(name)) {
+    alert(`„${name}" gibt es bereits — bitte das bestehende Produkt auswählen statt ein neues mit demselben Namen anzulegen, sonst entstehen zwei getrennte Chargenlisten.`);
+    return;
+  }
   nonfoodNewCreateBtn.disabled = true;
   try {
     const newDoc = await addDoc(collection(db, 'products'), { name, subcategoryId, unitType: unit });
@@ -1093,6 +1106,10 @@ newProductCreateBtn.addEventListener('click', async () => {
   }
   if (!subcategoryId) {
     alert('Bitte eine Unterkategorie wählen.');
+    return;
+  }
+  if (findDuplicateProductName(name)) {
+    alert(`„${name}" gibt es bereits — bitte das bestehende Produkt auswählen statt ein neues mit demselben Namen anzulegen, sonst entstehen zwei getrennte Chargenlisten.`);
     return;
   }
   newProductCreateBtn.disabled = true;
