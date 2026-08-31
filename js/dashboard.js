@@ -22,12 +22,12 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=140';
+import { db } from './firebase-init.js?v=141';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=140';
-import { openAtSubcategory } from './stock-checkin.js?v=140';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=141';
+import { openAtSubcategory } from './stock-checkin.js?v=141';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -425,34 +425,43 @@ function computeShoppingList(subStock, rows) {
   return items;
 }
 
+// Always plain kg, regardless of the Bestand tab's unit toggle — a
+// shopping-list amount is what to go and buy, and switching it to
+// kg/P/T or kcal would turn a shopping quantity into something you can't
+// actually buy that much of.
 function formatShoppingNeed(item) {
-  if (item.unit === 'kg') return formatAmount(item.need, item.kcalPerKg ?? null);
-  if (item.unit === 'l') return `${round2(item.need)} l`;
-  if (item.unit === 'L') return `${round2(item.need)} L`; // the synthetic Wasser-global entry, not a real product unit
+  if (item.unit === 'kg') return `${round1(item.need)} kg`;
+  if (item.unit === 'l') return `${round1(item.need)} l`;
+  if (item.unit === 'L') return `${round1(item.need)} L`; // the synthetic Wasser-global entry, not a real product unit
   if (item.unit === 'stueck') return `${Math.ceil(item.need)} Stk`; // legacy value
   return `${Math.ceil(item.need)} ${item.unit}`; // open Sonstiges units: Stück, Flaschen, Dosen, Säcke, custom
 }
 
 // --- Formatting ------------------------------------------------------------
 
-function round2(n) {
-  return Math.round(n * 100) / 100;
+function round1(n) {
+  return Math.round(n * 10) / 10;
 }
 
-// Mirrors js/targets.js's formatComputedAmount exactly — same figure,
-// same unit toggle, same look, on both screens.
+// Was byte-for-byte identical to js/targets.js's formatComputedAmount;
+// now diverges on two points Markus asked for on this screen only:
+// kgpd shows whole grams (150g reads better than 0.150kg for a daily
+// per-person ration) instead of fractional kg, and a category with no
+// kcalPerKg (a 'diversity' category, not calorie-tracked) shows
+// "nicht verfügbar" in kcal view instead of silently falling back to kg.
 function formatAmount(kg, kcalPerKg) {
   const people = peopleCount();
   const days = autonomyDaysVal();
   if (displayUnit === 'kgpd') {
-    return people > 0 && days > 0 ? `${Math.round((kg / people / days) * 1000) / 1000} kg/P/T` : `${round2(kg)} kg`;
+    return people > 0 && days > 0 ? `${Math.round((kg / people / days) * 1000)} g/P/T` : `${round1(kg)} kg`;
   }
-  if ((displayUnit === 'kcal' || displayUnit === 'kcalpd') && kcalPerKg != null) {
+  if (displayUnit === 'kcal' || displayUnit === 'kcalpd') {
+    if (kcalPerKg == null) return 'nicht verfügbar';
     const kcal = kg * kcalPerKg;
     if (displayUnit === 'kcal') return `${Math.round(kcal).toLocaleString('de-DE')} kcal`;
-    return people > 0 && days > 0 ? `${Math.round(kcal / people / days)} kcal/P/T` : `${round2(kg)} kg`;
+    return people > 0 && days > 0 ? `${Math.round(kcal / people / days)} kcal/P/T` : `${round1(kg)} kg`;
   }
-  return `${round2(kg)} kg`;
+  return `${round1(kg)} kg`;
 }
 
 function pct(current, target) {
@@ -530,11 +539,11 @@ function renderHero(rows) {
   let currentText;
   let targetText;
   if (displayUnit === 'kg') {
-    currentText = `${round2(current)}`;
-    targetText = `/ ${round2(target)} kg`;
+    currentText = `${round1(current)}`;
+    targetText = `/ ${round1(target)} kg`;
   } else if (displayUnit === 'kgpd') {
-    currentText = people > 0 && days > 0 ? `${Math.round((current / people / days) * 1000) / 1000}` : `${round2(current)}`;
-    targetText = people > 0 && days > 0 ? `/ ${Math.round((target / people / days) * 1000) / 1000} kg/P/T` : `/ ${round2(target)} kg`;
+    currentText = people > 0 && days > 0 ? `${Math.round((current / people / days) * 1000)}` : `${round1(current)}`;
+    targetText = people > 0 && days > 0 ? `/ ${Math.round((target / people / days) * 1000)} g/P/T` : `/ ${round1(target)} kg`;
   } else if (displayUnit === 'kcal') {
     currentText = Math.round(current).toLocaleString('de-DE');
     targetText = `/ ${Math.round(target).toLocaleString('de-DE')} kcal`;
@@ -557,7 +566,7 @@ function renderHero(rows) {
     <div class="dash-hero-bar-track"><div class="dash-hero-bar-fill" style="width:${Math.min(100, p)}%"></div></div>
     <div class="dash-hero-meta">
       <span>${Math.round(p)} % gedeckt</span>
-      <span>${weeks != null && weeksTarget != null ? `reicht ca. <b>${round2(Math.min(weeks, 999))}</b> von ${round2(weeksTarget)} Wochen` : ''}</span>
+      <span>${weeks != null && weeksTarget != null ? `reicht ca. <b>${round1(Math.min(weeks, 999))}</b> von ${round1(weeksTarget)} Wochen` : ''}</span>
     </div>
   `;
   heroEl.appendChild(hero);
@@ -589,11 +598,11 @@ function renderHeroWater(current, target) {
   let currentText;
   let targetText;
   if (displayUnit === 'kgpd' && people > 0 && days > 0) {
-    currentText = `${Math.round((current / people / days) * 1000) / 1000}`;
-    targetText = `/ ${Math.round((target / people / days) * 1000) / 1000} L/P/T`;
+    currentText = `${Math.round((current / people / days) * 1000)}`;
+    targetText = `/ ${Math.round((target / people / days) * 1000)} ml/P/T`;
   } else {
-    currentText = `${round2(current)}`;
-    targetText = `/ ${round2(target)} L`;
+    currentText = `${round1(current)}`;
+    targetText = `/ ${round1(target)} L`;
   }
 
   const hero = document.createElement('div');
@@ -607,7 +616,7 @@ function renderHeroWater(current, target) {
     <div class="dash-hero-bar-track"><div class="dash-hero-bar-fill" style="width:${Math.min(100, p)}%"></div></div>
     <div class="dash-hero-meta">
       <span>${Math.round(p)} % gedeckt</span>
-      <span>${weeks != null && weeksTarget != null ? `reicht ca. <b>${round2(Math.min(weeks, 999))}</b> von ${round2(weeksTarget)} Wochen` : ''}</span>
+      <span>${weeks != null && weeksTarget != null ? `reicht ca. <b>${round1(Math.min(weeks, 999))}</b> von ${round1(weeksTarget)} Wochen` : ''}</span>
     </div>
   `;
   heroWaterEl.appendChild(hero);
@@ -640,7 +649,7 @@ function renderCategoryList(rows) {
         <div class="dash-cat-chevron">▾</div>
       </div>
       <div class="dash-cat-footer">
-        <span class="dash-coverage-chip ${s}">${weeks != null ? `reicht ${round2(Math.min(weeks, 999))} Wo.` : 'reicht — Wo.'}</span>
+        <span class="dash-coverage-chip ${s}">${weeks != null ? `reicht ${round1(Math.min(weeks, 999))} Wo.` : 'reicht — Wo.'}</span>
       </div>
       <div class="dash-sub-list"></div>
     `;
