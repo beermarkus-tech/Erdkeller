@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=141';
+import { db } from './firebase-init.js?v=142';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const listEl = document.getElementById('year-color-list');
@@ -103,6 +103,17 @@ function renderRow(key) {
     });
     swatchRow.appendChild(btn);
   });
+  const noneBtn = document.createElement('button');
+  const isNoneSelected = !yearColorMap[key] || yearColorMap[key] === 'none';
+  noneBtn.className = 'swatch-btn none-swatch' + (isNoneSelected ? ' selected' : '');
+  noneBtn.textContent = '–';
+  noneBtn.title = 'Keine Farbe';
+  noneBtn.addEventListener('click', () => {
+    yearColorMap[key] = 'none';
+    saveYearColors();
+    render();
+  });
+  swatchRow.appendChild(noneBtn);
   row.appendChild(swatchRow);
 
   if (!isNone) {

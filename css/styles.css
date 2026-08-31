@@ -1057,6 +1057,18 @@ nav.bottomnav button .icon {
   box-shadow: 0 0 0 2px var(--charcoal);
 }
 
+.swatch-btn.none-swatch {
+  background: var(--paper);
+  border: 1px dashed #8a8776;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: #8a8776;
+}
+
 /* Stock: home buttons */
 .home-buttons {
   display: flex;
