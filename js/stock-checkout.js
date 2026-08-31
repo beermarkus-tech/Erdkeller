@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=133';
-import { PALETTE } from './year-colors.js?v=133';
-import { renderRecentLog } from './stock-log.js?v=133';
-import { renderResultLines } from './format-batch.js?v=133';
+import { db } from './firebase-init.js?v=134';
+import { PALETTE } from './year-colors.js?v=134';
+import { renderRecentLog } from './stock-log.js?v=134';
+import { renderResultLines } from './format-batch.js?v=134';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -15,6 +15,17 @@ const recentLogEl = document.getElementById('checkout-recent-log');
 
 const breadcrumbEl = document.getElementById('checkout-breadcrumb');
 const flowSteps = document.querySelectorAll('#stock-flow-checkout .flow-step');
+
+// The header (topbar-subtitle/tablet-header) otherwise just shows the
+// tab's own fixed label ("Bestand") no matter which of Einlagern/Entnehmen
+// is open, making the two flows' identical-looking first step ambiguous —
+// same pattern js/settings-nav.js already uses for its own sub-panels.
+const topbarSubtitle = document.getElementById('topbar-subtitle');
+const tabletHeader = document.getElementById('tablet-header');
+function setHeader(text) {
+  topbarSubtitle.textContent = text;
+  tabletHeader.textContent = text;
+}
 
 const PREV_STEP = {
   type: null,
@@ -532,7 +543,16 @@ confirmBtn.addEventListener('click', async () => {
       bestBefore: batch.bestBefore,
       storage: batch.storage,
     });
-    goToStep('success');
+
+    // Build 134: same pattern as Einlagern — the button itself confirms
+    // (checkmark + "Entnommen") for a beat, then the toast carries the
+    // lingering confirmation/undo while the flow drops straight back to
+    // its own first step instead of a separate success screen.
+    confirmBtn.textContent = '✓ Entnommen';
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    confirmBtn.textContent = 'Entnehmen bestätigen';
+
+    goToStep('type');
     showUndoToast(`Entnommen: ${productName(batch.productId)}`);
     renderRecentLog(recentLogEl);
     // Bestandsliste (stock-table.js) and Einlagern (stock-checkin.js) each
@@ -605,6 +625,7 @@ function returnHome() {
   hideUndoToast();
   stockFlowEl.classList.add('hidden');
   stockHomeEl.classList.remove('hidden');
+  setHeader('Bestand');
 }
 
 backHomeBtn.addEventListener('click', returnHome);
@@ -615,6 +636,7 @@ startCheckoutBtn.addEventListener('click', () => {
   selection = { type: null, category: null, subcategory: null, batch: null, removeQty: 1 };
   stockHomeEl.classList.add('hidden');
   stockFlowEl.classList.remove('hidden');
+  setHeader('Entnehmen');
   goToStep('type');
 });
 

@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=133';
-import { renderRecentLog } from './stock-log.js?v=133';
-import { renderResultLines } from './format-batch.js?v=133';
-import { switchTabWithoutReset } from './app-shell.js?v=133';
+import { db } from './firebase-init.js?v=134';
+import { renderRecentLog } from './stock-log.js?v=134';
+import { renderResultLines } from './format-batch.js?v=134';
+import { switchTabWithoutReset } from './app-shell.js?v=134';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -21,7 +21,6 @@ const PREV_STEP = {
   category: 'type',
   subcategory: 'category',
   product: 'subcategory',
-  'new-product': 'product',
 };
 
 const globalSearchInput = document.getElementById('global-product-search');
@@ -34,7 +33,6 @@ const subcategoryGrid = document.getElementById('subcategory-grid');
 const productSearchInput = document.getElementById('product-search');
 const productListEl = document.getElementById('product-list');
 
-const newProductNameInput = document.getElementById('new-product-name');
 // Scoped to this screen's own toggle — the bare .unit-btn class is reused
 // by js/targets.js's own new-product-unit-toggle AND its unrelated
 // target-mode-toggle (Feste Menge/Personen×Tage), and since all
@@ -45,14 +43,17 @@ const newProductNameInput = document.getElementById('new-product-name');
 const newProductUnitToggleEl = document.getElementById('new-product-unit-toggle');
 const newProductWaterNoteEl = document.getElementById('new-product-water-note');
 const unitButtons = newProductUnitToggleEl.querySelectorAll('.unit-btn');
-const newProductContinueBtn = document.getElementById('new-product-continue-btn');
 
 const detailProductName = document.getElementById('detail-product-name');
+const detailNewNameGroup = document.getElementById('detail-new-name-group');
+const detailNewNameInput = document.getElementById('detail-new-name-input');
+const detailNewUnitGroup = document.getElementById('detail-new-unit-group');
 const qtyNumEl = document.getElementById('qty-num');
 const qtyMinusBtn = document.getElementById('qty-minus');
 const qtyPlusBtn = document.getElementById('qty-plus');
 const detailsInput = document.getElementById('details-input');
 const contentFieldGroup = document.getElementById('content-field-group');
+const contentFieldLabel = document.getElementById('content-field-label');
 const contentInput = document.getElementById('content-input');
 const bestbeforeDisplay = document.getElementById('bestbefore-display');
 const bestbeforeInput = document.getElementById('bestbefore-input');
@@ -60,6 +61,17 @@ const storageSelect = document.getElementById('storage-select');
 const checkinConfirmBtn = document.getElementById('checkin-confirm-btn');
 
 const successDetail = document.getElementById('success-detail');
+
+// The header (topbar-subtitle/tablet-header) otherwise just shows the
+// tab's own fixed label ("Bestand") no matter which of Einlagern/Entnehmen
+// is open, making the two flows' identical-looking first step ambiguous —
+// same pattern js/settings-nav.js already uses for its own sub-panels.
+const topbarSubtitle = document.getElementById('topbar-subtitle');
+const tabletHeader = document.getElementById('tablet-header');
+function setHeader(text) {
+  topbarSubtitle.textContent = text;
+  tabletHeader.textContent = text;
+}
 
 const dateModal = document.getElementById('date-modal');
 const monthCol = document.getElementById('month-col');
@@ -170,7 +182,7 @@ function goBack() {
   }
   const current = currentStepName();
   if (!current || current === 'success') return;
-  let prev = current === 'detail' ? (selection.isNewProduct ? 'new-product' : 'product') : PREV_STEP[current];
+  let prev = current === 'detail' ? 'product' : PREV_STEP[current];
   // Wasser skips the subcategory step (see renderCategoryGrid) — never
   // step back into a screen that was never actually shown.
   if (current === 'product' && selection.type && typeClass(selection.type) === 'water') prev = 'category';
@@ -205,19 +217,6 @@ function goToStep(stepName) {
     selection.isNewProduct = false;
     productSearchInput.value = '';
     renderProductList('');
-  } else if (stepName === 'new-product') {
-    newProductNameInput.value = '';
-    // Wasser products are always liter-tracked — they count toward the one
-    // global Wasser target (Planung's rate × people × days, Übersicht),
-    // never an individual override, so there's no unit choice to offer at
-    // all here. Anyone wanting a separately-tracked "always keep N bottles"
-    // target models that as an actual Sonstiges product instead (Ziele's
-    // own Sonstiges picker, js/targets.js) — same name as "water" in the
-    // everyday sense, but no link to this Taxonomie Wasser type.
-    const isWater = selection.type && typeClass(selection.type) === 'water';
-    newProductUnitToggleEl.classList.toggle('hidden', isWater);
-    newProductWaterNoteEl.classList.toggle('hidden', !isWater);
-    setUnitToggle(isWater ? 'l' : 'kg');
   } else if (stepName === 'detail') {
     prepareDetailStep();
   }
@@ -345,7 +344,11 @@ function renderProductList(filterText) {
   const addRow = document.createElement('div');
   addRow.className = 'stock-product-row add-new';
   addRow.textContent = '+ Neues Produkt';
-  addRow.addEventListener('click', () => goToStep('new-product'));
+  addRow.addEventListener('click', () => {
+    selection.product = null;
+    selection.isNewProduct = true;
+    goToStep('detail');
+  });
   productListEl.appendChild(addRow);
 }
 
@@ -421,37 +424,49 @@ function renderGlobalSearchResults(text) {
 
 globalSearchInput.addEventListener('input', () => renderGlobalSearchResults(globalSearchInput.value));
 
-// --- New product step --------------------------------------------------
+// --- New-product fields (merged into the detail step, Build 134) --------
+
+function updateContentFieldForUnit() {
+  contentFieldGroup.classList.toggle('hidden', !isCurrentUnitFractional());
+  contentFieldLabel.textContent = currentUnitType() === 'l' ? 'Inhalt (z.B. 800ml)' : 'Inhalt (z.B. 500g)';
+}
 
 function setUnitToggle(unit) {
   selection.newProductUnit = unit;
   unitButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.unit === unit));
+  // Chosen live on the merged detail step now (not a separate screen the
+  // user leaves before this matters), so the content field's visibility/
+  // label must react immediately, not just once when the step is entered.
+  if (selection.isNewProduct) updateContentFieldForUnit();
 }
 
 unitButtons.forEach((btn) => {
   btn.addEventListener('click', () => setUnitToggle(btn.dataset.unit));
 });
 
-newProductContinueBtn.addEventListener('click', () => {
-  const name = newProductNameInput.value.trim();
-  if (!name) {
-    newProductNameInput.focus();
-    return;
-  }
-  selection.product = {
-    id: null,
-    name,
-    subcategoryId: selection.subcategory.id,
-    unitType: selection.newProductUnit,
-  };
-  selection.isNewProduct = true;
-  goToStep('detail');
-});
-
 // --- Detail step ---------------------------------------------------------
 
 function prepareDetailStep() {
+  detailProductName.classList.toggle('hidden', selection.isNewProduct);
   detailProductName.textContent = selection.product ? selection.product.name : '';
+  detailNewNameGroup.classList.toggle('hidden', !selection.isNewProduct);
+  detailNewUnitGroup.classList.toggle('hidden', !selection.isNewProduct);
+
+  if (selection.isNewProduct) {
+    detailNewNameInput.value = '';
+    // Wasser products are always liter-tracked — they count toward the one
+    // global Wasser target (Planung's rate × people × days, Übersicht),
+    // never an individual override, so there's no unit choice to offer at
+    // all here. Anyone wanting a separately-tracked "always keep N bottles"
+    // target models that as an actual Sonstiges product instead (Ziele's
+    // own Sonstiges picker, js/targets.js) — same name as "water" in the
+    // everyday sense, but no link to this Taxonomie Wasser type.
+    const isWater = selection.type && typeClass(selection.type) === 'water';
+    newProductUnitToggleEl.classList.toggle('hidden', isWater);
+    newProductWaterNoteEl.classList.toggle('hidden', !isWater);
+    setUnitToggle(isWater ? 'l' : 'kg');
+  }
+
   selection.qty = 1;
   qtyNumEl.value = '1';
   selection.details = '';
@@ -461,7 +476,7 @@ function prepareDetailStep() {
   selection.bestBefore = '';
   bestbeforeInput.value = '';
 
-  contentFieldGroup.classList.toggle('hidden', !isCurrentUnitFractional());
+  updateContentFieldForUnit();
 
   storageSelect.innerHTML = '';
   storageLocations.forEach((loc) => {
@@ -582,6 +597,19 @@ function yearColorFor(bestBefore) {
 }
 
 checkinConfirmBtn.addEventListener('click', async () => {
+  if (selection.isNewProduct) {
+    const name = detailNewNameInput.value.trim();
+    if (!name) {
+      detailNewNameInput.focus();
+      return;
+    }
+    selection.product = {
+      id: null,
+      name,
+      subcategoryId: selection.subcategory.id,
+      unitType: selection.newProductUnit,
+    };
+  }
   if (!selection.product || !selection.subcategory || !selection.category || !selection.type) return;
   checkinConfirmBtn.disabled = true;
   try {
@@ -635,18 +663,29 @@ checkinConfirmBtn.addEventListener('click', async () => {
       storage: data.storage,
     });
 
-    // The add-from-Bestandsliste entry point (openAddFlow) skips the
-    // success screen entirely and jumps straight back — the whole point
-    // of that button was to add-and-return in one step, not add-then-
-    // require-a-second-tap-on-"Zurück". showUndoToast() must run *after*
-    // returnHome(), since returnHome() itself starts by hiding any
-    // currently-shown toast.
-    if (launchedFromStocktable) {
+    // Build 134: the button itself becomes the confirmation (checkmark +
+    // "Eingelagert") for a beat, then — instead of a separate success
+    // screen — the toast carries the lingering confirmation/undo and the
+    // flow drops straight back to its own first step, ready for the next
+    // item. The add-from-Bestandsliste/Einkaufsliste tap-throughs still
+    // exit outward via returnHome() as before, since finishing one of
+    // those logically returns to where it was launched from, not into
+    // another blind Einlagern run. showUndoToast() must run *after*
+    // returnHome()/goToStep('type'), since both start by clearing state
+    // (returnHome hides any current toast; goToStep('type') resets
+    // selection.product itself) — the name is captured beforehand so the
+    // toast text isn't reading it back out after it's already gone.
+    const confirmedProductName = selection.product.name;
+    checkinConfirmBtn.textContent = '✓ Eingelagert';
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    checkinConfirmBtn.textContent = 'Einlagern bestätigen';
+
+    if (launchedFromStocktable || launchedFromShoppingList) {
       returnHome();
     } else {
-      goToStep('success');
+      goToStep('type');
     }
-    showUndoToast(`Eingelagert: ${selection.product.name}`);
+    showUndoToast(`Eingelagert: ${confirmedProductName}`);
     renderRecentLog(recentLogEl);
     // Bestandsliste (stock-table.js) and Entnehmen (stock-checkout.js) each
     // keep their own read cache of stockItems/products — without this they
@@ -714,6 +753,7 @@ function returnHome() {
   hideUndoToast();
   stockFlowEl.classList.add('hidden');
   stockHomeEl.classList.remove('hidden');
+  setHeader('Bestand');
   if (launchedFromStocktable) {
     launchedFromStocktable = false;
     document.querySelector('.nav-btn[data-tab="settings"]').click();
@@ -741,6 +781,7 @@ startCheckinBtn.addEventListener('click', () => {
   };
   stockHomeEl.classList.add('hidden');
   stockFlowEl.classList.remove('hidden');
+  setHeader('Einlagern');
   goToStep('type');
 });
 
@@ -780,6 +821,7 @@ export function openAtSubcategory(subcategoryId) {
   };
   stockHomeEl.classList.add('hidden');
   stockFlowEl.classList.remove('hidden');
+  setHeader('Einlagern');
   goToStep(ctx ? 'product' : 'type');
 }
 
