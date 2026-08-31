@@ -17,7 +17,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=142';
+import { db } from './firebase-init.js?v=143';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -927,6 +927,16 @@ function renderPickerList(filterText) {
     newProductUnitButtons.forEach((b) => b.classList.toggle('active', b.dataset.unit === 'kg'));
     renderNewProductSubcategoryOptions();
     newProductForm.classList.remove('hidden');
+    // The form renders below the (possibly long, up to 50-row) match list
+    // it shares a scroll container with — without this it silently opens
+    // off-screen below the fold and looks like the tap did nothing at all,
+    // which is exactly the "I cannot create a new product" report this
+    // fixes.
+    requestAnimationFrame(() => {
+      newProductForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      newProductNameInput.focus();
+      newProductNameInput.select();
+    });
   });
   pickerList.appendChild(addRow);
 
