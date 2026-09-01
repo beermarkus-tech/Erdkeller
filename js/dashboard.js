@@ -22,12 +22,12 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=149';
+import { db } from './firebase-init.js?v=150';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=149';
-import { openAtSubcategory } from './stock-checkin.js?v=149';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=150';
+import { openAtSubcategory } from './stock-checkin.js?v=150';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -105,21 +105,6 @@ async function loadAll() {
 function typeClass(type) {
   if (type.typeClass) return type.typeClass;
   return type.isFoodType ? 'food' : 'other';
-}
-
-// Same shape as js/targets.js/js/stock-table.js's own findSubcategoryContext
-// — used only to resolve a symbol for Einkaufsliste's Produktziele-sourced
-// rows (see computeShoppingList), since those aren't grouped by a single
-// real category the way the Kategorien-sourced rows already are.
-function findSubcategoryContext(subcategoryId) {
-  for (const type of taxonomy.types || []) {
-    for (const cat of (type.categories || [])) {
-      for (const sub of (cat.subcategories || [])) {
-        if (sub.id === subcategoryId) return { type, cat, sub };
-      }
-    }
-  }
-  return null;
 }
 
 function categoryPlanningMode(type, cat) {
@@ -423,14 +408,12 @@ function computeShoppingList(subStock, rows) {
     if (!targetAmount) return;
     const current = productCurrentAmount(product);
     if (current < targetAmount) {
-      // "Produktziele" isn't a real category the way the sub-kind items'
-      // group is — it mixes products from any subcategory under one
-      // shared header, so it can't carry one single group symbol the way
-      // group.cat.sym does above. Each row resolves and shows its own
-      // instead (see renderShoppingList).
-      const ctx = findSubcategoryContext(product.subcategoryId);
+      // "Produktziele" isn't a real category — it mixes products from any
+      // subcategory under one shared header — so, per Markus's call, it
+      // deliberately carries no symbol at all (neither a group symbol nor
+      // a per-row one).
       items.push({
-        kind: 'product', name: product.name, group: 'Produktziele', groupSym: '', sym: ctx ? (ctx.cat.sym || '') : '', need: targetAmount - current, unit: target.unit, subcategoryId: product.subcategoryId,
+        kind: 'product', name: product.name, group: 'Produktziele', groupSym: '', need: targetAmount - current, unit: target.unit, subcategoryId: product.subcategoryId,
       });
     }
   });
@@ -438,10 +421,8 @@ function computeShoppingList(subStock, rows) {
   const waterTarget = waterGlobalLiters();
   const waterCurrent = waterCurrentLiters(subStock);
   if (waterTarget != null && waterCurrent < waterTarget) {
-    const waterSubId = firstWaterSubcategoryId();
-    const ctx = findSubcategoryContext(waterSubId);
     items.push({
-      kind: 'water', name: 'Wasser', group: 'Produktziele', groupSym: '', sym: ctx ? (ctx.cat.sym || '') : '', need: waterTarget - waterCurrent, unit: 'L', subcategoryId: waterSubId,
+      kind: 'water', name: 'Wasser', group: 'Produktziele', groupSym: '', need: waterTarget - waterCurrent, unit: 'L', subcategoryId: firstWaterSubcategoryId(),
     });
   }
 
@@ -808,14 +789,8 @@ function renderShoppingList(items) {
       groupItems.forEach((item) => {
         const row = document.createElement('div');
         row.className = 'dash-shopping-row';
-        // Produktziele rows (kind 'product'/'water') carry their own
-        // per-item symbol, since "Produktziele" itself mixes products
-        // from any category under one shared group label above — a
-        // sub-kind row's symbol is already shown once, on its group
-        // label, so it isn't repeated here.
-        const rowName = item.sym ? `${item.sym} ${item.name}` : item.name;
         row.innerHTML = `
-          <span class="dash-shopping-row-name">${rowName}</span>
+          <span class="dash-shopping-row-name">${item.name}</span>
           <span class="dash-shopping-row-need">+${formatShoppingNeed(item)}</span>
         `;
         row.addEventListener('click', () => openAtSubcategory(item.subcategoryId));

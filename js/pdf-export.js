@@ -10,7 +10,7 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=149';
+import { db } from './firebase-init.js?v=150';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -674,7 +674,7 @@ function computeShoppingList(subStock, rows, targetsDoc, productIndex, allBatche
     row.subs.forEach(({ sub, targetKg, currentKg }) => {
       if (targetKg != null && currentKg < targetKg) {
         items.push({
-          name: sub.name, group: row.cat.name, need: targetKg - currentKg, unit: 'kg',
+          name: sub.name, group: row.cat.name, groupSym: row.cat.sym || '', need: targetKg - currentKg, unit: 'kg',
         });
       }
     });
@@ -937,9 +937,15 @@ async function buildDashboardSection(pdf) {
       columns[1],
       measureGroup,
       (pdf2, x, yy, w, [groupName, items]) => {
+        // Category symbol only — a Produktziele item's own group ("Produktziele")
+        // isn't a real single category, so it never has one (groupSym is
+        // only ever set on the Kategorien-sourced items above).
+        const groupSym = items[0].groupSym;
+        const img = groupSym ? symbolImageDataUrl(groupSym) : null;
         pdf2.setFont('helvetica', 'bold');
         pdf2.setFontSize(9);
-        pdf2.text(groupName, x, yy);
+        pdf2.text(groupName, x + (img ? 5.5 : 0), yy);
+        if (img) pdf2.addImage(img, 'PNG', x, yy - 3.6, 4, 4);
         let iy = yy + LINE_H * 1.3;
         pdf2.setFont('helvetica', 'normal');
         items.forEach((item) => {

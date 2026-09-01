@@ -36,7 +36,7 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=149';
+import { db } from './firebase-init.js?v=150';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
@@ -411,9 +411,15 @@ function focusFirstInput(container) {
 // items nested here any more, those live in the flat filterable list
 // below. Same .checklist-edit-group/.checklist-edit-head/.checklist-
 // recipients markup as before, just without the per-list items loop.
+// Deliberately raw (creation) order here, not sortedLists() — while the
+// editor is open, a just-added checklist/item should stay where you put
+// it instead of instantly jumping to its alphabetical slot mid-edit.
+// Only the live Wartung view (always sorted, see above) is what's shown
+// once you actually close the editor, so the sorted arrangement is what
+// "closing the editor" reveals — no separate sort-on-close step needed.
 function renderMaintenanceManageList() {
   maintenanceManageListEl.innerHTML = '';
-  sortedLists().forEach((list) => {
+  maintenance.lists.forEach((list) => {
     const group = document.createElement('div');
     group.className = 'checklist-edit-group';
 
@@ -495,6 +501,8 @@ function flattenMaintenanceItems() {
   return flat;
 }
 
+// Raw (creation) order too, same reasoning as renderMaintenanceManageList
+// above — a freshly-added entry stays put instead of jumping mid-edit.
 function filteredFlatItems() {
   const q = maintenanceSearch.trim().toLowerCase();
   return flattenMaintenanceItems()
@@ -503,8 +511,7 @@ function filteredFlatItems() {
       if (selectedFreqFilters.size && !selectedFreqFilters.has(FREQ_LABELS[item.frequency] || item.frequency)) return false;
       if (q && !item.text.toLowerCase().includes(q)) return false;
       return true;
-    })
-    .sort((a, b) => a.item.text.localeCompare(b.item.text, 'de'));
+    });
 }
 
 function renderChips(container, values, selectedSet, onChange) {
@@ -525,7 +532,7 @@ function renderChips(container, values, selectedSet, onChange) {
 }
 
 function renderMaintenanceFilters() {
-  const listNames = sortedLists().map((l) => l.name);
+  const listNames = maintenance.lists.map((l) => l.name);
   const freqLabels = Object.values(FREQ_LABELS);
   renderChips(maintenanceListFiltersEl, listNames, selectedListFilters, renderMaintenanceFlatList);
   renderChips(maintenanceFreqFiltersEl, freqLabels, selectedFreqFilters, renderMaintenanceFlatList);
