@@ -36,7 +36,7 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=150';
+import { db } from './firebase-init.js?v=151';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
@@ -469,15 +469,14 @@ function renderMaintenanceManageList() {
 addMaintenanceListBtn.addEventListener('click', () => {
   const newList = { id: genId(), name: 'Neue Checkliste', recipients: ['markus'], items: [] };
   maintenance.lists.push(newList);
-  // Auto-focus both filter rows on the new checklist — without this,
-  // "+ Eintrag hinzufügen" falls back to maintenance.lists[0] (whichever
-  // checklist was created first, not this one) whenever no single-
-  // checklist filter is active, so an item added right after creating a
-  // new checklist would silently land on a different, existing one,
-  // leaving the new checklist with 0 items and invisible on the live
-  // view (which skips empty checklists entirely).
-  selectedListFilters = new Set([newList.name]);
-  selectedLiveListFilters = new Set([newList.name]);
+  // Clear both filter rows rather than pointing them at the brand-new
+  // checklist: it has no items yet, so filtering to it emptied the item
+  // list entirely and left you re-picking filters to see anything again.
+  // "+ Eintrag hinzufügen" still lands on this checklist with no filter
+  // set — it falls back to the most recently created one (see its own
+  // handler below), which is exactly the one just added here.
+  selectedListFilters = new Set();
+  selectedLiveListFilters = new Set();
   saveMaintenance();
   renderMaintenanceManageList();
   renderMaintenanceFilters();
@@ -727,8 +726,41 @@ function applyEditMode() {
   checklistsEditToggleBtn.textContent = editMode ? '✓ Fertig' : '✏️';
 }
 
+// Reorders the stored arrays themselves, unlike the live view's own
+// non-destructive sortedLists()/sortedItems() — that's what makes the
+// *editor* come back up sorted the next time it's opened too, not just
+// the read view. Returns whether anything actually moved, so closing an
+// editor that changed nothing doesn't trigger a pointless Firestore
+// write. Only ever called on leaving edit mode (leaveEditMode below):
+// during editing everything stays in creation order, so a just-added
+// checklist/entry never jumps out from under you mid-edit.
+function sortMaintenanceInPlace() {
+  const order = () => maintenance.lists
+    .map((l) => l.id + ':' + (l.items || []).map((i) => i.id).join(','))
+    .join('|');
+  const before = order();
+  maintenance.lists.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+  maintenance.lists.forEach((list) => {
+    if (Array.isArray(list.items)) {
+      list.items.sort((a, b) => (a.text || '').localeCompare(b.text || '', 'de'));
+    }
+  });
+  return order() !== before;
+}
+
+function leaveEditMode() {
+  editMode = false;
+  applyEditMode();
+  if (sortMaintenanceInPlace()) saveMaintenance();
+  render();
+}
+
 checklistsEditToggleBtn.addEventListener('click', () => {
-  editMode = !editMode;
+  if (editMode) {
+    leaveEditMode();
+    return;
+  }
+  editMode = true;
   applyEditMode();
 });
 
@@ -763,7 +795,8 @@ window.addEventListener('erdkeller:refresh', () => loadAll());
 window.addEventListener('erdkeller:navreset', (e) => {
   if (e.detail.tab !== 'checklists') return;
   crisisReferenceEl.classList.remove('show');
-  editMode = false;
-  applyEditMode();
-  render();
+  // Navigating away counts as closing the editor — same sort-and-save
+  // as the ✓ Fertig button, so an edit session left via the nav bar
+  // still lands sorted.
+  leaveEditMode();
 });
