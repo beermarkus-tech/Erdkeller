@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=152';
+import { db, functions } from './firebase-init.js?v=153';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -368,6 +368,10 @@ photoInput.addEventListener('change', async () => {
   const file = photoInput.files[0];
   photoInput.value = ''; // reset so re-picking the same file still fires change
   if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    appendErrorBubbleSimple('Bitte ein Foto auswählen.');
+    return;
+  }
   let dataUri;
   try {
     dataUri = await compressImage(file);

@@ -57,6 +57,12 @@ function buildBatchLines(batches, productIndex) {
   });
 }
 
+// Hardcoded for now — there's no app-wide language setting anywhere in this
+// codebase yet (recognizer.lang, every .localeCompare(..., 'de') call, and
+// all UI text are all hardcoded German the same way). If a language setting
+// is ever added, this should read from it instead.
+const APP_LANGUAGE = 'Deutsch';
+
 function buildPhotoPrompt(taxonomy, products) {
   const taxonomyLines = buildTaxonomyLines(taxonomy);
   const productLines = buildProductLines(products);
@@ -73,12 +79,14 @@ ${taxonomyLines.join('\n') || '(keine)'}
 Gib für jedes erkannte Produkt GENAU eines von zwei Feldsets zurück:
 
 1) Passt zu einem bekannten Produkt:
-{"direction": "in", "matchedProductId": "<id EXAKT aus der Produktliste oben kopiert>", "productNameHeard": "<Produktname wie erkannt>", "quantity": <Zahl>, "content": "<z.B. 800g, oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": null, "confidence": "high"|"medium"|"low"}
+{"direction": "in", "matchedProductId": "<id EXAKT aus der Produktliste oben kopiert>", "productNameHeard": "<einfacher Produktname, siehe unten>", "quantity": <Zahl>, "content": "<z.B. 800g, oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": null, "confidence": "high"|"medium"|"low"}
 
 2) Kein bekanntes Produkt passt:
-{"direction": "in", "newProductName": "<Name, wie erkannt oder plausibel beschrieben>", "suggestedSubcategoryId": "<id aus der Liste oben, oder null>", "confidence": "high"|"medium"|"low", "quantity": <Zahl>, "content": "<... oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": null, "guessedUnitType": "kg"|"l"|"stueck"}
+{"direction": "in", "newProductName": "<einfacher Produktname, siehe unten>", "suggestedSubcategoryId": "<id aus der Liste oben, oder null>", "confidence": "high"|"medium"|"low", "quantity": <Zahl>, "content": "<... oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": null, "guessedUnitType": "kg"|"l"|"stueck"}
 
 WICHTIG zu "matchedProductId"/"suggestedSubcategoryId": IMMER exakt aus der jeweiligen Liste oben kopieren, NIE selbst erfinden. Diese IDs sind zufällige Firestore-Strings (~20 Zeichen, KEINE Bindestriche) — niemals ein UUID-artiges Format mit Bindestrichen erzeugen. Bei Unsicherheit lieber Format 2 verwenden als eine falsche ID zu raten.
+
+WICHTIG zu "productNameHeard"/"newProductName" — einfacher Produktname: Nenne das Produkt bei seinem einfachen, generischen Gattungsnamen auf ${APP_LANGUAGE} — NICHT die Marke, NICHT der volle Aufdruck der Verpackung. Beispiele: "Barilla Superlong Spaghetti" → "Spaghetti"; "Flocons d'Avoine" → "Haferflocken"; "Bonduelle Kidneybohnen in Dose" → "Kidneybohnen"; "San Marzano gepellte Tomaten" → "Gepellte Tomaten". Übersetze fremdsprachige Aufdrucke (Englisch, Französisch, etc.) ins ${APP_LANGUAGE}. Marke, Herkunftsangaben und Werbetext auf der Verpackung ignorierst du für den Namen komplett — nur die Sorte/Art des Produkts zählt.
 
 Regeln:
 - "storage" IMMER null setzen — der Lagerort lässt sich aus einem Foto nicht zuverlässig bestimmen.
