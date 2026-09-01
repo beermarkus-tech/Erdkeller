@@ -36,7 +36,7 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=148';
+import { db } from './firebase-init.js?v=149';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
@@ -267,18 +267,29 @@ function toggleItemDone(item) {
 
 // --- Main screen: Wartung -------------------------------------------------
 
+// Non-destructive — a plain copy sorted at render time, never reordering
+// maintenance.lists itself (nothing else in this file depends on array
+// order, but there's no reason to risk it).
+function sortedLists() {
+  return [...maintenance.lists].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+
+function sortedItems(items) {
+  return [...items].sort((a, b) => a.text.localeCompare(b.text, 'de'));
+}
+
 function renderMaintenanceLiveFilters() {
-  const listNames = maintenance.lists.map((l) => l.name);
+  const listNames = sortedLists().map((l) => l.name);
   renderChips(maintenanceLiveListFiltersEl, listNames, selectedLiveListFilters, renderMaintenanceList);
 }
 
 function renderMaintenanceList() {
   maintenanceListEl.innerHTML = '';
   if (!loadOk) return;
-  maintenance.lists.forEach((list) => {
+  sortedLists().forEach((list) => {
     if (selectedLiveListFilters.size && !selectedLiveListFilters.has(list.name)) return;
     const dueItems = (list.items || []).filter((it) => !isDoneThisPeriod(it));
-    const items = maintenanceFilter === 'due' ? dueItems : (list.items || []);
+    const items = sortedItems(maintenanceFilter === 'due' ? dueItems : (list.items || []));
     if (items.length === 0) return;
 
     const group = document.createElement('div');
@@ -402,7 +413,7 @@ function focusFirstInput(container) {
 // recipients markup as before, just without the per-list items loop.
 function renderMaintenanceManageList() {
   maintenanceManageListEl.innerHTML = '';
-  maintenance.lists.forEach((list) => {
+  sortedLists().forEach((list) => {
     const group = document.createElement('div');
     group.className = 'checklist-edit-group';
 
@@ -514,7 +525,7 @@ function renderChips(container, values, selectedSet, onChange) {
 }
 
 function renderMaintenanceFilters() {
-  const listNames = maintenance.lists.map((l) => l.name);
+  const listNames = sortedLists().map((l) => l.name);
   const freqLabels = Object.values(FREQ_LABELS);
   renderChips(maintenanceListFiltersEl, listNames, selectedListFilters, renderMaintenanceFlatList);
   renderChips(maintenanceFreqFiltersEl, freqLabels, selectedFreqFilters, renderMaintenanceFlatList);

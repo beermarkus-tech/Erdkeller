@@ -22,7 +22,7 @@
 // note with more than one photo just shows photos[0] as its hero until
 // next edited, same as everywhere else in this app that reads a narrowed
 // field defensively instead of needing a migration.
-import { db } from './firebase-init.js?v=148';
+import { db } from './firebase-init.js?v=149';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -50,6 +50,7 @@ const searchInput = document.getElementById('notes-search-input');
 const notesListEl = document.getElementById('notes-list');
 const statusEl = document.getElementById('notes-status');
 const viewToggleEl = document.getElementById('notes-view-toggle');
+const sortBarEl = document.getElementById('notes-sort-bar');
 
 const viewModal = document.getElementById('note-view-modal');
 const viewCloseBtn = document.getElementById('note-view-close-btn');
@@ -78,6 +79,16 @@ let searchText = '';
 // same convention as e.g. Übersicht's kg/kcal unit toggle) — always
 // starts back on 'cards'.
 let viewMode = 'cards';
+
+// Sort bar — same blueprint as js/stock-table.js's own (a column list +
+// asc/desc toggle on repeat clicks), scaled down to Notizen's two
+// meaningful keys.
+const SORT_COLUMNS = [
+  { key: 'title', label: 'A–Z' },
+  { key: 'created', label: 'Erstellt' },
+];
+let sortColumn = 'title';
+let sortDir = 'asc';
 
 let viewingNote = null;
 
@@ -392,12 +403,46 @@ function matchesSearch(note, q) {
   return bodyPlainText(note.body).toLowerCase().includes(q);
 }
 
+function sortValue(note, key) {
+  if (key === 'created') return note.createdAt || '';
+  return (note.title || '').toLowerCase();
+}
+
+function compareNotes(a, b) {
+  const av = sortValue(a, sortColumn);
+  const bv = sortValue(b, sortColumn);
+  const c = String(av).localeCompare(String(bv), 'de');
+  return sortDir === 'asc' ? c : -c;
+}
+
+function renderSortBar() {
+  sortBarEl.innerHTML = '';
+  SORT_COLUMNS.forEach((col) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sort-btn' + (sortColumn === col.key ? ' active' : '');
+    const arrow = sortColumn === col.key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+    btn.textContent = col.label + arrow;
+    btn.addEventListener('click', () => {
+      if (sortColumn === col.key) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortColumn = col.key;
+        sortDir = 'asc';
+      }
+      renderSortBar();
+      renderNotes();
+    });
+    sortBarEl.appendChild(btn);
+  });
+}
+
 function renderNotes() {
   notesListEl.classList.toggle('list-mode', viewMode === 'list');
   const q = searchText.trim().toLowerCase();
   const sorted = notes
     .filter((n) => matchesSearch(n, q))
-    .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'de'));
+    .sort(compareNotes);
   notesListEl.innerHTML = '';
   if (sorted.length === 0) {
     const p = document.createElement('p');
@@ -408,6 +453,8 @@ function renderNotes() {
     sorted.forEach((n) => notesListEl.appendChild(makeNoteCard(n)));
   }
 }
+
+renderSortBar();
 
 searchInput.addEventListener('input', () => {
   searchText = searchInput.value;

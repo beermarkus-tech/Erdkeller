@@ -19,7 +19,7 @@
 //   on purpose (a "nice to have" signal, not a checklist that nags), and
 //   no summary badge on the card either (Markus's call) — the dot only
 //   ever shows up once a recipe is actually opened.
-import { db } from './firebase-init.js?v=148';
+import { db } from './firebase-init.js?v=149';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -588,6 +588,18 @@ function renderIngredientEditor() {
     input.addEventListener('input', () => {
       editIngredients[index] = input.value;
       scheduleSave();
+    });
+    // Enter confirms this line and starts the next one — same "+"
+    // affordance as editAddIngredientBtn below, just reachable without
+    // leaving the keyboard, matching how quickly a real ingredient list
+    // gets typed out.
+    input.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      editIngredients.push('');
+      renderIngredientEditor();
+      const inputs = editIngredientsEl.querySelectorAll('.tax-name-input');
+      requestAnimationFrame(() => inputs[inputs.length - 1]?.focus());
     });
     row.appendChild(input);
 

@@ -19,7 +19,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=148';
+import { db } from './firebase-init.js?v=149';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -345,41 +345,49 @@ function stepSplit(splitMap, groupIds, targetId, delta) {
 
 // --- Computed-amount formatting (unit toggle) ---------------------------
 
-function round2(n) {
-  return Math.round(n * 100) / 100;
+function round1(n) {
+  return Math.round(n * 10) / 10;
 }
 
+// Kept in sync with js/dashboard.js's own formatAmount by explicit
+// request (Markus: "must become g/P/T like in bestand") — kgpd shows
+// whole grams (150g reads better than 0.150kg for a daily per-person
+// ration) instead of fractional kg, and a Diversität category (no
+// cat.kcalPerKg) shows "nicht verfügbar" in kcal view instead of
+// silently falling back to kg.
 function formatComputedAmount(kg, cat) {
   const people = peopleCount();
   const days = autonomyDaysVal();
   if (displayUnit === 'kgpd') {
-    return people > 0 && days > 0 ? `${Math.round((kg / people / days) * 1000) / 1000} kg/P/T` : `${round2(kg)} kg`;
+    return people > 0 && days > 0 ? `${Math.round((kg / people / days) * 1000)} g/P/T` : `${round1(kg)} kg`;
   }
-  if ((displayUnit === 'kcal' || displayUnit === 'kcalpd') && cat && cat.kcalPerKg != null) {
+  if (displayUnit === 'kcal' || displayUnit === 'kcalpd') {
+    if (!cat || cat.kcalPerKg == null) return 'nicht verfügbar';
     const kcal = kg * cat.kcalPerKg;
     if (displayUnit === 'kcal') return `${Math.round(kcal).toLocaleString('de-DE')} kcal`;
-    return people > 0 && days > 0 ? `${Math.round(kcal / people / days)} kcal/P/T` : `${round2(kg)} kg`;
+    return people > 0 && days > 0 ? `${Math.round(kcal / people / days)} kcal/P/T` : `${round1(kg)} kg`;
   }
-  return `${round2(kg)} kg`;
+  return `${round1(kg)} kg`;
 }
 
 // The macro group's header total, in whichever unit is toggled — kcal/
 // kcal-per-Person&Tag come straight from the macro's global kcal figure;
 // kg/kg-per-Person&Tag sum the group's current per-category kg amounts
 // (their sum always equals the macro total by construction, since the
-// split always sums to 100%).
+// split always sums to 100%). Only ever called for Kalorien-tracked
+// macro groups, never Diversität, so no "nicht verfügbar" case applies.
 function formatMacroHeaderTotal(macro, items) {
   const people = peopleCount();
   const days = autonomyDaysVal();
   if (displayUnit === 'kcal') return `${Math.round(macroGlobalKcal(macro)).toLocaleString('de-DE')} kcal`;
   if (displayUnit === 'kcalpd') {
-    return people > 0 && days > 0 ? `${Math.round(macroGlobalKcal(macro) / people / days)} kcal/P/T` : `${round2(macroGlobalKcal(macro))} kcal`;
+    return people > 0 && days > 0 ? `${Math.round(macroGlobalKcal(macro) / people / days)} kcal/P/T` : `${round1(macroGlobalKcal(macro))} kcal`;
   }
   const sumKg = items.reduce((s, it) => s + (it.kg || 0), 0);
   if (displayUnit === 'kgpd') {
-    return people > 0 && days > 0 ? `${Math.round((sumKg / people / days) * 1000) / 1000} kg/P/T` : `${round2(sumKg)} kg`;
+    return people > 0 && days > 0 ? `${Math.round((sumKg / people / days) * 1000)} g/P/T` : `${round1(sumKg)} kg`;
   }
-  return `${round2(sumKg)} kg`;
+  return `${round1(sumKg)} kg`;
 }
 
 // --- Target formatting (manual / "Aus" categories, subcategories, products) --
