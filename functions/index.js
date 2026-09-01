@@ -57,6 +57,39 @@ function buildBatchLines(batches, productIndex) {
   });
 }
 
+function buildPhotoPrompt(taxonomy, products) {
+  const taxonomyLines = buildTaxonomyLines(taxonomy);
+  const productLines = buildProductLines(products);
+  return `Du hilfst beim Einlagern von Vorräten in einer Haushalts-Vorratsverwaltung anhand eines Fotos. Das Foto zeigt ein Regal, einen Schrank oder eine Ablage mit Lebensmitteln/Vorräten.
+
+Erkenne JEDES einzeln unterscheidbare Produkt auf dem Foto und zerlege es in eine JSON-Liste von Chargen. Mehrere gleiche Packungen desselben Produkts mit derselben Packungsgröße zählst du als EINE Zeile mit entsprechender "quantity", nicht als mehrere Zeilen. Unterschiedliche Packungsgrößen desselben Produkts ergeben getrennte Zeilen.
+
+Bekannte Produkte (id, Name, Einheit):
+${productLines.join('\n') || '(keine)'}
+
+Bekannte Unterkategorien (subcategoryId, Pfad Typ > Kategorie > Unterkategorie):
+${taxonomyLines.join('\n') || '(keine)'}
+
+Gib für jedes erkannte Produkt GENAU eines von zwei Feldsets zurück:
+
+1) Passt zu einem bekannten Produkt:
+{"direction": "in", "matchedProductId": "<id EXAKT aus der Produktliste oben kopiert>", "productNameHeard": "<Produktname wie erkannt>", "quantity": <Zahl>, "content": "<z.B. 800g, oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": null, "confidence": "high"|"medium"|"low"}
+
+2) Kein bekanntes Produkt passt:
+{"direction": "in", "newProductName": "<Name, wie erkannt oder plausibel beschrieben>", "suggestedSubcategoryId": "<id aus der Liste oben, oder null>", "confidence": "high"|"medium"|"low", "quantity": <Zahl>, "content": "<... oder null>", "bestBefore": "<MM/JJJJ oder null>", "storage": null, "guessedUnitType": "kg"|"l"|"stueck"}
+
+WICHTIG zu "matchedProductId"/"suggestedSubcategoryId": IMMER exakt aus der jeweiligen Liste oben kopieren, NIE selbst erfinden. Diese IDs sind zufällige Firestore-Strings (~20 Zeichen, KEINE Bindestriche) — niemals ein UUID-artiges Format mit Bindestrichen erzeugen. Bei Unsicherheit lieber Format 2 verwenden als eine falsche ID zu raten.
+
+Regeln:
+- "storage" IMMER null setzen — der Lagerort lässt sich aus einem Foto nicht zuverlässig bestimmen.
+- "quantity" ist die Anzahl sichtbarer Packungen, nie das Gewicht. Bei gestapelten/teilweise verdeckten Packungen vorsichtig schätzen, "confidence" entsprechend senken.
+- "content" ist die Packungsgröße als kurzer String, falls lesbar; sonst null.
+- "bestBefore" nur setzen, wenn Monat UND Jahr klar lesbar sind; nie raten.
+- "confidence" spiegelt Sicherheit bei Produkt-Identität UND Menge wider.
+- Ist kein Lebensmittel/Vorrat erkennbar, gib ein leeres JSON-Array zurück.
+- Antworte NUR mit einem JSON-Array, keine Erklärung, kein Markdown.`;
+}
+
 function buildPrompt(transcript, taxonomy, products, batches, productIndex) {
   const taxonomyLines = buildTaxonomyLines(taxonomy);
   const productLines = buildProductLines(products);
@@ -110,19 +143,35 @@ function extractJsonArray(text) {
   return trimmed.slice(start, end + 1);
 }
 
-exports.parseDictation = onCall({ secrets: [anthropicApiKey] }, async (request) => {
+const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 120 }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Bitte anmelden.');
   }
-  const transcript = (request.data && typeof request.data.transcript === 'string' ? request.data.transcript : '').trim();
-  if (!transcript) {
-    throw new HttpsError('invalid-argument', 'Kein Text übergeben.');
+  const data = request.data || {};
+  const transcript = typeof data.transcript === 'string' ? data.transcript.trim() : '';
+  const imageBase64 = typeof data.imageBase64 === 'string' ? data.imageBase64.trim() : '';
+  const hasTranscript = !!transcript;
+  const hasImage = !!imageBase64;
+  if (hasTranscript === hasImage) { // both or neither provided
+    throw new HttpsError('invalid-argument', 'Entweder Text oder Foto übergeben, nicht beides oder keins.');
+  }
+  if (hasImage) {
+    if (!ALLOWED_IMAGE_MIME.has(data.mimeType)) {
+      throw new HttpsError('invalid-argument', 'Ungültiges Bildformat.');
+    }
+    // Defense in depth — base64 chars ≈ bytes * 4/3, so this is ~6MB of raw
+    // image, comfortably under Anthropic's per-image cap already enforced
+    // more tightly client-side; this is just a server-side backstop.
+    if (imageBase64.length > 8_000_000) {
+      throw new HttpsError('invalid-argument', 'Foto zu groß.');
+    }
   }
 
-  const [taxSnap, productsSnap, batchesSnap] = await Promise.all([
+  const [taxSnap, productsSnap] = await Promise.all([
     db.doc('config/taxonomy').get(),
     db.collection('products').get(),
-    db.collection('stockItems').get(),
   ]);
   const taxonomy = taxSnap.exists && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
   const products = productsSnap.docs.map((d) => {
@@ -130,19 +179,32 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey] }, async (request) 
     return { id: d.id, name: p.name || '', unitType: p.unitType || '' };
   });
   const productIndex = new Map(products.map((p) => [p.id, p]));
-  const batches = batchesSnap.docs.map((d) => {
-    const b = d.data();
-    return {
-      id: d.id,
-      productId: b.productId || '',
-      quantity: b.quantity || 0,
-      content: b.content || '',
-      bestBefore: b.bestBefore || '',
-      storage: b.storage || '',
-    };
-  });
 
-  const prompt = buildPrompt(transcript, taxonomy, products, batches, productIndex);
+  let content;
+  if (hasTranscript) {
+    // Only text-dictation lines can be "out" (a photo just shows what's
+    // physically present), so the current-stock batch context is only
+    // ever needed here.
+    const batchesSnap = await db.collection('stockItems').get();
+    const batches = batchesSnap.docs.map((d) => {
+      const b = d.data();
+      return {
+        id: d.id,
+        productId: b.productId || '',
+        quantity: b.quantity || 0,
+        content: b.content || '',
+        bestBefore: b.bestBefore || '',
+        storage: b.storage || '',
+      };
+    });
+    content = buildPrompt(transcript, taxonomy, products, batches, productIndex);
+  } else {
+    const prompt = buildPhotoPrompt(taxonomy, products);
+    content = [
+      { type: 'image', source: { type: 'base64', media_type: data.mimeType, data: imageBase64 } },
+      { type: 'text', text: prompt },
+    ];
+  }
 
   let response;
   try {
@@ -156,8 +218,8 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey] }, async (request) 
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 2048,
+        messages: [{ role: 'user', content }],
       }),
     });
   } catch (err) {
@@ -171,8 +233,8 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey] }, async (request) 
     throw new HttpsError('internal', 'KI-Anfrage fehlgeschlagen.');
   }
 
-  const data = await response.json();
-  const textBlock = (data.content || []).find((b) => b.type === 'text');
+  const responseJson = await response.json();
+  const textBlock = (responseJson.content || []).find((b) => b.type === 'text');
   if (!textBlock) {
     throw new HttpsError('internal', 'Keine Antwort erhalten.');
   }

@@ -10,7 +10,7 @@
 // resulting date/time is Step 17 (push notifications), not built yet; the
 // 9:00 send time is hardcoded for now since there's nothing to configure
 // it against until that step exists.
-import { db } from './firebase-init.js?v=151';
+import { db } from './firebase-init.js?v=152';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const notificationsCard = document.querySelector('.settings-card[data-target="notifications"]');

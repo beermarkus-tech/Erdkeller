@@ -3903,6 +3903,19 @@ nav.bottomnav button .icon {
   border-bottom-right-radius: 4px;
 }
 
+.dictate-bubble.user.photo {
+  padding: 6px;
+  background: transparent;
+}
+
+.dictate-bubble.user.photo img {
+  display: block;
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
 .dictate-bubble.app {
   align-self: flex-start;
   background: white;
@@ -4154,6 +4167,13 @@ nav.bottomnav button .icon {
   margin: 0;
 }
 
+.dictate-controls-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .dictate-mic-btn {
   flex-shrink: 0;
   width: 56px;
@@ -4167,6 +4187,27 @@ nav.bottomnav button .icon {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.dictate-camera-btn {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: var(--dictate-light);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dictate-camera-btn:disabled,
+.dictate-mic-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .dictate-mic-btn.recording {

@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=151';
+import { db, functions } from './firebase-init.js?v=152';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -28,6 +28,8 @@ const chatEl = document.getElementById('dictate-chat');
 const liveEl = document.getElementById('dictate-live');
 const hintEl = document.getElementById('dictate-hint');
 const micBtn = document.getElementById('dictate-mic-btn');
+const photoBtn = document.getElementById('dictate-camera-btn');
+const photoInput = document.getElementById('dictate-photo-input');
 
 const editModal = document.getElementById('dictate-edit-modal');
 const editSheetEl = document.querySelector('#dictate-edit-modal .dictate-edit-sheet');
@@ -192,6 +194,21 @@ let recording = false;
 let stopRequested = false;
 let accumulatedTranscript = '';
 
+// Shared busy flag covering either entry point's in-flight parseDictation
+// call (voice transcript or photo) — also closes a small pre-existing gap
+// where nothing stopped a second mic tap while a previous call was still
+// pending. Both buttons stay disabled while a call is in flight; the mic
+// button is additionally disabled while actively recording (photoBtn's own
+// disabled state during recording is set directly in startRecording/
+// resetMicUi below, since that's not part of "busy").
+let analysisPending = false;
+
+function setBusy(v) {
+  analysisPending = v;
+  micBtn.disabled = v;
+  photoBtn.disabled = v || recording;
+}
+
 // Android Chrome's continuous mode has a long-standing bug: it
 // periodically re-finalizes the *whole* utterance heard so far as a
 // brand-new "final" result instead of just the new words, so anything
@@ -263,12 +280,13 @@ function startRecording() {
     appendErrorBubbleSimple('Spracherkennung wird auf diesem Gerät/Browser nicht unterstützt.');
     return;
   }
-  if (recording) return;
+  if (recording || analysisPending) return;
 
   recording = true;
   stopRequested = false;
   accumulatedTranscript = '';
   micBtn.classList.add('recording');
+  photoBtn.disabled = true;
   setHint('Höre zu… nochmal tippen zum Beenden');
   liveEl.classList.remove('hidden');
   liveEl.textContent = '';
@@ -279,6 +297,7 @@ function startRecording() {
 function resetMicUi() {
   recording = false;
   micBtn.classList.remove('recording');
+  photoBtn.disabled = analysisPending;
   liveEl.classList.add('hidden');
   setHint('Zum Sprechen tippen');
 }
@@ -296,6 +315,72 @@ micBtn.addEventListener('click', () => {
   } else {
     startRecording();
   }
+});
+
+// --- Photo capture --------------------------------------------------------
+//
+// A local copy of js/notes.js's compressImage, per this codebase's
+// duplicate-rather-than-import convention — tuned differently, since this
+// photo is a one-shot AI input rather than a permanently stored field:
+// legibility of small printed text (product names, MHD dates) matters more
+// than notes.js's thumbnail-storage economy, so the dimension/quality here
+// are both higher than notes.js's.
+const MAX_PHOTO_DIMENSION = 1568; // Anthropic's documented no-benefit-beyond-this long edge
+const JPEG_QUALITY = 0.75;
+const MAX_PHOTO_BASE64_CHARS = 4_000_000; // defensive client cap, well under Anthropic's per-image limit
+
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_PHOTO_DIMENSION || height > MAX_PHOTO_DIMENSION) {
+          if (width > height) {
+            height = Math.round(height * (MAX_PHOTO_DIMENSION / width));
+            width = MAX_PHOTO_DIMENSION;
+          } else {
+            width = Math.round(width * (MAX_PHOTO_DIMENSION / height));
+            height = MAX_PHOTO_DIMENSION;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
+      };
+      img.onerror = () => reject(new Error('Bild konnte nicht gelesen werden.'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+photoBtn.addEventListener('click', () => {
+  if (analysisPending || recording) return;
+  photoInput.click();
+});
+
+photoInput.addEventListener('change', async () => {
+  const file = photoInput.files[0];
+  photoInput.value = ''; // reset so re-picking the same file still fires change
+  if (!file) return;
+  let dataUri;
+  try {
+    dataUri = await compressImage(file);
+  } catch (err) {
+    console.error(err);
+    appendErrorBubbleSimple('Foto konnte nicht verarbeitet werden: ' + err.message);
+    return;
+  }
+  if (dataUri.length > MAX_PHOTO_BASE64_CHARS) {
+    appendErrorBubbleSimple('Das Foto ist zu groß. Bitte ein anderes wählen.');
+    return;
+  }
+  handlePhoto(dataUri);
 });
 
 // --- Cloud Function call + line resolution -------------------------------
@@ -415,6 +500,7 @@ function resolveLine(item) {
         details: '',
         bestBefore: normalizeBestBefore(item.bestBefore),
         storage: resolveStorage(item.storage),
+        confidence: item.confidence === 'medium' || item.confidence === 'low' ? item.confidence : 'high',
       };
     }
     const ctx = contextFor(product.subcategoryId);
@@ -436,6 +522,7 @@ function resolveLine(item) {
       details: '',
       bestBefore: normalizeBestBefore(item.bestBefore),
       storage: resolveStorage(item.storage),
+      confidence: item.confidence === 'medium' || item.confidence === 'low' ? item.confidence : 'high',
     };
   }
   if (item && item.newProductName) {
@@ -459,6 +546,7 @@ function resolveLine(item) {
       details: '',
       bestBefore: normalizeBestBefore(item.bestBefore),
       storage: resolveStorage(item.storage),
+      confidence: item.confidence === 'medium' || item.confidence === 'low' ? item.confidence : 'high',
     };
   }
   return null;
@@ -496,6 +584,7 @@ function toggleLineDirection(line) {
       details: '',
       bestBefore: line.bestBefore || '',
       storage: line.storage || '',
+      confidence: 'high', // manually chosen — no need to flag
     };
   }
 
@@ -517,9 +606,30 @@ function toggleLineDirection(line) {
   };
 }
 
+// Shared by both entry points (voice + photo): turns the raw items array
+// from parseDictation into resolved lines and either shows the proposal
+// bubble or, if nothing resolved, an error bubble whose retry button
+// re-runs whatever produced these items in the first place.
+function processParsedItems(items, retry) {
+  const lines = items.map(resolveLine).filter(Boolean);
+  if (lines.length === 0) {
+    // The function call succeeded but nothing resolved — could be a
+    // genuinely empty/off-topic transcript or photo, or every item failed
+    // to match client-side despite the model returning something. Logged
+    // to the console AND shown right in the bubble (Build 137, temporary),
+    // since a browser console isn't practically reachable on a phone/tablet.
+    console.warn('Diktieren: no lines resolved from parseDictation items', items);
+    const debugDetail = items.length ? JSON.stringify(items, null, 1) : '(leeres items-Array)';
+    appendErrorBubble('Das habe ich nicht verstanden.', retry, debugDetail);
+    return;
+  }
+  appendProposalBubble(lines);
+}
+
 async function handleTranscript(transcript) {
   appendUserBubble(transcript);
   const pendingBubble = appendPendingBubble('Analysiere…');
+  setBusy(true);
 
   let items = [];
   try {
@@ -527,25 +637,38 @@ async function handleTranscript(transcript) {
     items = (result.data && Array.isArray(result.data.items)) ? result.data.items : [];
   } catch (err) {
     console.error(err);
+    setBusy(false);
     pendingBubble.remove();
-    appendErrorBubble('Verbindung zur Erkennung fehlgeschlagen.', transcript);
+    appendErrorBubble('Verbindung zur Erkennung fehlgeschlagen.', () => handleTranscript(transcript));
     return;
   }
 
+  setBusy(false);
   pendingBubble.remove();
-  const lines = items.map(resolveLine).filter(Boolean);
-  if (lines.length === 0) {
-    // The function call succeeded but nothing resolved — could be a
-    // genuinely empty/off-topic transcript, or every item failed to match
-    // client-side despite the model returning something. Logged to the
-    // console AND shown right in the bubble (Build 137, temporary), since
-    // a browser console isn't practically reachable on a phone/tablet.
-    console.warn('Diktieren: no lines resolved from parseDictation items', items);
-    const debugDetail = items.length ? JSON.stringify(items, null, 1) : '(leeres items-Array)';
-    appendErrorBubble('Das habe ich nicht verstanden.', transcript, debugDetail);
+  processParsedItems(items, () => handleTranscript(transcript));
+}
+
+async function handlePhoto(dataUri) {
+  appendPhotoBubble(dataUri);
+  const pendingBubble = appendPendingBubble('Analysiere Foto…');
+  setBusy(true);
+  const imageBase64 = dataUri.slice(dataUri.indexOf(',') + 1);
+
+  let items = [];
+  try {
+    const result = await parseDictationFn({ imageBase64, mimeType: 'image/jpeg' });
+    items = (result.data && Array.isArray(result.data.items)) ? result.data.items : [];
+  } catch (err) {
+    console.error(err);
+    setBusy(false);
+    pendingBubble.remove();
+    appendErrorBubble('Verbindung zur Erkennung fehlgeschlagen.', () => handlePhoto(dataUri));
     return;
   }
-  appendProposalBubble(lines);
+
+  setBusy(false);
+  pendingBubble.remove();
+  processParsedItems(items, () => handlePhoto(dataUri));
 }
 
 // --- Chat bubble rendering -----------------------------------------------
@@ -554,6 +677,17 @@ function appendUserBubble(text) {
   const div = document.createElement('div');
   div.className = 'dictate-bubble user';
   div.textContent = text;
+  chatEl.appendChild(div);
+  scrollChatToBottom();
+}
+
+function appendPhotoBubble(dataUri) {
+  const div = document.createElement('div');
+  div.className = 'dictate-bubble user photo';
+  const img = document.createElement('img');
+  img.src = dataUri;
+  img.alt = 'Aufgenommenes Foto';
+  div.appendChild(img);
   chatEl.appendChild(div);
   scrollChatToBottom();
 }
@@ -575,7 +709,7 @@ function appendErrorBubbleSimple(message) {
   scrollChatToBottom();
 }
 
-function appendErrorBubble(message, transcript, debugDetail) {
+function appendErrorBubble(message, retry, debugDetail) {
   const div = document.createElement('div');
   div.className = 'dictate-bubble app error';
   const p = document.createElement('div');
@@ -597,7 +731,7 @@ function appendErrorBubble(message, transcript, debugDetail) {
   retryBtn.textContent = 'Nochmal versuchen';
   retryBtn.addEventListener('click', () => {
     retryBtn.disabled = true;
-    handleTranscript(transcript);
+    retry();
   });
   div.appendChild(retryBtn);
   chatEl.appendChild(div);
@@ -745,6 +879,13 @@ function renderProposalLine(line, onTap, onToggle) {
       metaSpan.className = 'dictate-line-meta';
       metaSpan.textContent = ' · ' + line.content;
       mainEl.appendChild(metaSpan);
+    }
+    if (line.confidence && line.confidence !== 'high') {
+      const confEl = document.createElement('span');
+      confEl.className = 'dictate-line-confidence';
+      confEl.textContent = '?';
+      confEl.title = 'Unsichere Erkennung — bitte prüfen';
+      mainEl.appendChild(confEl);
     }
     content.appendChild(mainEl);
 
@@ -1037,6 +1178,7 @@ editApplyBtn.addEventListener('click', () => {
   line.content = editContentInput.value.trim();
   line.bestBefore = monthInputToBestBefore(editBestBeforeInput.value);
   line.storage = editStorageSelect.value || '';
+  line.confidence = 'high'; // manually confirmed — no longer worth flagging
 
   editModal.classList.remove('show');
   editingContext = null;
