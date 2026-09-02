@@ -12,11 +12,11 @@
 // whether an item is done-for-the-current-period; functions/index.js's
 // sendReminders is what actually reads the send-time half and dispatches
 // the push.
-import { db } from './firebase-init.js?v=155';
+import { db } from './firebase-init.js?v=156';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   permissionState, enableOnThisDevice, refreshIfAlreadyEnabled, listMyDevices, sendTestNotification, previewReminders,
-} from './push.js?v=155';
+} from './push.js?v=156';
 
 const notificationsCard = document.querySelector('.settings-card[data-target="notifications"]');
 const panelEl = document.getElementById('settings-panel-notifications');
@@ -248,7 +248,11 @@ testBtn.addEventListener('click', async () => {
   testBtn.textContent = 'Sende…';
   try {
     const result = await sendTestNotification();
-    testBtn.textContent = `Gesendet (${result.sentTo})`;
+    testBtn.textContent = `Gesendet (${result.succeeded}/${result.total})`;
+    if (result.failed && result.failed.length) {
+      const lines = result.failed.map((f) => `${f.label || 'Unbekanntes Gerät'}: ${f.error}`).join('\n');
+      alert(`${result.failed.length} von ${result.total} Geräten haben die Benachrichtigung nicht angenommen:\n\n${lines}\n\nHinweis: "Erfolgreich" heißt nur, dass FCM die Nachricht angenommen hat — ob sie auf dem Gerät auch angezeigt wird, hängt zusätzlich von Berechtigung und Akku-Einstellungen ab.`);
+    }
   } catch (err) {
     testBtn.textContent = 'Fehlgeschlagen';
     console.error(err);

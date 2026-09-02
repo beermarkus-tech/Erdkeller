@@ -531,9 +531,13 @@ async function resolveRecipientTokens(slug) {
 
 // Deletes device docs FCM reports as dead, so a phone that was reset or had
 // the PWA uninstalled doesn't accumulate a permanently-failing token that
-// silently eats into every future send.
+// silently eats into every future send. Returns FCM's actual per-token
+// success/error rather than swallowing it — sendReminders/previewReminders
+// don't need that detail and ignore the return value, but sendTestNotification
+// does, since "sent to FCM" and "arrived on the device" are two different
+// things and the gap between them is exactly what's hard to debug otherwise.
 async function sendToTokens(tokenEntries, title, body, data) {
-  if (!tokenEntries.length) return;
+  if (!tokenEntries.length) return [];
   const resp = await messaging.sendEachForMulticast({
     tokens: tokenEntries.map((t) => t.token),
     // Data-only (no top-level `notification` key) — displayed by our own
@@ -548,6 +552,11 @@ async function sendToTokens(tokenEntries, title, body, data) {
       return tokenEntries[i].ref.delete().catch(() => {});
     }
     return null;
+  }));
+  return resp.responses.map((r, i) => ({
+    label: tokenEntries[i].label || null,
+    success: r.success,
+    errorCode: r.success ? null : ((r.error && r.error.code) || 'unknown'),
   }));
 }
 
@@ -680,10 +689,14 @@ exports.previewReminders = onCall(async (request) => {
 exports.sendTestNotification = onCall(async (request) => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Bitte anmelden.');
   const devicesSnap = await db.collection(`users/${request.auth.uid}/devices`).get();
-  const tokens = devicesSnap.docs.map((d) => ({ token: d.data().token, ref: d.ref })).filter((t) => t.token);
+  const tokens = devicesSnap.docs
+    .map((d) => ({ token: d.data().token, label: d.data().label || null, ref: d.ref }))
+    .filter((t) => t.token);
   if (!tokens.length) {
     throw new HttpsError('failed-precondition', 'Kein Gerät für diesen Account registriert.');
   }
-  await sendToTokens(tokens, 'Erdkeller', 'Testbenachrichtigung — wenn du das siehst, funktioniert es.', { freq: 'test' });
-  return { sentTo: tokens.length };
+  const results = await sendToTokens(tokens, 'Erdkeller', 'Testbenachrichtigung — wenn du das siehst, funktioniert es.', { freq: 'test' });
+  const succeeded = results.filter((r) => r.success).length;
+  const failed = results.filter((r) => !r.success).map((r) => ({ label: r.label, error: r.errorCode }));
+  return { total: results.length, succeeded, failed };
 });
