@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=153">
-<link rel="icon" href="icons/icon-192.png?v=153">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=153">
+<link rel="manifest" href="manifest.json?v=154">
+<link rel="icon" href="icons/icon-192.png?v=154">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=154">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=153">
+<link rel="stylesheet" href="css/styles.css?v=154">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 153</div>
+<div id="build-tag" class="build-tag">Build 154</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -305,6 +305,11 @@
             <div class="filter-label">Checkliste</div>
             <div class="filter-chip-row" id="maintenance-live-list-filters"></div>
           </div>
+          <div class="filter-section">
+            <div class="filter-label">Häufigkeit</div>
+            <div class="filter-chip-row" id="maintenance-live-freq-filters"></div>
+          </div>
+          <button type="button" class="add-row-btn small hidden" id="maintenance-dismiss-period-btn"></button>
           <div class="tax-expand-row" id="maintenance-filter-toggle">
             <button type="button" class="select-mode-btn active" data-filter="due">Fällig</button>
             <button type="button" class="select-mode-btn" data-filter="all">Alle</button>
@@ -881,8 +886,14 @@
           </div>
         </div>
 
+        <div class="tax-planning-toggle" id="notif-enabled-row">
+          <input type="checkbox" id="notif-enabled-toggle" checked>
+          <label for="notif-enabled-toggle">Erinnerungen aktiviert</label>
+        </div>
+
+        <div id="notif-body">
         <div class="section-label">Checklisten</div>
-        <p class="settings-note">Legt fest, an welchem Tag jede Checklisten-Häufigkeit zurückgesetzt wird und (sobald Push-Benachrichtigungen in Schritt 17 gebaut sind) wann die Erinnerung verschickt wird — vorerst fix um 9:00 Uhr.</p>
+        <p class="settings-note">Legt fest, an welchem Tag jede Checklisten-Häufigkeit zurückgesetzt wird und wann die Erinnerung dafür verschickt wird — eine Push-Benachrichtigung pro Zeitraum (nicht pro Eintrag), die erneut erinnert, bis entweder alles erledigt oder der Zeitraum in der Wartungs-Ansicht manuell als erledigt markiert ist.</p>
 
         <div class="form-group notif-freq-heading"><label>Wöchentlich</label></div>
         <div class="tax-planning-row">
@@ -1051,6 +1062,45 @@
               <option value="7">Sonntag</option>
             </select>
           </div>
+        </div>
+
+        <div class="form-group notif-freq-heading"><label>Versand</label></div>
+        <div class="tax-planning-row">
+          <div class="tax-planning-field">
+            <label>Uhrzeit</label>
+            <select id="notif-hour">
+              <option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option>
+              <option value="3">03:00</option><option value="4">04:00</option><option value="5">05:00</option>
+              <option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option>
+              <option value="9" selected>09:00</option><option value="10">10:00</option><option value="11">11:00</option>
+              <option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option>
+              <option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option>
+              <option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option>
+              <option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option>
+            </select>
+          </div>
+          <div class="tax-planning-field">
+            <label>Erneut erinnern nach</label>
+            <select id="notif-repeat-days">
+              <option value="1">1 Tag</option>
+              <option value="2">2 Tagen</option>
+              <option value="3" selected>3 Tagen</option>
+              <option value="5">5 Tagen</option>
+              <option value="7">7 Tagen</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="section-label">Push auf diesem Gerät</div>
+        <p class="settings-note" id="notif-push-status">Lädt…</p>
+        <button type="button" class="add-row-btn" id="notif-enable-push-btn">Auf diesem Gerät aktivieren</button>
+        <div class="product-list" id="notif-device-list"></div>
+
+        <div class="tax-expand-row">
+          <button type="button" class="select-mode-btn" id="notif-test-btn">Testbenachrichtigung senden</button>
+          <button type="button" class="select-mode-btn" id="notif-preview-btn">Vorschau: was würde gesendet?</button>
+        </div>
+        <pre class="dictate-debug-detail hidden" id="notif-preview-result"></pre>
         </div>
 
         <p id="notifications-status" class="taxonomy-status"></p>
@@ -1409,34 +1459,34 @@
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="js/app.js?v=153"></script>
-<script type="module" src="js/auth.js?v=153"></script>
-<script type="module" src="js/app-shell.js?v=153"></script>
-<script type="module" src="js/account-menu.js?v=153"></script>
-<script type="module" src="js/refresh-button.js?v=153"></script>
-<script type="module" src="js/settings-nav.js?v=153"></script>
-<script type="module" src="js/data-tabs.js?v=153"></script>
-<script type="module" src="js/taxonomy.js?v=153"></script>
-<script type="module" src="js/storage-locations.js?v=153"></script>
-<script type="module" src="js/year-colors.js?v=153"></script>
-<script type="module" src="js/stock-checkin.js?v=153"></script>
-<script type="module" src="js/stock-checkout.js?v=153"></script>
-<script type="module" src="js/stock-table.js?v=153"></script>
-<script type="module" src="js/dashboard.js?v=153"></script>
-<script type="module" src="js/targets.js?v=153"></script>
-<script type="module" src="js/planning.js?v=153"></script>
-<script type="module" src="js/notifications.js?v=153"></script>
-<script type="module" src="js/checklists.js?v=153"></script>
-<script type="module" src="js/info-nav.js?v=153"></script>
-<script type="module" src="js/contacts.js?v=153"></script>
-<script type="module" src="js/notes.js?v=153"></script>
-<script type="module" src="js/recipes.js?v=153"></script>
-<script type="module" src="js/backup-tabs.js?v=153"></script>
-<script type="module" src="js/backup.js?v=153"></script>
-<script type="module" src="js/admin-log.js?v=153"></script>
-<script type="module" src="js/people.js?v=153"></script>
-<script type="module" src="js/pdf-export.js?v=153"></script>
-<script type="module" src="js/dictate.js?v=153"></script>
-<script type="module" src="js/back-nav.js?v=153"></script>
+<script src="js/app.js?v=154"></script>
+<script type="module" src="js/auth.js?v=154"></script>
+<script type="module" src="js/app-shell.js?v=154"></script>
+<script type="module" src="js/account-menu.js?v=154"></script>
+<script type="module" src="js/refresh-button.js?v=154"></script>
+<script type="module" src="js/settings-nav.js?v=154"></script>
+<script type="module" src="js/data-tabs.js?v=154"></script>
+<script type="module" src="js/taxonomy.js?v=154"></script>
+<script type="module" src="js/storage-locations.js?v=154"></script>
+<script type="module" src="js/year-colors.js?v=154"></script>
+<script type="module" src="js/stock-checkin.js?v=154"></script>
+<script type="module" src="js/stock-checkout.js?v=154"></script>
+<script type="module" src="js/stock-table.js?v=154"></script>
+<script type="module" src="js/dashboard.js?v=154"></script>
+<script type="module" src="js/targets.js?v=154"></script>
+<script type="module" src="js/planning.js?v=154"></script>
+<script type="module" src="js/notifications.js?v=154"></script>
+<script type="module" src="js/checklists.js?v=154"></script>
+<script type="module" src="js/info-nav.js?v=154"></script>
+<script type="module" src="js/contacts.js?v=154"></script>
+<script type="module" src="js/notes.js?v=154"></script>
+<script type="module" src="js/recipes.js?v=154"></script>
+<script type="module" src="js/backup-tabs.js?v=154"></script>
+<script type="module" src="js/backup.js?v=154"></script>
+<script type="module" src="js/admin-log.js?v=154"></script>
+<script type="module" src="js/people.js?v=154"></script>
+<script type="module" src="js/pdf-export.js?v=154"></script>
+<script type="module" src="js/dictate.js?v=154"></script>
+<script type="module" src="js/back-nav.js?v=154"></script>
 </body>
 </html>

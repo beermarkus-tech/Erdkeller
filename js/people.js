@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=153';
+import { auth, db } from './firebase-init.js?v=154';
 import {
   collection, getDocs, doc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -10,6 +10,17 @@ const peoplePanel = document.getElementById('settings-panel-people');
 function roleLabel(role) {
   return role === 'admin' ? 'Admin' : 'Mitglied';
 }
+
+// Checklisten-Erinnerungen (SPEC.md Step 17): list.recipients on a
+// checklist holds these same hardcoded slugs — there's no other link
+// anywhere between a real signed-in account and "who gets notified about
+// the Autos checklist." This is the one place that mapping gets made.
+const RECIPIENT_SLUG_OPTIONS = [
+  { value: '', label: '— kein Empfänger —' },
+  { value: 'markus', label: 'Markus' },
+  { value: 'julia', label: 'Julia' },
+  { value: 'sophia', label: 'Sophia' },
+];
 
 // The whole Settings tab is already admin-only (app-shell.js), so anyone
 // who can even open this screen is an admin — no separate isAdmin gate
@@ -42,6 +53,19 @@ function makePersonRow(id, data) {
   textWrap.appendChild(metaEl);
 
   row.appendChild(textWrap);
+
+  const recipientSelect = document.createElement('select');
+  recipientSelect.className = 'people-recipient-select';
+  recipientSelect.title = 'Empfänger für Checklisten-Erinnerungen';
+  RECIPIENT_SLUG_OPTIONS.forEach((opt) => {
+    const optionEl = document.createElement('option');
+    optionEl.value = opt.value;
+    optionEl.textContent = opt.label;
+    if ((data.recipientSlug || '') === opt.value) optionEl.selected = true;
+    recipientSelect.appendChild(optionEl);
+  });
+  recipientSelect.addEventListener('change', () => setRecipientSlug(id, recipientSelect.value));
+  row.appendChild(recipientSelect);
 
   const isSelf = id === auth.currentUser?.uid;
   if (isSelf) {
@@ -78,6 +102,16 @@ async function setRole(id, data, newRole) {
   } catch (err) {
     console.error(err);
     alert('Rolle konnte nicht geändert werden: ' + err.message);
+  }
+}
+
+async function setRecipientSlug(id, slug) {
+  try {
+    await updateDoc(doc(db, 'users', id), { recipientSlug: slug || null });
+  } catch (err) {
+    console.error(err);
+    alert('Empfänger konnte nicht geändert werden: ' + err.message);
+    await loadPeople();
   }
 }
 

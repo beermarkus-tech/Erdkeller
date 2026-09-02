@@ -36,7 +36,7 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=153';
+import { db } from './firebase-init.js?v=154';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
@@ -54,6 +54,8 @@ const checklistsTabPanels = document.querySelectorAll('.checklists-tab[data-chec
 const maintenanceFilterButtons = document.querySelectorAll('#maintenance-filter-toggle .select-mode-btn');
 const maintenanceViewEl = document.getElementById('maintenance-view');
 const maintenanceLiveListFiltersEl = document.getElementById('maintenance-live-list-filters');
+const maintenanceLiveFreqFiltersEl = document.getElementById('maintenance-live-freq-filters');
+const maintenanceDismissBtn = document.getElementById('maintenance-dismiss-period-btn');
 const maintenanceListEl = document.getElementById('maintenance-list');
 const crisisViewEl = document.getElementById('crisis-view');
 const crisisListEl = document.getElementById('crisis-list');
@@ -78,6 +80,13 @@ const statusEl = document.getElementById('checklists-status');
 const maintenanceRef = doc(db, 'config', 'checklists');
 const crisisRef = doc(db, 'config', 'crisisTypes');
 const notificationsRef = doc(db, 'config', 'notifications');
+// Step 17 — send-tracking + per-period dismissal, written by both
+// functions/index.js's sendReminders AND this file's own dismissPeriod()
+// below. Deliberately its own doc, not a key inside maintenanceRef/
+// notificationsRef above — both of those are saved wholesale from an
+// in-memory object by their own screens, so any field written there by
+// something else would be silently clobbered on the next unrelated save.
+const notificationStateRef = doc(db, 'config', 'notificationState');
 
 const RECIPIENT_OPTIONS = [
   { id: 'markus', label: 'Markus' },
@@ -106,6 +115,7 @@ function defaultNotificationsChecklists() {
 let maintenance = { lists: [] };
 let crisis = { types: [] };
 let notifications = { checklists: defaultNotificationsChecklists() };
+let notificationState = { checklists: {} };
 // Same data-integrity guard as taxonomy.js/storage-locations.js.
 let loadOk = false;
 let maintenanceFilter = 'due'; // 'due' | 'all' — live view
@@ -113,6 +123,12 @@ let maintenanceFilter = 'due'; // 'due' | 'all' — live view
 // editor's own selectedListFilters (Set), so filtering in one doesn't
 // silently affect the other.
 let selectedLiveListFilters = new Set();
+// Häufigkeit filter on the live view (Step 17) — mirrors selectedLiveList
+// Filters' own shape/independence from the editor's selectedFreqFilters.
+// Exactly one entry is what unlocks the "Für diesen Zeitraum erledigt"
+// action below, since a notification/deep-link always targets one specific
+// frequency's round.
+let selectedLiveFreqFilters = new Set();
 // One flag for both tabs — whichever tab is active shows its editor while
 // this is true, so switching tabs mid-edit stays in edit mode.
 let editMode = false;
@@ -133,13 +149,15 @@ function escapeAttr(str) {
 
 async function loadAll() {
   try {
-    const [mSnap, cSnap, nSnap] = await Promise.all([
-      getDoc(maintenanceRef), getDoc(crisisRef), getDoc(notificationsRef),
+    const [mSnap, cSnap, nSnap, nsSnap] = await Promise.all([
+      getDoc(maintenanceRef), getDoc(crisisRef), getDoc(notificationsRef), getDoc(notificationStateRef),
     ]);
     maintenance = mSnap.exists() && Array.isArray(mSnap.data().lists) ? mSnap.data() : { lists: [] };
     crisis = cSnap.exists() && Array.isArray(cSnap.data().types) ? cSnap.data() : { types: [] };
     notifications = nSnap.exists() ? nSnap.data() : { checklists: defaultNotificationsChecklists() };
     if (!notifications.checklists) notifications.checklists = defaultNotificationsChecklists();
+    notificationState = nsSnap.exists() ? nsSnap.data() : { checklists: {} };
+    if (!notificationState.checklists) notificationState.checklists = {};
     loadOk = true;
   } catch (err) {
     loadOk = false;
@@ -254,6 +272,23 @@ function isDoneThisPeriod(item) {
   return new Date(item.lastCompletedAt) >= mostRecentOccurrence(item.frequency, new Date());
 }
 
+// 'YYYY-MM-DD' identity for a frequency's current period — same format as
+// functions/index.js's own occurrenceKey(), both describing the same real
+// Europe/Paris calendar day (the household's devices are always on that
+// timezone, same assumption the rest of this boundary math already makes).
+// This is what "Für diesen Zeitraum erledigt" writes into
+// /config/notificationState, and it's why a dismissal self-expires with no
+// cleanup action needed — the moment the boundary rolls to the next
+// occurrence, this key changes and the old dismissal simply stops matching.
+function occurrenceKeyFor(frequency) {
+  const occ = mostRecentOccurrence(frequency, new Date());
+  if (!occ) return null;
+  const y = occ.getFullYear();
+  const m = String(occ.getMonth() + 1).padStart(2, '0');
+  const d = String(occ.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function formatLastDone(iso) {
   const d = new Date(iso);
   return `zuletzt: ${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -283,13 +318,29 @@ function renderMaintenanceLiveFilters() {
   renderChips(maintenanceLiveListFiltersEl, listNames, selectedLiveListFilters, renderMaintenanceList);
 }
 
+// Step 17 — separate chip row + separate Set from the editor's own
+// Häufigkeit filter, same independence reasoning as the Checkliste filter
+// above. Its onChange also has to refresh the dismiss button (not just the
+// item list), since selecting down to exactly one frequency is what makes
+// that button appear at all.
+function renderMaintenanceLiveFreqFilters() {
+  const freqLabels = Object.values(FREQ_LABELS);
+  renderChips(maintenanceLiveFreqFiltersEl, freqLabels, selectedLiveFreqFilters, () => {
+    renderMaintenanceList();
+    renderDismissPeriodButton();
+  });
+}
+
 function renderMaintenanceList() {
   maintenanceListEl.innerHTML = '';
   if (!loadOk) return;
   sortedLists().forEach((list) => {
     if (selectedLiveListFilters.size && !selectedLiveListFilters.has(list.name)) return;
-    const dueItems = (list.items || []).filter((it) => !isDoneThisPeriod(it));
-    const items = sortedItems(maintenanceFilter === 'due' ? dueItems : (list.items || []));
+    const freqScoped = selectedLiveFreqFilters.size
+      ? (list.items || []).filter((it) => selectedLiveFreqFilters.has(FREQ_LABELS[it.frequency] || it.frequency))
+      : (list.items || []);
+    const dueItems = freqScoped.filter((it) => !isDoneThisPeriod(it));
+    const items = sortedItems(maintenanceFilter === 'due' ? dueItems : freqScoped);
     if (items.length === 0) return;
 
     const group = document.createElement('div');
@@ -340,6 +391,63 @@ maintenanceFilterButtons.forEach((btn) => {
     renderMaintenanceList();
   });
 });
+
+// --- "Für diesen Zeitraum erledigt" (Step 17) ------------------------------
+//
+// Only ever shown when exactly one Häufigkeit chip is active — a dismissal
+// always targets one specific frequency's round, mirroring exactly what a
+// tapped reminder notification deep-links into (see applyDeepLinkFromHash
+// below). This silences the PUSH reminder only — it writes nothing onto
+// any item's lastCompletedAt, so the checklist itself still shows those
+// items as open; "erledigt" here means the round, not the tasks.
+
+function currentSingleFreqSelection() {
+  if (selectedLiveFreqFilters.size !== 1) return null;
+  const label = [...selectedLiveFreqFilters][0];
+  return Object.keys(FREQ_LABELS).find((key) => FREQ_LABELS[key] === label) || null;
+}
+
+function renderDismissPeriodButton() {
+  const freq = currentSingleFreqSelection();
+  if (!freq) {
+    maintenanceDismissBtn.classList.add('hidden');
+    return;
+  }
+  const occKey = occurrenceKeyFor(freq);
+  const freqState = (notificationState.checklists || {})[freq] || {};
+  const dismissed = !!occKey && freqState.dismissedOccurrence === occKey;
+  maintenanceDismissBtn.classList.remove('hidden');
+  maintenanceDismissBtn.classList.toggle('dismissed', dismissed);
+  maintenanceDismissBtn.disabled = dismissed || !occKey;
+  maintenanceDismissBtn.textContent = dismissed
+    ? 'Erinnerung für diesen Zeitraum pausiert'
+    : `Für diesen Zeitraum (${FREQ_LABELS[freq]}) erledigt`;
+}
+
+async function dismissCurrentPeriod() {
+  const freq = currentSingleFreqSelection();
+  const occKey = freq ? occurrenceKeyFor(freq) : null;
+  if (!freq || !occKey) return;
+  maintenanceDismissBtn.disabled = true;
+  try {
+    // Targeted dot-path field write, not a whole-document setDoc — this doc
+    // is also written by functions/index.js's sendReminders, and a
+    // whole-object write from either side would clobber whatever the other
+    // just wrote to a different frequency's fields. setDoc+merge (not
+    // updateDoc) since the doc may not exist yet if no reminder has ever
+    // sent.
+    await setDoc(notificationStateRef, { [`checklists.${freq}.dismissedOccurrence`]: occKey }, { merge: true });
+    if (!notificationState.checklists) notificationState.checklists = {};
+    notificationState.checklists[freq] = { ...(notificationState.checklists[freq] || {}), dismissedOccurrence: occKey };
+    renderDismissPeriodButton();
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Konnte nicht als erledigt markiert werden: ' + err.message;
+    maintenanceDismissBtn.disabled = false;
+  }
+}
+
+maintenanceDismissBtn.addEventListener('click', dismissCurrentPeriod);
 
 // --- Main screen: Krise ----------------------------------------------------
 
@@ -781,6 +889,8 @@ maintenanceEditViewEl.querySelectorAll('.checklist-section-header').forEach((btn
 
 function render() {
   renderMaintenanceLiveFilters();
+  renderMaintenanceLiveFreqFilters();
+  renderDismissPeriodButton();
   renderMaintenanceList();
   renderCrisisList();
   renderMaintenanceManageList();
@@ -789,8 +899,36 @@ function render() {
   renderCrisisEditor();
 }
 
-window.addEventListener('erdkeller:signedin', () => loadAll());
+// --- Step 17 deep link: a tapped reminder notification lands here --------
+//
+// service-worker.js's notificationclick opens/focuses the app at
+// index.html#erinnerung=<frequency> — read once after sign-in (a fresh
+// window opened by the notification) AND on every `hashchange` (the
+// service worker navigating an already-open window doesn't reload the
+// page, so `erdkeller:signedin` never refires for that case). Both paths
+// call the same function so there's exactly one place this logic lives.
+function applyDeepLinkFromHash() {
+  const match = location.hash.match(/^#erinnerung=([a-zA-Z]+)$/);
+  if (!match || !FREQ_LABELS[match[1]]) return;
+  const freq = match[1];
+  // Clears the hash without adding a new history entry — js/back-nav.js
+  // owns the app's one sentinel history entry globally and never inspects
+  // event.state, so this deliberately doesn't push anything of its own.
+  history.replaceState(null, '', location.pathname + location.search);
+  document.querySelector('.nav-btn[data-tab="checklists"]').click();
+  document.querySelector('.seg-btn[data-checklists-tab="maintenance"]').click();
+  selectedLiveFreqFilters = new Set([FREQ_LABELS[freq]]);
+  renderMaintenanceLiveFreqFilters();
+  renderMaintenanceList();
+  renderDismissPeriodButton();
+}
+
+window.addEventListener('erdkeller:signedin', async () => {
+  await loadAll();
+  applyDeepLinkFromHash();
+});
 window.addEventListener('erdkeller:refresh', () => loadAll());
+window.addEventListener('hashchange', applyDeepLinkFromHash);
 
 window.addEventListener('erdkeller:navreset', (e) => {
   if (e.detail.tab !== 'checklists') return;

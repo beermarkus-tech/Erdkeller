@@ -116,6 +116,33 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Step 17 (push notifications): one device (FCM registration token) per
+    // subcollection doc, not a single field on /users/{uid} — Markus alone
+    // has a phone AND a tablet, so a single field would mean one device
+    // silently displaces the other. A subcollection isn't covered by the
+    // parent /users/{userId} match above (Firestore rules don't cascade to
+    // subcollections), so it needs its own block or it falls through to the
+    // deny-all catch-all below. Each user manages only their own devices;
+    // admins can read (not write) everyone's, for a future "who's actually
+    // registered" view in Settings.
+    match /users/{userId}/devices/{deviceId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isAdmin();
+    }
+
+    // Step 17: send-tracking + per-period dismissal state for the reminder
+    // scheduler. Deliberately its own doc rather than a key inside
+    // /config/checklists or /config/notifications — both of those are
+    // saved wholesale (setDoc from an in-memory object) by their own
+    // screens, so any field a Cloud Function wrote into either would be
+    // silently clobbered on the next unrelated save there. Member-writable
+    // (not admin-only, unlike the generic /config/{docId} rule below) since
+    // "Für diesen Zeitraum erledigt" is a member action, same permission
+    // tier as ticking a checklist item itself (/config/checklists above).
+    match /config/notificationState {
+      allow read, write: if isSignedIn();
+    }
+
     // Everything else stays locked down until its own build step wires up
     // real rules (checklists in Step 12, etc.).
     match /{document=**} {

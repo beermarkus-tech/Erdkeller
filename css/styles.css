@@ -708,6 +708,32 @@ nav.bottomnav button .icon {
   margin-top: 24px;
 }
 
+/* Master on/off toggle greys out and disables everything below it rather
+   than hiding it outright — the schedule/push settings stay visible (and
+   scannable) while reminders are off, just inert, so turning them back on
+   doesn't require re-discovering what was configured before. */
+#notif-body.notif-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+#notif-enable-push-btn.enabled {
+  background: var(--stone);
+  color: var(--charcoal);
+}
+
+/* Checklisten live view — "Für diesen Zeitraum erledigt" only ever shows
+   when exactly one Häufigkeit chip is active (see js/checklists.js), so it
+   reads as scoped to that specific filtered period, not a global action. */
+#maintenance-dismiss-period-btn {
+  margin-bottom: 12px;
+}
+
+#maintenance-dismiss-period-btn.dismissed {
+  color: #8a8776;
+  cursor: default;
+}
+
 .tax-planning-field input,
 .tax-planning-field select {
   width: 100%;
@@ -1367,6 +1393,21 @@ nav.bottomnav button .icon {
 .people-self-label {
   flex-shrink: 0;
   font-weight: 600;
+}
+
+/* Step 17 — recipient-slug picker, sits between the name and the role
+   toggle/self-label on every row (not just non-self ones, since an admin
+   maps their own account to a recipient slug just as often as anyone
+   else's). Deliberately compact — this is a secondary control on an
+   already busy row. */
+.people-recipient-select {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--stone-dark);
+  background: white;
+  margin-right: 10px;
 }
 
 /* The pinned emergency section reuses the same danger tint already defined
