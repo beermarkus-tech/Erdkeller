@@ -4,7 +4,7 @@
 // and calls into the functions exported here, same split as e.g. the
 // checklist boundary math (js/checklists.js) living apart from the screen
 // that configures its inputs (js/notifications.js) already does.
-import { app, auth, db, functions } from './firebase-init.js?v=154';
+import { app, auth, db, functions } from './firebase-init.js?v=155';
 import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging.js";
 import {
   collection, doc, getDocs, setDoc,
@@ -14,8 +14,7 @@ import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
 // Generated once in the Firebase console (Project Settings → Cloud
 // Messaging → Web Push certificates — see SPEC.md Section 18). Public by
 // design, exactly like firebase-config.js's own values; not a secret.
-// MUST be filled in before push notifications can work at all.
-const VAPID_KEY = '__SET_ME__';
+const VAPID_KEY = 'BMnY1PjLQAGffg7msPZFVJSKkY_FY8acSpcKw4KHSWWoFaQt7Pb_XeGbwgrVtG5Ar3bwm3DS2ty3_mxM932jYDU';
 
 let messaging = null;
 let messagingSupported = null; // null = not checked yet
@@ -77,7 +76,6 @@ export async function enableOnThisDevice() {
   if (!auth.currentUser) throw new Error('Nicht angemeldet.');
   const messagingInstance = await ensureMessaging();
   if (!messagingInstance) throw new Error('Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.');
-  if (VAPID_KEY === '__SET_ME__') throw new Error('VAPID-Schlüssel noch nicht konfiguriert (Settings → Erinnerungen kann erst nach diesem einmaligen Setup-Schritt aktiviert werden).');
 
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
