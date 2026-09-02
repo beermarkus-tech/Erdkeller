@@ -408,13 +408,28 @@ Tablet: same guided-flow pattern, just with more tiles per row / more breathing 
 
 ---
 
-## 16. Tech Stack
+## 16. Tech Stack & Infrastructure
 
-- Frontend: HTML/JS, hosted on GitHub Pages, deployed as installable PWA
-- Backend/DB: Firebase (Firestore for data, FCM for push [not yet sending — Section 12], Firebase Auth — Google Sign-In — for the 3 users/roles)
-- **Cloud Functions (Blaze plan)**: one Callable Function, `parseDictation` (`functions/index.js`, Node 20), backing Diktieren (Section 15, Stock) — reads Firestore server-side via `firebase-admin` and calls the **Anthropic Messages API** (model `claude-haiku-4-5-20251001`) directly via `fetch`, no SDK dependency. The Anthropic API key is a Cloud Functions **secret** (`firebase functions:secrets:set`), never present in client code or committed to the repo. Deployed independently of the static site — `firebase deploy --only functions` from Cloud Shell, since a `git push` only ever triggers the GitHub Pages deploy (see Section 18).
-- Offline: local persistence with sync-on-reconnect (see Section 13) — not yet built
-- Dev environment: Claude Code via Claude mobile app, vibe-coded, laptop available when needed
+### Source control & development
+- **Code repository**: GitHub, `beermarkus-tech/Erdkeller` (github.com/beermarkus-tech/Erdkeller). No build step, no bundler, no `node_modules` in the deployed app — plain HTML/CSS/JS, third-party libraries (Firebase SDK, jsPDF) pulled in as CDN `<script>`/ESM-import tags directly in `index.html`, not installed as dependencies. (`functions/` is the one exception — a real Node package with its own `package.json`, since Cloud Functions runs server-side Node, not a browser.)
+- **One working branch, not a main+feature-branch model**: all development happens directly on `claude/project-onboarding-mdzoen`, which is also this repo's actual default/HEAD branch and the one GitHub Pages is configured to build from — a deliberately simple single-branch workflow for a small, low-traffic household project rather than a full PR/review pipeline.
+- **Development environment**: Claude Code — sometimes a local CLI session on Markus's laptop, sometimes the Claude mobile app, sometimes a cloud-hosted "Claude Code on the web" session (an isolated, ephemeral container that clones the repo fresh and pushes commits directly back to GitHub over the same `git push` flow as a local session). Not GitHub Codespaces specifically — a different, Anthropic-hosted remote dev environment, functionally similar (an isolated cloud container running the same CLI) but not that product. Vibe-coded: no formal ticket/PR process, changes ship straight to the live branch once verified, versioned by a simple `?v=N` cache-buster (Build tag in `index.html`) bumped across every referencing file on each change.
+
+### Hosting & deployment
+- **Frontend hosting**: GitHub Pages, serving the repo's static files directly (`index.html`, `css/`, `js/`, `manifest.json`, `service-worker.js`, `icons/`) — no custom domain configured, so it's reachable at the default `github.io` URL for this repo. Deployed as an installable PWA (Section 2).
+- **Deploy pipeline for the client**: a plain `git push` to `claude/project-onboarding-mdzoen` triggers GitHub's own built-in "Pages build and deployment" workflow automatically (visible under the repo's Actions tab) — no custom CI/CD YAML in this repo, GitHub Pages' automatic branch-deploy is all that's configured. Typically live within seconds to a couple of minutes of a push.
+- **Deploy pipeline for the backend is separate and manual**: a `git push` only ever redeploys the static frontend — it does **not** touch Cloud Functions. Any change to `functions/index.js` needs its own explicit `firebase deploy --only functions` run from a terminal (Google Cloud Shell, or any machine with the Firebase CLI authenticated against the project) — easy to forget, and worth double-checking after any Diktieren-related change (Section 15, Stock).
+
+### Backend
+- **Firebase project**: `erdkeller-cdbb9` (Firebase/Google Cloud project id — one GCP project underlies the Firebase project, so the same id is visible in both the Firebase Console at console.firebase.google.com and the Google Cloud Console at console.cloud.google.com). Billing plan: **Blaze** (pay-as-you-go) — originally planned to stay on the free Spark plan indefinitely (Section 18), upgraded once Diktieren needed Cloud Functions, which Spark doesn't support at all.
+  - **Firestore** — the primary database (Section 4), region chosen close to France for latency.
+  - **Firebase Authentication** — Google Sign-In, the only auth method (Section 3).
+  - **Firebase Cloud Messaging (FCM)** — provisioned for push notifications, not yet actually sending anything (Section 12).
+  - **Cloud Functions** — one Callable Function, `parseDictation` (`functions/index.js`, Node 20 runtime), backing Diktieren (Section 15, Stock). Runs server-side with `firebase-admin` (bypasses Firestore security rules entirely, same trusted-server pattern any Cloud Function has), reading `config/taxonomy` + `products` (+ `stockItems` for the voice/text path only) fresh on every call.
+- **The AI integration ("Diktieren")**: `parseDictation` is the one place in the whole app that talks to an external AI — every dictated voice transcript and every photo taken in the Diktieren chat is sent from the browser to this Cloud Function (never directly from the client to Anthropic), which then calls the **Anthropic Messages API** (`https://api.anthropic.com/v1/messages`, model `claude-haiku-4-5-20251001`) via a plain `fetch` — no Anthropic SDK dependency, no other library in the loop. The Cloud Function is the only thing that ever holds the Anthropic API key.
+  - **Why it's routed through a Cloud Function at all, rather than calling Anthropic straight from the browser**: an API key embedded in client-side JavaScript is visible to anyone who opens the browser's dev tools or views page source — there is no way to keep a secret inside HTML/JS served to a client. Routing the call through a server-side Cloud Function is what makes it possible to keep the key off the client entirely.
+  - **Where the key actually lives**: stored as a Cloud Functions **secret** (`firebase functions:secrets:set ANTHROPIC_API_KEY`, Section 18) — under the hood, Firebase secrets are backed by **Google Cloud Secret Manager** in the same GCP project (`erdkeller-cdbb9`), viewable/rotatable either via the Firebase Console (Functions → your function → its secrets) or directly in the Google Cloud Console's Secret Manager page. The key is never present in `functions/index.js`'s own source, never in any client-side file, and never committed to the GitHub repo — the function reads it at runtime via `anthropicApiKey.value()`.
+- **Offline**: local persistence with sync-on-reconnect (see Section 13) — not yet built.
 
 ---
 
@@ -561,9 +576,9 @@ A third Bestand entry point: dictate stock changes by voice, or photograph a she
 
 These need to happen outside Claude Code — mostly account/console setup that only you can do, since they require your credentials. Doing these upfront (roughly before or during Step 0–1 above) lets Claude Code get straight to building without blocking on access.
 
-1. **Create a GitHub repository** for the project (public is fine for a GitHub Pages site with no secrets committed — see note on Firebase config below).
-2. **Enable GitHub Pages** on the repo (Settings → Pages), pointing at the branch/folder Claude Code will deploy from.
-3. **Create a Firebase project** (console.firebase.google.com).
+1. **Create a GitHub repository** for the project (public is fine for a GitHub Pages site with no secrets committed — see note on Firebase config below). Done: `beermarkus-tech/Erdkeller`.
+2. **Enable GitHub Pages** on the repo (Settings → Pages), pointing at the branch/folder Claude Code will deploy from. Currently points at `claude/project-onboarding-mdzoen` — see Section 16's "one working branch" note for why that's also the repo's default branch.
+3. **Create a Firebase project** (console.firebase.google.com). Done: `erdkeller-cdbb9` — see Section 16 for the full infrastructure picture this project id ties together (Firestore, Auth, Cloud Functions, and where the Anthropic API key for Diktieren actually lives).
 4. **Enable Firestore Database** in the Firebase project — choose a region close to France (e.g. `europe-west1` or `europe-west3`) for lower latency.
 5. **Enable Firebase Authentication** → turn on the **Google** sign-in provider.
 6. **Register a Web App** within the Firebase project to get the Firebase config object (`apiKey`, `authDomain`, `projectId`, etc.) — share this with Claude Code so it can be wired into the app. This config is not secret (it's normal for it to be public in a client-side app), but real access control comes from **Firestore Security Rules**, which Claude Code should set up to restrict reads/writes to the three authenticated family members only.
