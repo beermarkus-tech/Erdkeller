@@ -1,6 +1,6 @@
-# Session Handoff — Instructions
+# Create Status — Instructions
 
-This file is a template/instruction set for producing a session handoff, used when switching Claude Code sessions mid-task (e.g. to get a fresh token quota). When asked to "update status.md" or "save the handoff," follow the prompt below and overwrite the content of this file with the actual report it describes — a new session with zero prior context should be able to read only this file and know exactly where the project stands and what to do next.
+This file holds the reusable prompt for producing a session handoff, used when switching Claude Code sessions mid-task (e.g. to get a fresh token quota). When asked to "save the handoff" or "update the status," follow the prompt below to create or overwrite a separate file, `status.md`, in the repo root with the actual report it describes — leave this file (`create_status.md`) itself untouched, since it's the reusable template, not the report. A new session with zero prior context should be able to read only `status.md` and know exactly where the project stands and what to do next.
 
 ---
 
