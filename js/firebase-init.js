@@ -4,7 +4,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { firebaseConfig } from './firebase-config.js?v=161';
+import { firebaseConfig } from './firebase-config.js?v=162';
 
 // TEMPORARY (Build 161) — offline diagnostic probe, see the inline script in
 // index.html. Reaching this line proves the gstatic Firebase SDK imports

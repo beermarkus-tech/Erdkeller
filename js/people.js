@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=161';
+import { auth, db } from './firebase-init.js?v=162';
 import {
   collection, getDocs, doc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";

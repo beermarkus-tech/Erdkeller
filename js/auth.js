@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=161';
+import { auth, db } from './firebase-init.js?v=162';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -65,10 +65,21 @@ signinBtn.addEventListener('click', async () => {
 
 signoutButtons.forEach((btn) => btn.addEventListener('click', () => signOut(auth)));
 
-getRedirectResult(auth).catch((err) => {
-  authError.textContent = 'Anmeldung fehlgeschlagen: ' + err.message;
-  console.error(err);
-});
+// Only check for a pending redirect result when online. getRedirectResult()
+// forces Firebase to load its popup/redirect helper — a gapi iframe from
+// apis.google.com/js/api.js — which is unreachable offline; confirmed via
+// the Build 161 diagnostic to add a 5-25s startup delay while that request
+// times out before the app gives up and proceeds with the cached session
+// anyway. A genuine pending redirect can only exist if we were online when
+// it started, so skipping this check offline is safe and removes the delay
+// entirely — onAuthStateChanged still fires immediately from Auth's own
+// persisted session either way.
+if (navigator.onLine) {
+  getRedirectResult(auth).catch((err) => {
+    authError.textContent = 'Anmeldung fehlgeschlagen: ' + err.message;
+    console.error(err);
+  });
+}
 
 // Creates the user doc on first sign-in; on every later sign-in, quietly
 // patches name/photoURL back in sync with the live Google profile if
