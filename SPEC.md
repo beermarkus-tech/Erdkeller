@@ -1,5 +1,5 @@
 # Erdkeller — Stock Management & Crisis Preparation App
-## Specification v17
+## Specification v18
 
 > **Note for implementation (e.g. Claude Code): follow the numbered build order in Section 17 ("Development Plan") — each step has its own test to pass before moving to the next. Section 18 lists the setup Markus needs to do on his side (GitHub repo, Firebase project, etc.) — some of it should happen before or during the early steps.**
 >
@@ -32,7 +32,8 @@
 - Target devices: **Android only** (phone + tablet)
 - Track stock in/out with minimal manual input, maximum automation
 - Best-before date tracking with proactive alerts (always MM/YYYY granularity, no exact-day tracking needed)
-- Offline-first: fully functional without connection, syncs to Firebase when online
+- **Offline-first: fully functional without connection, syncing to Firebase when online** — the single most important property of this app, since a crisis-prep tool that needs connectivity fails exactly when it matters. See Section 13 for the architecture. *(Planned, not yet built — as of Build 157 the app cannot start without a connection at all.)*
+- **"Funkstille" — a one-tap master switch putting the app fully offline** (no Firestore sync, no AI, no push): a deliberate, verifiable "this app talks to nothing" state rather than merely tolerating a dropped connection (Section 13)
 - Push notifications via Firebase Cloud Messaging (FCM), even when app is closed — reliable since all devices are Android
 - Recurring checklists (monthly/quarterly/yearly) with reminders
 - Crisis first-steps checklists, fully open/user-defined categories
@@ -67,7 +68,18 @@ Settings/config screen is **admin-only** — not visible to Julia/Sophia at all 
 Firestore organizes data as **collections** (folders) of **documents** (individual JSON records), optionally with nested subcollections.
 
 ```
-/users/{userId}                  name, role (admin|member), fcmToken
+/users/{userId}                  name, photoURL, createdAt, role (admin|member),
+                                  recipientSlug ("markus"|"julia"|"sophia"|null — the
+                                  admin-set link between a real account and the hardcoded
+                                  recipient slugs on each checklist, Section 12)
+/users/{userId}/devices/{deviceId}
+                                  token, label ("Handy"|"Tablet"|"Browser"), userAgent,
+                                  createdAt, lastSeenAt — one doc per physical device, NOT
+                                  a single fcmToken field on the user (Markus has both a
+                                  phone and a tablet; a singular field would have them
+                                  silently overwrite each other). deviceId is a stable
+                                  per-browser-profile uuid — the one deliberate use of
+                                  localStorage anywhere in this app
 /config/taxonomy                 types, categories (optional kcalPerKg, macroType,
                                   diversityFloorGramsPerPersonDay — see Section 7),
                                   subcategories (with symbol)
@@ -85,12 +97,29 @@ Firestore organizes data as **collections** (folders) of **documents** (individu
 /products/{productId}            name, subcategoryId, unitType (kg | l | stueck | a free
                                   custom string for Sonstiges products — see Section 5)
 /config/checklists               lists: [{ id, name, recipients, items: [{ id, text,
-                                  frequency, lastCompletedAt }] }] — see Section 8
+                                  frequency, lastCompletedAt }] }] — see Section 8.
+                                  **Scheduled to be split into per-item documents** as a
+                                  prerequisite for offline support (Section 13) — this whole
+                                  document is currently rewritten wholesale on every tick,
+                                  which loses data under concurrent offline edits
 /config/crisisTypes              types: [{ id, name, sym, steps: [{ id, text }] }]
-/config/notifications             checklists: { weekly: { weekday }, monthly: { weekOfMonth,
-                                  weekday }, quarterly/halfYearly: { anchorMonth, weekOfMonth,
-                                  weekday }, yearly: { month, weekOfMonth, weekday }, hour } —
-                                  see Section 12
+/config/notifications             enabled (master on/off), checklists: { weekly: { weekday },
+                                  monthly: { weekOfMonth, weekday }, quarterly/halfYearly:
+                                  { anchorMonth, weekOfMonth, weekday }, yearly: { month,
+                                  weekOfMonth, weekday }, hour, repeatDays } — see Section 12
+/config/notificationState         checklists: { <frequency>: { occurrence, lastSentAt,
+                                  dismissedOccurrence } } — send bookkeeping for the reminder
+                                  scheduler, deliberately a separate doc from the two above
+                                  because it's written by TWO parties (the Cloud Function and
+                                  the client's "für diesen Zeitraum erledigt" action) while
+                                  both of those are saved wholesale by their own settings
+                                  screens. Every write here uses targeted dot-path field keys,
+                                  never a whole-object write. Excluded from backups by design
+                                  — it's transient state, and restoring a stale
+                                  dismissedOccurrence would wrongly suppress a live reminder
+/backups/{backupId}              createdAt, sizeBytes, counts, storagePath — the index of
+                                  automated cloud backups; the JSON blob itself lives in
+                                  Cloud Storage (Section 14). Admin-read only
 /contacts/{contactId}            name, role, phone, address, notes, isEmergency (bool)
 /notes/{noteId}                  title, body, photos
 /recipes/{recipeId}              title, body, photos, tags, ingredients (free-text lines,
@@ -236,13 +265,13 @@ Each of the two product tabs (Lebensmittel/Sonstiges) has its **own floating (+)
 
 ## 8. Checklists
 
-- **Maintenance checklists**: no link to Bestand/Ziele at all — deliberately rejected mapping items to real products (a stock-flavored entry like "Klopapier (2x)" doesn't cleanly become a taxonomy product with a "satisfied" threshold), so an item is just text + frequency + checkbox, full stop. Frequencies: **weekly, monthly, quarterly, half-yearly, yearly** — no "einmalig" (one-off); even nominally one-time items (passport, compass, ...) get a real recurring cadence (seeded as yearly) so they're still checked occasionally rather than disappearing from the list forever. **Grouped by topic** (Ausrüstung, Autos, Dokumente, Gesundheit, ...) on the live view, matching how the household actually organizes its own list, rather than by frequency — each item shows its frequency as a tag. A **Fällig/Alle filter toggle** shows only items due this period vs. everything, and (Build 76) a **Checkliste filter-chip row** above it lets you show/hide whole checklist groups — separate state from the editor's own Checkliste filter, so narrowing one view never silently narrows the other. On tablet (≥900px), checklist cards lay out two up, each column flowing independently (CSS multi-column, not grid, so a tall card in one column never leaves a forced gap under a shorter one in the other). Admin-configured inline on the Checklisten screen itself (an admin-only pencil toggle swaps the view into an editor and back — see Section 15); **admin decides per checklist who receives it** (Markus only, or also Julia/Sophia) — reminders themselves are still Section 12 (Notifications), not yet built.
+- **Maintenance checklists**: no link to Bestand/Ziele at all — deliberately rejected mapping items to real products (a stock-flavored entry like "Klopapier (2x)" doesn't cleanly become a taxonomy product with a "satisfied" threshold), so an item is just text + frequency + checkbox, full stop. Frequencies: **weekly, monthly, quarterly, half-yearly, yearly** — no "einmalig" (one-off); even nominally one-time items (passport, compass, ...) get a real recurring cadence (seeded as yearly) so they're still checked occasionally rather than disappearing from the list forever. **Grouped by topic** (Ausrüstung, Autos, Dokumente, Gesundheit, ...) on the live view, matching how the household actually organizes its own list, rather than by frequency — each item shows its frequency as a tag. A **Fällig/Alle filter toggle** shows only items due this period vs. everything, and (Build 76) a **Checkliste filter-chip row** above it lets you show/hide whole checklist groups — separate state from the editor's own Checkliste filter, so narrowing one view never silently narrows the other. On tablet (≥900px), checklist cards lay out two up, each column flowing independently (CSS multi-column, not grid, so a tall card in one column never leaves a forced gap under a shorter one in the other). Admin-configured inline on the Checklisten screen itself (an admin-only pencil toggle swaps the view into an editor and back — see Section 15); **admin decides per checklist who receives it** (Markus only, or also Julia/Sophia) — those same `recipients` slugs are what the reminder scheduler resolves to real devices via `/users/{uid}.recipientSlug` (Section 12, built Build 154). A **Häufigkeit filter-chip row** on the live view (Build 154) narrows to one or more frequencies, and is what a tapped reminder deep-links into (`#erinnerung=<frequency>`); when exactly one frequency is selected and something is still due, a **"Für diesen Zeitraum erledigt"** button dismisses that period's reminder without touching any item's `lastCompletedAt`.
   - **Completion model — reset-boundary, not calendar-bucket (Build 74)**: no rolling `nextDue`-from-completion scheduler, and no plain "calendar month/quarter/year" bucket either. "Done for the current period" is *derived* by comparing `lastCompletedAt` against the most recent occurrence of that frequency's admin-configured schedule (Settings → Erinnerungen → Checklisten, `/config/notifications`, Section 12) — e.g. monthly's boundary is "the most recent 2nd Saturday," not "the 1st of this month." Ticking the box sets `lastCompletedAt` to now; it silently resets unchecked once the schedule rolls past that occurrence again. Still a pure derived comparison, no wipe action, no new infrastructure — the same shape as the original calendar-bucket version, just a smarter boundary. (An earlier version used plain calendar buckets before the scheduling settings existed; superseded once Markus specified real workflow needs — a monthly sitting on a specific weekday, not an arbitrary calendar-month cutoff.)
   - Firestore permission note: `/config/checklists` is the one `/config` doc any signed-in family member can write (not just admin) — ticking a box is a member action, same reasoning as stock check-in/out. The admin-only pencil-toggle editor is what actually keeps structural edits (add/rename/delete/reorder) behind admin in practice. `/config/notifications` (the schedule itself) stays plain admin-only — that's a one-time structural setting, not a per-item action.
   - **Editing (Build 74, refined Build 75)**: the pencil-toggle editor is a flat, filterable list of every item across every checklist — not nested per-checklist blocks — since a real list this size (~113 items) needs to be searchable and filterable to be usable. A free-text search box, a **Checkliste** filter-chip row, and a **Häufigkeit** filter-chip row (multi-select, same `.filter-chip` pattern as the admin Bestandsliste table) narrow the list. Each row shows text, a delete button, a frequency `<select>`, and a "move to checklist" `<select>` listing every checklist by name — picking a different one moves the item there immediately, no modal. No checkbox and no checked/unchecked filter here — that's what the live view's Fällig/Alle toggle already covers (Alle shows and un-ticks completed items too), so duplicating it in the editor was redundant. Two collapsible sections (same chevron pattern as Ziele's Kategorien/Unterkategorien/Produktziele) keep the screen manageable: **Checklisten verwalten** (rename, recipients, delete, add a checklist — container-level actions that don't fit a per-item row) and **Einträge** (the flat list itself). The one-time **"Bekannte Checkliste importieren"** seed button was removed once the real data was safely imported — it had done its one job. Creating a checklist **clears both filter rows** rather than auto-selecting the new (necessarily empty) checklist (Build 151 — auto-selecting it made the item list appear entirely empty until the filter was cleared by hand); "+ Eintrag hinzufügen" with no active filter already falls back to the most-recently-created checklist, so new items still land in the right place. On tablet (≥900px), each item row lays out text/frequency/move-to-checklist/delete side by side in one line instead of two, and each Checklisten verwalten row lays out name/Markus/Julia/Sophia/delete the same way.
   - **Sorting — alphabetical, but only committed on editor close (Build 149–151)**: the **live view** is always alphabetically sorted (checklists by name, items by text, both `de`-locale, both non-destructive — `sortedLists()`/`sortedItems()` compute a sorted *copy* on every render, never touching stored order). The **editor**, while open, deliberately keeps raw creation order instead — sorting live while typing/adding would make rows jump under the admin's finger mid-edit. The underlying stored order (`maintenance.lists` and each list's `items` array) only gets destructively re-sorted, and written back to Firestore, when the editor actually **closes** (`leaveEditMode()` → `sortMaintenanceInPlace()`, also fired by navigating away from the Checklisten tab) — and only if the order actually changed, to skip a needless write. This is what makes the editor come back up sorted next time it's opened too, not just the live view.
 - **Crisis checklists**: fully open — admin can create new crisis types freely (e.g. "Power outage", "Water outage", "Medical emergency", "Evacuation"), each with its own first-steps checklist, added via a floating **`+`** action button (`.fab`, matching Notizen/Kontakte's own add button) rather than an inline row. Presented as a **large-text, high-contrast scrolling list** — a pure read-through reference, no checkboxes or step-tracking, since the goal is fast calm reading under stress rather than progress tracking. Steps are **automatically numbered** (1., 2., 3., ...) by their position in the array, in both the reference view and the admin step editor — always sequential, renumbering itself whenever a step is added or deleted (no reorder feature exists yet). Adding, renaming, or deleting a crisis type re-renders both the editor and the live Krise card list immediately (Build 82 fix — the add/rename/delete handlers only re-rendered the editor, so a newly created or renamed type wouldn't show on the live list until an unrelated full refresh happened to fire). Tapping a card opens the reference view (Build 83 fix — the static markup carried a stray `hidden` class alongside the overlay's own `.show` toggle; `.hidden`'s `!important` always won, so the overlay could never actually become visible no matter how correctly the JS populated and "opened" it — a latent bug present since this view was first built, not something introduced later).
-- **Guaranteed offline availability**: crisis checklist content is explicitly pre-cached on first app load/sign-in (not just covered incidentally by general offline persistence, see Section 13) — this is the one section where offline access is mission-critical, since it's meant to be readable during outages regardless of when the device last synced. *(Not yet implemented — still relies on general offline persistence, Section 13.)*
+- **Guaranteed offline availability**: crisis checklist content is explicitly pre-cached on first app load/sign-in (not just covered incidentally by whatever happens to have been queried, see Section 13) — this is the one section where offline access is mission-critical, since it's meant to be readable during outages regardless of when the device last synced. *(Not yet implemented — and note that today there is no offline persistence at all to fall back on, so this section is currently no more offline-available than any other; both land together in Section 13's Step 16.)*
 
 ---
 
@@ -285,16 +314,75 @@ Evaluated for Step 7 and **not built for now** — see Section 19 "Nice to have 
 - Triggers: best-before approaching (1/3/6 month thresholds), checklist due dates (per-checklist recipient list, admin-configured)
 - Requires: service worker registration for the PWA, FCM setup in Firebase project, notification permission prompt in-app
 
-**Status: scheduling config built (Build 74), actual sending not yet built.** Settings → Erinnerungen (`/config/notifications`, admin-only, standard `/config/{docId}` rule) is where "monatlich"/"vierteljährlich"/"halbjährlich"/"jährlich"/"wöchentlich" get pinned to real calendar dates — an occurrence (1st-4th) + weekday for monthly, the same rule plus an anchor month for quarterly/half-yearly (repeating every 3/6 months), a fixed month for yearly, just a weekday for weekly. Currently the *only* consumer of this config is js/checklists.js's own done-for-the-current-period math (Section 8) — it defines the reset boundary, not an actual notification. Send time is hardcoded at 9:00 for every frequency for now; wiring an actual FCM push at that computed date/time is unbuilt, same as the rest of this section. The doc has room for other notification types to land as sibling keys later without any rules or structure churn.
+**Status: checklist reminders built end-to-end (Builds 154–157). Best-before/MHD reminders not yet built.**
+
+**Scheduling config** — Settings → Erinnerungen (`/config/notifications`, admin-only) is where "monatlich"/"vierteljährlich"/"halbjährlich"/"jährlich"/"wöchentlich" get pinned to real calendar dates — an occurrence (1st-4th) + weekday for monthly, the same rule plus an anchor month for quarterly/half-yearly (repeating every 3/6 months), a fixed month for yearly, just a weekday for weekly. Two consumers now read it: js/checklists.js's done-for-the-current-period math (Section 8, the reset boundary) and the reminder scheduler below. Build 154 added `hour` (send time, previously hardcoded at 9:00), `repeatDays` (how often to re-nudge an unfinished period), and a master `enabled` toggle that greys out the whole screen when off.
+
+**Sending** — `sendReminders` in `functions/index.js`, an `onSchedule` Cloud Function running hourly in `Europe/Paris`. Each tick exits immediately unless the current Paris-local hour matches the configured send hour, which keeps the send time editable in-app without redeploying. For each frequency it computes what's due (a server-side port of js/checklists.js's boundary math, since Cloud Functions run in UTC and the household doesn't), skips the frequency if that period was dismissed or if a nudge went out less than `repeatDays` ago, and sends **one notification per frequency per recipient** — not one per item. Bookkeeping lands in `/config/notificationState` (Section 4).
+
+- **Recipients**: each checklist's `recipients` slugs resolve to real accounts via `recipientSlug` on `/users/{uid}` (set in Settings → Personen), and from there to that user's `devices` subcollection. A slug nobody has claimed resolves to zero tokens and is silently skipped.
+- **Payload and display**: FCM sends a **data-only** payload, displayed by a plain `push` handler in the app's existing `service-worker.js` — deliberately *not* the Firebase Messaging compat SDK or a separate `firebase-messaging-sw.js`, both of which would auto-display the notification *and* let our handler display it, producing doubles. One notification `tag` per frequency, so a repeat nudge replaces its predecessor while a weekly and a monthly landing the same morning stay separate.
+- **Tapping** deep-links to `#erinnerung=<frequency>` — Checklisten, filtered to that frequency (Section 8). Handled both on a cold start and via `hashchange`, since the service worker may navigate an already-open tab rather than loading a fresh page.
+- **Two test paths in Settings → Erinnerungen**: "Testbenachrichtigung senden" (any signed-in user, sends to that user's own devices only, and since Build 156 reports FCM's real per-device success/failure with error codes rather than a bare count) and "Vorschau: was würde gesendet?" (admin-only dry run of the whole due computation, no sending, no state writes).
+- **Token freshness (Build 157)**: FCM invalidates tokens over time. Each device silently re-registers its token on every app load via the app-wide `erdkeller:signedin` event — previously this only happened if the user opened Settings → Erinnerungen, so a stale token sat dead until someone noticed a missed reminder.
+
+**Still to build**: best-before/MHD reminders (1/3/6 month thresholds). The `/config/notifications` doc is shaped to take these as sibling keys with no rules or structure churn, and they reuse the same scheduler, recipient resolution, and service-worker display path.
 
 ---
 
 ## 13. Sync & Offline
 
-- Offline-first: local persistence (e.g. Firestore's built-in offline cache, or a custom IndexedDB store), syncing to Firebase on reconnect
-- Conflict resolution: **last-write-wins** (simplest approach; conflicts expected to be rare given quick check-in/out actions)
-- **Crisis checklists — explicit pre-cache guarantee**: general offline persistence covers whatever's already been loaded/queried, which isn't a strong enough guarantee for a mission-critical section. On sign-in (and whenever crisis data changes), proactively fetch and store all `/crisisTypes` documents in the local store/service-worker cache, so they're readable offline even if that screen was never opened while online.
-- *(V2, not yet scoped: Section 20.2 sketches a stronger, explicit IndexedDB mirror — deliberately written on every sync rather than relying on Firestore's opaque built-in cache — plus a monetization tier that depends on it.)*
+**Status: not built.** As of Build 157 the app has *no* offline capability whatsoever — `service-worker.js` is a registration-only stub whose fetch handler passes straight through to the network, Firestore runs with its default memory-only cache, and the Firebase SDK itself is fetched from `gstatic.com` at runtime. Offline, the app does not display stale data; it does not start at all. Section 2 lists offline-first as a core requirement, and this section is the plan to make that true.
+
+### 13.1 What "offline" has to mean here
+
+Full autonomy: every screen readable and writable, indefinitely, with the radio off — excluding only the two features that are network calls by definition (Diktieren's AI parsing, and push delivery). This is the app's central promise, not a graceful-degradation nicety.
+
+### 13.2 Architecture: Firestore's own persistence, configured properly
+
+Firebase stays the single source of truth (Section 20.2.1). The local layer is Firestore's **built-in persistent cache**, with two settings that turn it from a convenience into a durable store:
+
+- `persistentLocalCache` with **`CACHE_SIZE_UNLIMITED`**, which **disables Firestore's LRU garbage collector**. This is the decisive setting: by default the SDK prunes cached documents on its own schedule, by rules the app can neither see nor control — the one genuine reason to distrust it as a store of record. Disabled, it stops pruning.
+- `persistentMultipleTabManager`, so an open browser tab and the installed PWA don't fight over the cache.
+- **`navigator.storage.persist()`**, which asks the browser not to evict the origin's storage under disk pressure. Chrome grants this by heuristic rather than by prompt — home-screen install, engagement, and granted notification permission all count in our favour, and all three are true.
+
+Between them these close both eviction risks: `persist()` covers browser-level eviction, `CACHE_SIZE_UNLIMITED` covers Firestore's own pruning.
+
+What this buys, with **no change to any screen's data access**: offline reads served from cache, offline writes queued durably in IndexedDB and replayed on reconnect, and indefinite offline operation. Firestore's cache already does all of this — it was simply never switched on.
+
+**An explicit app-controlled IndexedDB mirror (Dexie/RxDB-style) was evaluated and deliberately rejected** for this app — see 20.2.2 for the full reasoning. In short: its main justification was Firestore's pruning, which is configurable away; it would require rewriting every screen's data access across ~13k lines of client JS; and RxDB in particular would force a build step onto a codebase that deliberately has none (Section 16).
+
+### 13.3 The app shell must be cached first
+
+None of the above matters until the app can *start* offline. The service worker has to cache the app shell (`index.html`, `css/`, `js/`, `manifest.json`, icons) **and** the Firebase SDK modules pulled from `gstatic.com` — cross-origin, so they need handling as such. This is the first piece of work in Step 16 and everything else depends on it.
+
+### 13.4 Conflict resolution
+
+**Last-write-wins**, per document. Two prerequisites make that safe rather than merely simple:
+
+- **`/config/checklists` must be split into per-item documents** (Section 4). Today the entire document — every list, every item — is rewritten wholesale on every tick. Online with writes landing seconds apart that's survivable; offline it is not: two people ticking different items on different devices means one device's *entire* set of edits is silently overwritten on reconnect, not just one contested field. Stock already has the right shape (one document per batch), which is the model to follow.
+- **Every record carries its own `updatedAt`** as a stored content field, distinct from when the write physically lands. This is load-bearing twice over: for backup-import conflict detection (20.2.4), and for any future reconciliation after a long offline period, where a stale write would otherwise win simply by arriving later.
+
+### 13.5 Modes: synced, or Funkstille
+
+Two user-facing states, switchable at will:
+
+- **Synced** (default) — normal operation; the local cache stays current and doubles as the offline fallback.
+- **Funkstille** — one master switch in Settings, plus independent toggles beneath it for sync, AI (Diktieren), notifications, and cloud backup. Implemented with Firestore's own `disableNetwork(db)` / `enableNetwork(db)`: all reads come from cache, all writes queue locally, nothing goes out. No custom sync engine or mutation queue is needed — the SDK already provides exactly this.
+
+Because both modes share one data layer and one document shape, switching between them is genuinely reversible and needs no merge engine. This is what makes the toggle cheap; a true local-first architecture with an independently-writable local database would not have this property.
+
+### 13.6 Crisis checklists — explicit pre-cache guarantee
+
+Persistence only covers what has actually been read at least once, which isn't a strong enough guarantee for the one mission-critical section. On sign-in (and whenever crisis data changes), proactively fetch all `/crisisTypes` documents so they're readable offline even if that screen was never opened while online.
+
+### 13.7 What offline does *not* protect against
+
+Browser storage survives reboots, outages, months offline and Chrome updates. It does **not** survive clearing site data, uninstalling Chrome or the PWA, a factory reset, or the phone being lost, broken or stolen — and none of those are exotic in the situation this app exists for. `persist()` resists *automatic* eviction only; no browser API can resist a user deliberately clearing storage.
+
+There is also a compound failure worth designing against: Firebase Auth persists its session in the same IndexedDB, so clearing site data deletes the data **and** signs the user out, and signing back in requires network.
+
+**Therefore the local cache is not the durability guarantee — the off-device backup is** (Section 14). Offline persistence buys autonomy; backups and sync buy survivability. They are complementary, not alternatives, which is why the most robust configuration for a household is offline-capable *and* synced.
 
 ---
 
@@ -305,8 +393,24 @@ Evaluated for Step 7 and **not built for now** — see Section 19 "Nice to have 
 - **CSV export, per section** — five buttons: Bestand, Checklisten (Wartung only — the crisis reference isn't tabular data), Kontakte, Notizen, Rezepte. Each downloads a human-readable, denormalized table.
 - **Full JSON database backup** — one button, dumps every collection (`products`, `stockItems`, `stockLog`, `contacts`, `notes`, `recipes`) and every `/config` singleton (`taxonomy`, `targets`, `household`, `planning`, `storageLocations`, `yearColorMap`, `checklists`, `crisisTypes`, `notifications`) as one JSON file, Firestore ids included — a faithful, restorable mirror rather than a flattened report. **`/users` is deliberately excluded** from both export and import — Firestore rules only let someone create *their own* user doc, so a delete-then-recreate import could never fully restore Julia/Sophia's accounts and risked wedging the admin's own access mid-import; roles/names stay managed only through Settings → People, backup or no backup.
 - **Import (full replace)** — no longer end-game/deferred, built alongside export: upload a JSON backup, and admin confirms by typing the literal phrase **"ALLES ERSETZEN"** into a text field (a plain `confirm()` was judged too easy to reflex-click for something this destructive) before anything happens. Before the replace starts, the app **auto-downloads one more fresh JSON backup of the current live data** as a last-chance safety net. Each collection/config doc is then deleted and rewritten from the backup, batched at 450 writes (Firestore's cap is 500) to stay under the per-batch limit; a live status line reports progress collection-by-collection so a failure partway (network drop, tab closed) leaves clearly-reported partial state rather than silent inconsistency, and the whole operation is safely re-runnable since it's a full replace either way, not a merge.
-- No automatic *scheduled* backup exists (no Cron/Cloud Scheduler job) — export/import above are both manual, admin-triggered actions.
-- *(V2, not yet scoped: Section 20.2.4's timestamp-based conflict handling on import — comparing the backup's per-record timestamp against live Firebase before overwriting — is not implemented; the current import is a blunt full replace, mitigated by the auto-backup safety net and the typed confirmation gate above, not by conflict detection.)*
+### Planned additions (not yet built)
+
+Because no browser storage survives a cleared cache or a lost phone (Section 13.7), **the off-device backup — not the local cache — is what actually protects this data.** That makes the following part of the crisis-proofing rather than admin convenience.
+
+- **Export must read from the local cache, not the network.** Today `buildBackup()` is a live Firestore read at click time, so in Funkstille or with no signal the backup button produces nothing — precisely when the local copy is the only copy. Once Section 13's persistence is enabled this largely resolves itself (cached reads serve `getDocs` offline), but it needs verifying rather than assuming.
+- **Share sheet as the primary destination**, plain download as fallback. `navigator.share` with a file attachment lets one tap send the backup to Drive, Gmail-to-self, Nextcloud, a laptop or a USB stick. This matters more than it sounds: a JSON file sitting in `/Download` on the phone that just got lost protects nothing — getting the copy *off the device* is the whole point.
+- **A backup nag.** The app records `lastBackupAt` (a synced field, so it survives a device loss and is visible to the push scheduler) and prompts when it goes stale: an **in-app banner**, which works offline and is therefore the primary channel, plus a **push reminder** riding the Section 12 scheduler when sync is on. Urgency scales with what's actually protecting the household — gentle when synced and recently cloud-backed-up, insistent in Funkstille where the local file is the only copy. Deliberately *not* a fixed calendar interval. Same spirit as the existing quarterly "refresh the printouts" checklist item (Section 2).
+- **Automated cloud backup** — a scheduled Cloud Function (reusing the Cloud Scheduler already provisioned for Section 12's reminders) dumps the database to JSON nightly, writes the blob to Cloud Storage and an index document to `/backups/{backupId}` (Section 4), and prunes to the last N snapshots. **Deliberately produces the same JSON format as the manual export**, so there is exactly one restore path rather than two — Firestore's own native scheduled export was rejected for this reason, since its binary format is restorable only through Google's tooling, not through the app's own Sicherung screen. Has its own toggle in Settings beneath Funkstille; meaningless when sync is off, since nothing reaches the cloud to be backed up.
+- **Restore from a cloud backup**, as a second entry point into the *existing* import flow. The Sicherung screen gains "Aus Cloud-Backup" beside "Datei wählen"; picking a snapshot from a dated list downloads it via a signed URL from an admin-only callable (`getBackupUrl`) and then hands off to the identical pending-backup state a file pick produces — same summary, same typed `ALLES ERSETZEN` gate, same auto safety backup, same chunked replace. The signed URL matters: callable responses cap around 10MB and a backup carrying base64 photos will exceed that, so the blob is fetched from Storage directly rather than through the function.
+
+**Two safety points that apply to both restore paths:**
+
+- **The confirmation must state that a restore hits every device.** Full-replace propagates through sync: restoring on the phone wipes and replaces Julia's tablet too. The current confirmation doesn't say so, and once Section 13's sync is real that becomes the feature's biggest surprise.
+- **Restore requires being online.** Obvious for cloud restore, subtler for file restore: performed offline it would queue thousands of deletes and writes locally and fire them all at reconnect with no chance to reconsider. Both should be blocked with an explanation while in Funkstille or offline.
+
+**Backup completeness is currently unguarded.** `COLLECTIONS`/`CONFIG_DOCS` in `js/backup.js` are hand-maintained lists; a newly added `/config` doc silently falls out of every backup until someone remembers to add it. `/config/notificationState` (Build 154) is already absent — correctly so, since restoring stale send-state would suppress a live reminder, but by omission rather than decision. Any new config doc needs a deliberate include/exclude call.
+
+- *(Section 20.2.4's timestamp-based conflict handling on import — comparing the backup's per-record timestamp against live Firebase before overwriting — remains unimplemented; the current import is a blunt full replace, mitigated by the auto-backup safety net and the typed confirmation gate, not by conflict detection. The `updatedAt` field Section 13.4 requires is the prerequisite for ever doing this properly.)*
 
 ---
 
@@ -396,10 +500,11 @@ Tablet: same guided-flow pattern, just with more tiles per row / more breathing 
   - **Bestandsliste**: the admin browse/edit table described in full in Section 15, Stock, above — sortable/filterable, bulk actions, reachable from its own card here or from a quiet button on the Bestand home screen.
   - **Verlauf**: the last 50 check-in/check-out entries from the shared `/stockLog` feed (`js/stock-log.js`, the same feed the guided flows' own short recent-activity list reads a smaller slice of, and Diktieren writes to as well). Build 115 added a **"Verlauf löschen"** button (`.danger-btn`, header row) that wipes the whole `/stockLog` collection, not just the visible 50 — a plain browser `confirm()` gate first, since this is irreversible and the app otherwise has no confirm-dialog component built; deletes are chunked into batches of 450 (Firestore's write-batch cap is 500) even though a household's log is very unlikely to ever get that long.
   - **Personen**: **role toggle per existing signed-in user** — since sign-in is Google-based and self-provisioning (Julia/Sophia already have Google accounts), there's no invite-by-email flow needed; admin just flips a member's role between Admin/Member once they've signed in at least once
-  - **Erinnerungen** (Build 74): scheduling only — which weekday/occurrence/month each checklist frequency resets on (Section 12). Checklist *content* editing (maintenance + crisis management, reminder recipients) is deliberately not here — it moved inline onto the Checklisten screen itself (Section 15's Checklists sub-screen, Build 73) once a submenu proved to be an unnecessary hop for something edited far more often than the reminder schedule is.
+  - **Erinnerungen** (Build 74, extended Build 154): a master on/off toggle that greys out the rest of the panel; the schedule itself (which weekday/occurrence/month each checklist frequency resets on), send hour, and re-nudge interval (Section 12); and the push setup section — permission/registration for this device, the list of registered devices, a test send, and an admin-only dry-run preview. Checklist *content* editing (maintenance + crisis management, reminder recipients) is deliberately not here — it moved inline onto the Checklisten screen itself (Section 15's Checklists sub-screen, Build 73) once a submenu proved to be an unnecessary hop for something edited far more often than the reminder schedule is.
+  - **Verbindung** *(planned, Section 13.5)*: the **Funkstille** master switch, with independent toggles beneath it for sync, AI/Diktieren, notifications, and automated cloud backup — the one place to make the app verifiably talk to nothing.
   - **Planung**: the autonomy-based stock sizing inputs (Section 7) — household roster (each row prefixed with a fixed **👤** icon, Build 89 — a plain visual marker, not a per-person symbol picker like Taxonomie's), autonomy duration, macro split, water rate, and the resulting global kcal/liter numbers (no apply action — Ziele/Übersicht read these live)
   - **Ziele**: the three-tab Kategorien/Lebensmittel/Sonstiges screen described in full in Section 7 — category/subcategory targets (manual for Nicht-genutzt categories, live-computed for Kalorien/Diversität) plus independent per-product targets on both product tabs. Wasser-classed types don't appear here (Section 7) — their one global target shows in Übersicht instead.
-  - **Sicherung** (renamed from "Export", once it grew an Import side too): per-section CSV export, a full JSON database backup, and full-database JSON import/restore — see Section 14.
+  - **Sicherung** (renamed from "Export", once it grew an Import side too): per-section CSV export, a full JSON database backup, and full-database JSON import/restore — see Section 14. *(Planned: share-sheet export destination, a staleness banner driven by `lastBackupAt`, and "Aus Cloud-Backup" as a second source feeding the same restore flow.)*
   - **PDF-Export**: its own dedicated card, split out from Sicherung — see below.
 
 ### PDF export
@@ -424,12 +529,18 @@ Tablet: same guided-flow pattern, just with more tiles per row / more breathing 
 - **Firebase project**: `erdkeller-cdbb9` (Firebase/Google Cloud project id — one GCP project underlies the Firebase project, so the same id is visible in both the Firebase Console at console.firebase.google.com and the Google Cloud Console at console.cloud.google.com). Billing plan: **Blaze** (pay-as-you-go) — originally planned to stay on the free Spark plan indefinitely (Section 18), upgraded once Diktieren needed Cloud Functions, which Spark doesn't support at all.
   - **Firestore** — the primary database (Section 4), region chosen close to France for latency.
   - **Firebase Authentication** — Google Sign-In, the only auth method (Section 3).
-  - **Firebase Cloud Messaging (FCM)** — provisioned for push notifications, not yet actually sending anything (Section 12).
-  - **Cloud Functions** — one Callable Function, `parseDictation` (`functions/index.js`, Node 20 runtime), backing Diktieren (Section 15, Stock). Runs server-side with `firebase-admin` (bypasses Firestore security rules entirely, same trusted-server pattern any Cloud Function has), reading `config/taxonomy` + `products` (+ `stockItems` for the voice/text path only) fresh on every call.
+  - **Firebase Cloud Messaging (FCM)** — live since Build 154, sending checklist reminders (Section 12). The Web Push VAPID key is public by design and lives in `js/push.js`, like the rest of the Firebase client config.
+  - **Cloud Scheduler** — provisioned automatically by deploying the `onSchedule` function below; drives the hourly reminder tick and, once built, the nightly cloud backup (Section 14).
+  - **Cloud Storage** — *not yet provisioned.* Needed only for automated cloud backup blobs (Section 14); available on Blaze. (Note: `js/notes.js` carries a stale comment claiming the project is on Spark and Storage is therefore unavailable — that predates the Blaze upgrade and is wrong; note photos are stored as inline base64 for historical reasons, not because Storage is impossible.)
+  - **Cloud Functions** (`functions/index.js`, Node 20 runtime) — four deployed, all running server-side with `firebase-admin`, which bypasses Firestore security rules entirely (the standard trusted-server pattern), so each enforces its own auth checks:
+    - `parseDictation` (callable) — backs Diktieren (Section 15, Stock), reading `config/taxonomy` + `products` (+ `stockItems` for the voice/text path only) fresh on every call.
+    - `sendReminders` (`onSchedule`, hourly, `Europe/Paris`) — the checklist reminder scheduler (Section 12).
+    - `previewReminders` (callable, admin-only) — dry run of the same computation, no sending or state writes.
+    - `sendTestNotification` (callable, any signed-in user) — test push to the caller's own devices only.
 - **The AI integration ("Diktieren")**: `parseDictation` is the one place in the whole app that talks to an external AI — every dictated voice transcript and every photo taken in the Diktieren chat is sent from the browser to this Cloud Function (never directly from the client to Anthropic), which then calls the **Anthropic Messages API** (`https://api.anthropic.com/v1/messages`, model `claude-haiku-4-5-20251001`) via a plain `fetch` — no Anthropic SDK dependency, no other library in the loop. The Cloud Function is the only thing that ever holds the Anthropic API key.
   - **Why it's routed through a Cloud Function at all, rather than calling Anthropic straight from the browser**: an API key embedded in client-side JavaScript is visible to anyone who opens the browser's dev tools or views page source — there is no way to keep a secret inside HTML/JS served to a client. Routing the call through a server-side Cloud Function is what makes it possible to keep the key off the client entirely.
   - **Where the key actually lives**: stored as a Cloud Functions **secret** (`firebase functions:secrets:set ANTHROPIC_API_KEY`, Section 18) — under the hood, Firebase secrets are backed by **Google Cloud Secret Manager** in the same GCP project (`erdkeller-cdbb9`), viewable/rotatable either via the Firebase Console (Functions → your function → its secrets) or directly in the Google Cloud Console's Secret Manager page. The key is never present in `functions/index.js`'s own source, never in any client-side file, and never committed to the GitHub repo — the function reads it at runtime via `anthropicApiKey.value()`.
-- **Offline**: local persistence with sync-on-reconnect (see Section 13) — not yet built.
+- **Offline**: not built (Section 13). The service worker is still a registration-only stub with a pass-through fetch handler, and Firestore runs on its default memory-only cache — so the app currently requires a connection to start at all. Section 13 covers the plan; note that the Firebase SDK loading from `gstatic.com` at runtime means the service worker has to cache cross-origin modules, not just this repo's own files.
 
 ---
 
@@ -539,12 +650,26 @@ Per-section PDF generation (Stock, Checklists, Contacts, Notes, Recipes).
 **Status: built** — see Section 15's "PDF export" writeup for the final 8-section shape (Übersicht/Bestand/both Checkliste sub-sections/Kontakte/Notizen/Rezepte/Ziele), which grew beyond this step's original 5-section list.
 
 **Step 16 — Offline support & sync**
-Local persistence (Firestore offline cache or custom store); last-write-wins sync-on-reconnect. Also implement the explicit crisis-checklist pre-cache from Section 13 (fetch and store all `/crisisTypes` on sign-in and on data change, independent of whether that screen has been opened).
-*Test:* Put the device in airplane mode, perform a check-in/check-out, reconnect, and confirm the change syncs to Firestore correctly. Separately: sign in online, never open the Crisis tab, then go into airplane mode and confirm the crisis reference view still renders full content from the pre-cache.
+See Section 13 for the full architecture and the reasoning behind it. In dependency order:
+1. **Service worker shell cache** — the app shell plus the `gstatic.com` Firebase SDK modules. Nothing else in this step is observable until the app can start with no network.
+2. **Firestore persistence** — `persistentLocalCache` with `CACHE_SIZE_UNLIMITED` (disables the SDK's own pruning) and `persistentMultipleTabManager`; plus `navigator.storage.persist()`.
+3. **Split `/config/checklists` into per-item documents** — prerequisite for safe last-write-wins, since the whole document is currently rewritten on every tick.
+4. **`updatedAt` on every record** — content timestamp, distinct from write time.
+5. **Crisis-checklist pre-cache** — fetch all `/crisisTypes` on sign-in and on data change, independent of whether that screen has been opened.
+*Test:* Airplane mode, cold-start the app (fully closed, not just backgrounded) and confirm it opens and renders real data. Perform a check-in/check-out offline, reconnect, confirm it syncs. Separately: sign in online, never open the Krise tab, then airplane mode and confirm the crisis reference still renders in full. And: tick different checklist items on two devices while both are offline, reconnect both, confirm neither device's ticks are lost.
+
+**Step 16b — Funkstille & connection toggles**
+Settings → Verbindung (Section 13.5, Section 15): the master switch plus independent sync / AI / notifications / cloud-backup toggles, sync implemented via `disableNetwork()`/`enableNetwork()`.
+*Test:* Enable Funkstille with the device online; confirm no Firestore traffic leaves, edits still work and persist across a restart, and disabling it replays them.
+
+**Step 16c — Backup hardening** (Section 14)
+Share-sheet export destination, `lastBackupAt` + the staleness nag (in-app banner and push), the nightly cloud-backup function with its `/backups` index, and cloud restore as a second source into the existing import flow. Plus the two safety fixes: state in the confirmation that a restore hits every device, and block restore while offline.
+*Test:* Export via share sheet to Drive and confirm the file opens. Let `lastBackupAt` go stale and confirm the banner appears and scales with sync state. Restore from a cloud snapshot on a test dataset and confirm it lands identically to a file restore.
 
 **Step 17 — Push notifications (FCM)**
 Best-before alerts and checklist reminders, respecting per-checklist recipient config; service worker + notification permission flow.
 *Test:* Trigger a notification (e.g. by setting a near-term best-before date) and confirm it's received on an Android device even with the app closed.
+**Status: checklist reminders built** (Builds 154–157) — see Section 12 for the shipped design (scheduler, recipient resolution, data-only payload, deep link, dismiss action, test/preview paths, token refresh). **Best-before/MHD reminders are still open**, and reuse the same infrastructure.
 
 **Step 18 — QR / Labels**
 QR generation encoding product/batch reference IDs; printable flexible HTML label template; camera-based scan (secondary entry point within the guided Stock flow). Erdkeller's own generated QR labels only — retail barcode scanning is a separate, deferred idea (Section 19), not part of this step.
@@ -582,17 +707,21 @@ These need to happen outside Claude Code — mostly account/console setup that o
 4. **Enable Firestore Database** in the Firebase project — choose a region close to France (e.g. `europe-west1` or `europe-west3`) for lower latency.
 5. **Enable Firebase Authentication** → turn on the **Google** sign-in provider.
 6. **Register a Web App** within the Firebase project to get the Firebase config object (`apiKey`, `authDomain`, `projectId`, etc.) — share this with Claude Code so it can be wired into the app. This config is not secret (it's normal for it to be public in a client-side app), but real access control comes from **Firestore Security Rules**, which Claude Code should set up to restrict reads/writes to the three authenticated family members only.
-7. **Generate a Web Push (VAPID) key** in Firebase (Project Settings → Cloud Messaging) — needed for Step 17 (push notifications), but fine to do later, right before that step.
+7. **Generate a Web Push (VAPID) key** in Firebase (Project Settings → Cloud Messaging) — needed for Step 17 (push notifications). **Done** (Build 155); the key is public by design and lives in `js/push.js`. The same round of setup also covered deploying `firestore.rules` and the functions, mapping each account to a recipient slug in Settings → Personen, and enabling push per physical device.
 8. **Sign in once yourself** via the deployed app once Step 2 is built, then **manually set your own user document's `role` field to `"admin"` directly in the Firestore console** — this is a one-time bootstrap step, since the app has no admin yet on the very first run. After that, all further role management happens in-app (Settings → People).
 9. **Have Julia and Sophia sign in once** via the app (once Step 2 is built) so their user documents exist — you can then confirm their role is `"member"` in Settings → People (should be the default).
 10. **Firebase billing plan**: originally planned to stay on the free **Spark plan** indefinitely — since superseded. Diktieren (Section 15, Stock) needs Cloud Functions, which requires the **Blaze plan** (pay-as-you-go, but Cloud Functions' own free tier still covers millions of invocations/month — the only real ongoing cost is Anthropic API usage, roughly $1–2/month at generous household-scale dictation volume). Already upgraded.
 11. **Anthropic API key**, for Diktieren: get a key from console.anthropic.com and store it as a Cloud Functions secret — `firebase functions:secrets:set ANTHROPIC_API_KEY` — never in client code or committed to the repo. After any change to `functions/index.js`, a separate manual `firebase deploy --only functions` (from Cloud Shell) is required — a normal `git push` only ever redeploys the static site to GitHub Pages, never Cloud Functions.
 12. **Label printer**: no rush — pick one whenever convenient, and let me know so we can finalize the label template (still the one open item in Section 19).
+13. **Enable Cloud Storage** in the Firebase project — needed for automated cloud backups (Section 14, Step 16c), not before. Available on Blaze at negligible cost for a household's snapshot volume; nothing to configure beyond creating the default bucket and letting the deploy add rules restricting the `backups/` path to admins.
 
 ---
 
 ## 19. Remaining Open Items
 
+- **Offline support is the largest outstanding piece of work** — Section 13, built as Steps 16 / 16b / 16c. Section 2 lists offline-first as a core requirement and the app currently doesn't start without a connection at all, which makes this the biggest gap between what this spec promises and what ships.
+- **Best-before/MHD push reminders** — the second half of Section 12. Checklist reminders shipped in Builds 154–157; MHD reminders reuse the same scheduler, recipient resolution and display path, and still need their own threshold config (1/3/6 months) and due computation.
+- **Import conflict model undecided** — the shipped import is a full replace with a typed confirmation and an automatic safety backup; Section 20.2.4 describes a per-record timestamp comparison instead. Both are defensible; the choice is open, and `updatedAt` (a Section 13.4 prerequisite anyway) is what either needs.
 - Label printer/size — to decide once a printer is chosen (template stays flexible until then)
 - **Drag-to-reorder doesn't work on real devices yet** (taxonomy editor, Settings → Data, Step 4): implemented with the Pointer Events API to avoid native HTML5 drag-and-drop's lack of touch support, but on an actual test it still doesn't work — on mobile, a press-and-hold just selects text; on tablet, it opens the browser's context menu. Something about the current handling isn't actually suppressing the platform's default touch/long-press behavior on the drag handle. Deliberately deferred — revisit later.
 
@@ -632,7 +761,7 @@ During the 30-day trial, the app must **not** limit device count or restrict syn
 If a user takes no action at trial end, the app must **not** hard-lock or block access to their own data — that would contradict the core "your data is always safe and local" value proposition if payment lapse blocked access to that same data.
 
 **Required behavior**: the app drops to **read-only/view-only mode**, locally:
-- All existing data (stock, checklists, contacts, notes, recipes) stays fully visible on-device, sourced from the local IndexedDB mirror (20.2.2).
+- All existing data (stock, checklists, contacts, notes, recipes) stays fully visible on-device, sourced from a local store on that device. *(Note: 20.1's tiers all predate — and assume — the explicit IndexedDB mirror that 20.2.2 has since rejected for the shipping app. That rejection is conditional, and this is the condition: a tier where the app genuinely never touches Firebase needs a writable local database, so if 20.1 is ever actually pursued, 20.2.2 gets revisited as part of it. Nothing in 20.1 is scoped or committed; Section 13.2 is what the real app does today.)*
 - No further add/edit/check-in/check-out or other write actions permitted.
 - Firebase sync stops (20.1.5 covers the data hand-off at this transition).
 - A persistent but non-intrusive banner communicates the state, e.g. "your data is safe — unlock full editing with a one-time purchase, or continue syncing across devices for [price]/month," linking to the purchase/subscription flow.
@@ -670,26 +799,33 @@ Firebase/Firestore remains the authoritative backend, exactly as currently desig
 
 This is explicitly **not** a local-first architecture where each device's local database is its own independent source of truth requiring peer-to-peer conflict resolution — that was considered and rejected: it would give up the multi-user real-time sync that already works well, in exchange for problems (independently-writable local databases needing reconciliation across devices) that outweigh the benefit.
 
-#### 20.2.2 Guaranteed local persistence layer (explicit IndexedDB mirror)
-In addition to Firestore's default built-in offline cache (somewhat opaque, and prunable by the SDK under storage pressure — the "e.g." mentioned in Section 13's current offline note), the app should maintain an **explicit, app-controlled local mirror** of Firestore data in IndexedDB (e.g. via Dexie or equivalent).
+#### 20.2.2 Explicit IndexedDB mirror — evaluated and rejected
+This section originally proposed an **explicit, app-controlled local mirror** of Firestore data in IndexedDB (Dexie, RxDB or equivalent), written deliberately on every sync rather than relying on the SDK's own cache. **That was evaluated in detail and deliberately not adopted** — Section 13.2 is the design that replaced it. Recorded here with the reasoning, since the idea is an obvious one to re-propose:
 
-Key properties:
-- Written to deliberately by the app on every sync, not just relied upon as an incidental SDK cache.
-- The app requests persistent storage permission from the browser so this data isn't subject to casual eviction under disk pressure.
-- Crisis checklists specifically must be guaranteed present in this local mirror from first load — the one section where offline access is mission-critical, not just convenient (already the intent behind Section 13's crisis-checklist pre-cache guarantee; this is the persistence layer that guarantee actually depends on).
-- Storage location (for documentation/support purposes): on Android, this data lives in the browser's or installed PWA's private, sandboxed app-data directory — not browsable via a normal file manager, not visible to the user directly, and not cleared by normal app backgrounding or device reboot. Only cleared by the user manually clearing app storage or uninstalling the PWA — which is why installing to the home screen (rather than a loose browser tab) matters for the persistence guarantee.
+- **Its central justification was Firestore's cache pruning** — the SDK's LRU garbage collector discarding documents by rules the app can't see or control. That turns out to be **configurable away** with `CACHE_SIZE_UNLIMITED`. With pruning disabled and `navigator.storage.persist()` granted, both eviction risks are closed without changing the architecture.
+- **The knock-on benefits dissolve with it.** Offline export needs cached reads, which persistence provides. An offline/online mode toggle needs a mutation queue, which Firestore's `disableNetwork()` already is. Durable offline writes are already queued in IndexedDB by the SDK.
+- **The cost is a rewrite of every screen's data access** — ~13k lines of client JS currently calling Firestore directly. Firestore's cache is transparent precisely because screens keep calling `getDocs`; a mirror is the moment that transparency is given up. Note that a library does *not* avoid this: screens would query RxDB instead of Firestore either way. A sync library saves the sync engine, not the retrofit.
+- **RxDB specifically would force a build step** onto a codebase that deliberately has none (Section 16) — a meaningful change to a workflow whose whole shape is "edit files, `git push`, GitHub Pages deploys."
+- **And the durability argument doesn't survive scrutiny anyway**: no browser storage, explicit or SDK-managed, survives cleared site data or a lost phone (Section 13.7). The local store was never the guarantee — the off-device backup is (Section 14). Once that's true, the local store only has to be reliable enough for daily operation, and a non-pruning persistent cache clears that bar.
+
+**Revisit only if** a concrete problem appears in practice, or if the fully-local solo tier in 20.1.2 (an app genuinely never touching Firebase) becomes real — that tier *does* need a writable local database and is the one remaining honest reason to build this.
+
+One correction worth preserving from the original text: it claimed installing to the home screen matters "because" the PWA gets its own app-data directory. It doesn't — an installed PWA and a browser tab on the same origin share one storage area, physically inside Chrome's own sandbox (`/data/data/com.android.chrome/...`), keyed by origin. Installation still helps, but for a different reason: it's one of the heuristics Chrome weighs when granting persistent storage (alongside engagement and granted notification permission), and Chrome decides this silently rather than prompting.
 
 #### 20.2.3 Export feature: two distinct formats for two distinct use cases
-Export should read from the local IndexedDB mirror (not a fresh Firebase call), so export always works offline too, consistent with the crisis-app design philosophy.
+**Largely superseded — both formats and the import side shipped in Build 121; see Section 14 for what actually exists and Section 14's "Planned additions" for what's still outstanding.** Retained here for the format reasoning, which still holds.
+
+Export should read from the local store rather than making a fresh network call, so it always works offline too, consistent with the crisis-app design philosophy. *(Still outstanding: `buildBackup()` is currently a live Firestore read. Enabling Section 13.2's persistence should resolve this by serving those reads from cache, but it needs verifying rather than assuming.)*
 
 Two separate export options, not one format serving both purposes:
 
 1. **CSV export (per-section)** — for opening/editing data in a spreadsheet (e.g. reviewing/editing stock or contacts). Already specified (Section 14). Good fit since CSV is human-readable and universally spreadsheet-compatible.
 2. **Full JSON export/backup** — for faithful backup, restore, or device-to-device transfer. CSV is a poor fit here because Erdkeller's data is relational (stock items reference products, products reference taxonomy, checklists have nested steps, contacts have nested detail fields) — CSV can't represent this across linked tables without fragile manual reassembly on import. JSON mirrors Firestore's own document structure one-to-one, so export is close to a direct dump and import close to a direct restore, with no lossy flattening.
 
-Import (an end-game/Phase-4 feature per Section 14) should only need to support JSON, not CSV — restoring a hand-edited CSV back into a relational structure is the fragile direction and not a real requirement.
+Import only needs to support JSON, not CSV — restoring a hand-edited CSV back into a relational structure is the fragile direction and not a real requirement. (This was written when import was still an end-game/Phase-4 idea; it shipped in Build 121, JSON-only as specified.)
 
 #### 20.2.4 Conflict handling on JSON backup import (critical safety rule)
+**Status: not implemented.** The shipped import (Build 121) is a blunt full replace, guarded by a typed `ALLES ERSETZEN` confirmation and an automatic pre-import safety backup rather than by conflict detection. That's a defensible model — nothing is unrecoverable — but it is a *different* model from the one described below, and the choice between them is still open. The `updatedAt` field required below is now also required by Section 13.4 for offline sync, so the prerequisite is being built either way.
 Scenario: a user exports a local backup, time passes, Firebase continues to be edited normally by the family (e.g. for a week), and that old backup gets reimported on some device. Naive import risks silently overwriting a week of genuine changes with stale data, because the *write* happens now even though the *content* is old.
 
 **Required rule**: every record carries its own last-modified timestamp as a stored data field (distinct from when a write physically occurs — also useful as a "last edited by/at" transparency field; turns out to be load-bearing for this conflict-handling requirement, not merely cosmetic).
@@ -701,4 +837,4 @@ Given import is already a rare, deliberate, admin-only action, and the family is
 #### 20.2.5 Monetization/platform note
 Context for why 20.2 matters commercially: if Erdkeller is ever sold (20.1), staying PWA rather than migrating to native Android is the recommended path — Google Play would take a 15–30% cut on any in-app purchase/subscription and require Google Play Billing instead of Stripe, whereas the PWA path keeps full control of billing (Stripe + Firebase Auth gating access per household) with no store review process.
 
-The guaranteed local persistence layer (20.2.2) is also a genuine product/marketing point for a crisis-preparedness app: data is confirmed to survive on-device even without connectivity — a claim that can be made accurately rather than assumed.
+Guaranteed local persistence is also a genuine product/marketing point for a crisis-preparedness app: data is confirmed to survive on-device even without connectivity — a claim that can be made accurately rather than assumed. Section 13.2's configuration supports that claim without the explicit mirror 20.2.2 rejected; what the claim must *not* overstate is Section 13.7's limits — no browser storage survives cleared site data or a lost device, which is why the honest version of the pitch pairs offline autonomy with the backup story (Section 14), not with the local store alone.
