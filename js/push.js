@@ -4,7 +4,7 @@
 // and calls into the functions exported here, same split as e.g. the
 // checklist boundary math (js/checklists.js) living apart from the screen
 // that configures its inputs (js/notifications.js) already does.
-import { app, auth, db, functions } from './firebase-init.js?v=156';
+import { app, auth, db, functions } from './firebase-init.js?v=157';
 import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging.js";
 import {
   collection, doc, getDocs, setDoc,
@@ -130,3 +130,13 @@ export async function previewReminders() {
   const result = await previewRemindersFn();
   return result.data;
 }
+
+// Previously refreshIfAlreadyEnabled() only ran when the user happened to
+// open Settings -> Erinnerungen (js/notifications.js's loadPushSection) —
+// so a token that FCM invalidated between visits (observed: phone token hit
+// messaging/registration-token-not-registered) sat dead until someone
+// noticed a missed reminder and manually reopened that screen to "re-sync."
+// Wiring this to the same signedin event every other module uses for its
+// own post-login load makes the re-registration run on every app open,
+// silently, with no dependency on visiting that particular screen.
+window.addEventListener('erdkeller:signedin', () => { refreshIfAlreadyEnabled(); });
