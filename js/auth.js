@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=160';
+import { auth, db } from './firebase-init.js?v=161';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -125,6 +125,15 @@ function renderSignedIn(user, userData) {
 let unsubscribeUserDoc = null;
 
 onAuthStateChanged(auth, async (user) => {
+  // TEMPORARY (Build 161) — offline diagnostic probe, see index.html. This
+  // distinguishes "onAuthStateChanged never fired at all" (auth init hung,
+  // e.g. on the redirect resolver's iframe being unreachable offline) from
+  // "fired but with no user" (session genuinely not restored). Remove with
+  // the rest of the diagnostic.
+  if (window.__ekDiag) {
+    window.__ekDiag.authState = user ? ('angemeldet: ' + (user.email || user.uid)) : 'kein Nutzer';
+    window.__ekDiag.paint();
+  }
   if (unsubscribeUserDoc) {
     unsubscribeUserDoc();
     unsubscribeUserDoc = null;

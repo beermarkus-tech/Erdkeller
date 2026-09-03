@@ -4,7 +4,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { firebaseConfig } from './firebase-config.js?v=160';
+import { firebaseConfig } from './firebase-config.js?v=161';
+
+// TEMPORARY (Build 161) — offline diagnostic probe, see the inline script in
+// index.html. Reaching this line proves the gstatic Firebase SDK imports
+// above actually resolved, which is the thing most likely to fail offline
+// while the service worker is still a passthrough. Remove with the rest.
+if (window.__ekDiag) window.__ekDiag.firebaseInit = true;
 
 export const app = initializeApp(firebaseConfig);
 // SPEC.md Section 13 — Firestore's own persistent cache IS the app's local

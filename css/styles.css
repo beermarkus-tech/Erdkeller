@@ -96,6 +96,26 @@ body.app-ready {
   max-width: 320px;
 }
 
+/* TEMPORARY (Build 161) — offline diagnostic panel, remove once Step 16
+   offline support works. Only ever shown when the app failed to start. */
+.offline-diag {
+  margin-top: 20px;
+  max-width: 320px;
+  max-height: 40vh;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid #d8d5cc;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.03);
+  color: var(--charcoal);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* App shell — fixed to the viewport height with overflow hidden, so the
    sidebar/topbar/bottomnav chrome never scrolls away. `<main>` below is the
    one designated scrollable region. */

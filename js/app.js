@@ -1,3 +1,9 @@
+// TEMPORARY (Build 161) — offline diagnostic probe, see the inline script in
+// index.html. app.js imports nothing, so this flag proves whether LOCAL
+// modules execute at all, independently of whether the gstatic Firebase SDK
+// could be fetched. Remove together with the rest of the diagnostic.
+if (window.__ekDiag) window.__ekDiag.appModule = true;
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js').catch((err) => {
