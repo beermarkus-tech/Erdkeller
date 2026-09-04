@@ -23,22 +23,37 @@
 //      161/162 diagnostics as load-bearing for the auth flow.
 //   4. Install is resilient: one bad URL degrades that single entry rather
 //      than failing the whole installation atomically (cache.addAll would).
-const VERSION = 'erdkeller-v6';
+const VERSION = 'erdkeller-v7';
 const PRECACHE = `erdkeller-precache-${VERSION}`;
-const RUNTIME_CACHE = `erdkeller-runtime-${VERSION}`;
+// Build 171 — deliberately NOT suffixed with VERSION like PRECACHE. This
+// holds opportunistically-cached cross-origin CDN responses (Google
+// Fonts, cdnjs, gstatic Firebase SDK chunks) that don't change with our
+// own app builds. Tying it to VERSION meant activate's cleanup below
+// deleted and force-re-fetched ALL of it on every single deploy — so the
+// very first offline load after any build had no cached fallback for the
+// render-blocking Google Fonts <link rel="stylesheet"> in index.html's
+// <head>, and that fetch has no timeout of its own. Confirmed in the
+// field as a ~30s "carrot" splash (Chrome's native PWA splash, up until
+// first paint) even AFTER Build 170 got Auth itself down to well under a
+// second — a completely different stall hiding behind the same
+// navigator.onLine-lies problem. Keeping this name stable means the CDN
+// cache now survives every future deploy; see the fetch timeout below
+// for the one case this can't cover (a genuinely first-ever offline load
+// on a brand-new device).
+const RUNTIME_CACHE = 'erdkeller-runtime';
 
 // The app shell, at the exact versioned URLs the app requests. The ?v=
 // literals here are swept by the same version bump as every other file, so
 // this list stays in sync automatically.
-const SHELL_URL = 'index.html?v=170';
+const SHELL_URL = 'index.html?v=171';
 const PRECACHE_URLS = [
   SHELL_URL,
-  'css/styles.css?v=170',
-  'manifest.json?v=170',
+  'css/styles.css?v=171',
+  'manifest.json?v=171',
   // Icons are referenced versioned from index.html/manifest.json but bare
   // from the push handler below, so both forms are cached.
-  'icons/icon-192.png?v=170',
-  'icons/icon-512.png?v=170',
+  'icons/icon-192.png?v=171',
+  'icons/icon-512.png?v=171',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/badge-96.png',
@@ -46,40 +61,40 @@ const PRECACHE_URLS = [
   // (firebase-init, firebase-config, push, stock-log, format-batch) are
   // reachable only via ESM import and are the easiest to forget, since
   // nothing in index.html names them.
-  'js/account-menu.js?v=170',
-  'js/admin-log.js?v=170',
-  'js/app-shell.js?v=170',
-  'js/app.js?v=170',
-  'js/auth.js?v=170',
-  'js/back-nav.js?v=170',
-  'js/backup-tabs.js?v=170',
-  'js/backup.js?v=170',
-  'js/checklists.js?v=170',
-  'js/contacts.js?v=170',
-  'js/dashboard.js?v=170',
-  'js/data-tabs.js?v=170',
-  'js/dictate.js?v=170',
-  'js/firebase-config.js?v=170',
-  'js/firebase-init.js?v=170',
-  'js/format-batch.js?v=170',
-  'js/info-nav.js?v=170',
-  'js/notes.js?v=170',
-  'js/notifications.js?v=170',
-  'js/pdf-export.js?v=170',
-  'js/people.js?v=170',
-  'js/planning.js?v=170',
-  'js/push.js?v=170',
-  'js/recipes.js?v=170',
-  'js/refresh-button.js?v=170',
-  'js/settings-nav.js?v=170',
-  'js/stock-checkin.js?v=170',
-  'js/stock-checkout.js?v=170',
-  'js/stock-log.js?v=170',
-  'js/stock-table.js?v=170',
-  'js/storage-locations.js?v=170',
-  'js/targets.js?v=170',
-  'js/taxonomy.js?v=170',
-  'js/year-colors.js?v=170',
+  'js/account-menu.js?v=171',
+  'js/admin-log.js?v=171',
+  'js/app-shell.js?v=171',
+  'js/app.js?v=171',
+  'js/auth.js?v=171',
+  'js/back-nav.js?v=171',
+  'js/backup-tabs.js?v=171',
+  'js/backup.js?v=171',
+  'js/checklists.js?v=171',
+  'js/contacts.js?v=171',
+  'js/dashboard.js?v=171',
+  'js/data-tabs.js?v=171',
+  'js/dictate.js?v=171',
+  'js/firebase-config.js?v=171',
+  'js/firebase-init.js?v=171',
+  'js/format-batch.js?v=171',
+  'js/info-nav.js?v=171',
+  'js/notes.js?v=171',
+  'js/notifications.js?v=171',
+  'js/pdf-export.js?v=171',
+  'js/people.js?v=171',
+  'js/planning.js?v=171',
+  'js/push.js?v=171',
+  'js/recipes.js?v=171',
+  'js/refresh-button.js?v=171',
+  'js/settings-nav.js?v=171',
+  'js/stock-checkin.js?v=171',
+  'js/stock-checkout.js?v=171',
+  'js/stock-log.js?v=171',
+  'js/stock-table.js?v=171',
+  'js/storage-locations.js?v=171',
+  'js/targets.js?v=171',
+  'js/taxonomy.js?v=171',
+  'js/year-colors.js?v=171',
 ];
 
 // Cross-origin hosts whose responses may be cached. The Firebase SDK's ESM
@@ -176,7 +191,15 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
-      return fetch(request).then((response) => {
+      // Bounded for the same reason as the navigation handler above: a
+      // cold cache entry must not hang on this device's real network stack
+      // for ~30s just because navigator.onLine is lying. A render-blocking
+      // resource (e.g. the Google Fonts stylesheet in index.html's <head>)
+      // would otherwise stall first paint for that whole time; failing
+      // fast lets the page render with fallback fonts instead.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2500);
+      return fetch(request, { signal: controller.signal }).then((response) => {
         // Only cache real successes. Opaque cross-origin responses (status 0)
         // are stored too, since that is the only form a no-cors CDN response
         // takes and it still replays correctly offline.
@@ -187,7 +210,7 @@ self.addEventListener('fetch', (event) => {
             .catch(() => { /* cache write failures must never break the fetch */ });
         }
         return response;
-      });
+      }).finally(() => clearTimeout(timer));
     }),
   );
 });
