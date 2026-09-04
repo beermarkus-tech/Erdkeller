@@ -4,7 +4,7 @@
 // and calls into the functions exported here, same split as e.g. the
 // checklist boundary math (js/checklists.js) living apart from the screen
 // that configures its inputs (js/notifications.js) already does.
-import { app, auth, db, functions } from './firebase-init.js?v=166';
+import { app, auth, db, functions } from './firebase-init.js?v=167';
 import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging.js";
 import {
   collection, doc, getDocs, setDoc,

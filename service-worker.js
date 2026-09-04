@@ -30,15 +30,15 @@ const RUNTIME_CACHE = `erdkeller-runtime-${VERSION}`;
 // The app shell, at the exact versioned URLs the app requests. The ?v=
 // literals here are swept by the same version bump as every other file, so
 // this list stays in sync automatically.
-const SHELL_URL = 'index.html?v=166';
+const SHELL_URL = 'index.html?v=167';
 const PRECACHE_URLS = [
   SHELL_URL,
-  'css/styles.css?v=166',
-  'manifest.json?v=166',
+  'css/styles.css?v=167',
+  'manifest.json?v=167',
   // Icons are referenced versioned from index.html/manifest.json but bare
   // from the push handler below, so both forms are cached.
-  'icons/icon-192.png?v=166',
-  'icons/icon-512.png?v=166',
+  'icons/icon-192.png?v=167',
+  'icons/icon-512.png?v=167',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/badge-96.png',
@@ -46,40 +46,40 @@ const PRECACHE_URLS = [
   // (firebase-init, firebase-config, push, stock-log, format-batch) are
   // reachable only via ESM import and are the easiest to forget, since
   // nothing in index.html names them.
-  'js/account-menu.js?v=166',
-  'js/admin-log.js?v=166',
-  'js/app-shell.js?v=166',
-  'js/app.js?v=166',
-  'js/auth.js?v=166',
-  'js/back-nav.js?v=166',
-  'js/backup-tabs.js?v=166',
-  'js/backup.js?v=166',
-  'js/checklists.js?v=166',
-  'js/contacts.js?v=166',
-  'js/dashboard.js?v=166',
-  'js/data-tabs.js?v=166',
-  'js/dictate.js?v=166',
-  'js/firebase-config.js?v=166',
-  'js/firebase-init.js?v=166',
-  'js/format-batch.js?v=166',
-  'js/info-nav.js?v=166',
-  'js/notes.js?v=166',
-  'js/notifications.js?v=166',
-  'js/pdf-export.js?v=166',
-  'js/people.js?v=166',
-  'js/planning.js?v=166',
-  'js/push.js?v=166',
-  'js/recipes.js?v=166',
-  'js/refresh-button.js?v=166',
-  'js/settings-nav.js?v=166',
-  'js/stock-checkin.js?v=166',
-  'js/stock-checkout.js?v=166',
-  'js/stock-log.js?v=166',
-  'js/stock-table.js?v=166',
-  'js/storage-locations.js?v=166',
-  'js/targets.js?v=166',
-  'js/taxonomy.js?v=166',
-  'js/year-colors.js?v=166',
+  'js/account-menu.js?v=167',
+  'js/admin-log.js?v=167',
+  'js/app-shell.js?v=167',
+  'js/app.js?v=167',
+  'js/auth.js?v=167',
+  'js/back-nav.js?v=167',
+  'js/backup-tabs.js?v=167',
+  'js/backup.js?v=167',
+  'js/checklists.js?v=167',
+  'js/contacts.js?v=167',
+  'js/dashboard.js?v=167',
+  'js/data-tabs.js?v=167',
+  'js/dictate.js?v=167',
+  'js/firebase-config.js?v=167',
+  'js/firebase-init.js?v=167',
+  'js/format-batch.js?v=167',
+  'js/info-nav.js?v=167',
+  'js/notes.js?v=167',
+  'js/notifications.js?v=167',
+  'js/pdf-export.js?v=167',
+  'js/people.js?v=167',
+  'js/planning.js?v=167',
+  'js/push.js?v=167',
+  'js/recipes.js?v=167',
+  'js/refresh-button.js?v=167',
+  'js/settings-nav.js?v=167',
+  'js/stock-checkin.js?v=167',
+  'js/stock-checkout.js?v=167',
+  'js/stock-log.js?v=167',
+  'js/stock-table.js?v=167',
+  'js/storage-locations.js?v=167',
+  'js/targets.js?v=167',
+  'js/taxonomy.js?v=167',
+  'js/year-colors.js?v=167',
 ];
 
 // Cross-origin hosts whose responses may be cached. The Firebase SDK's ESM
@@ -134,13 +134,33 @@ self.addEventListener('fetch', (event) => {
   // Navigation: NETWORK-FIRST. Online this is indistinguishable from having
   // no service worker at all, which is what makes it safe for the sign-in
   // flow; the cached shell is only ever used when the network actually fails.
+  //
+  // Bounded with an explicit AbortController timeout rather than a bare
+  // fetch() — observed in the field: a real device with WLAN AND airplane
+  // mode both fully off (confirmed via screenshot, not just navigator.onLine
+  // which is separately known to misreport on this device) took ~30 SECONDS
+  // to reach the .catch() below and fall back to the cached shell — a blank,
+  // unbranded screen for half a minute before anything of ours even started
+  // running. That is the browser's own network stack being slow to conclude
+  // "unreachable," not anything about our code; AbortController forcibly
+  // cancels the attempt rather than waiting for it to fail naturally, and
+  // 2.5s is generous enough that no real connection, even a slow one, would
+  // ever hit it.
   if (request.mode === 'navigate') {
     if (!sameOrigin) return;
-    event.respondWith(
-      fetch(request).catch(() => caches.match(SHELL_URL).then((cached) => (
-        cached || Response.error()
-      ))),
-    );
+    event.respondWith((async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2500);
+      try {
+        const response = await fetch(request, { signal: controller.signal });
+        clearTimeout(timer);
+        return response;
+      } catch (err) {
+        clearTimeout(timer);
+        const cached = await caches.match(SHELL_URL);
+        return cached || Response.error();
+      }
+    })());
     return;
   }
 
