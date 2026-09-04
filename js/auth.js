@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=168';
+import { auth, db } from './firebase-init.js?v=169';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -6,12 +6,20 @@ import {
   getRedirectResult,
   signOut,
   onAuthStateChanged,
+  browserPopupRedirectResolver,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const provider = new GoogleAuthProvider();
+
+// Build 169 — js/firebase-init.js now calls initializeAuth() with no
+// popupRedirectResolver, specifically to stop Auth loading a gapi iframe
+// from apis.google.com as part of its own init on every boot (see that
+// file's comment for the full story). This resolver is what restores
+// popup/redirect sign-in on demand — passed explicitly to the three calls
+// below, so it's only ever fetched when someone actually taps "Anmelden".
 
 const authGate = document.getElementById('auth-gate');
 const appShell = document.getElementById('app');
@@ -120,11 +128,11 @@ signinBtn.addEventListener('click', async () => {
     // That relay is silently dropped under storage partitioning: no error,
     // the app just never sees a signed-in user. Redirect stays as a
     // fallback for contexts where popups genuinely don't work.
-    await signInWithPopup(auth, provider);
+    await signInWithPopup(auth, provider, browserPopupRedirectResolver);
   } catch (err) {
     if (FALLBACK_TO_REDIRECT_CODES.includes(err.code)) {
       try { sessionStorage.setItem(PENDING_REDIRECT_KEY, '1'); } catch (e) { /* ignore */ }
-      signInWithRedirect(auth, provider).catch((err2) => {
+      signInWithRedirect(auth, provider, browserPopupRedirectResolver).catch((err2) => {
         authError.textContent = 'Anmeldung fehlgeschlagen: ' + err2.message;
         console.error(err2);
       });
@@ -175,7 +183,7 @@ let hadPendingRedirect = false;
 try { hadPendingRedirect = sessionStorage.getItem(PENDING_REDIRECT_KEY) === '1'; } catch (e) { /* ignore */ }
 if (hadPendingRedirect) {
   try { sessionStorage.removeItem(PENDING_REDIRECT_KEY); } catch (e) { /* ignore */ }
-  getRedirectResult(auth).catch((err) => {
+  getRedirectResult(auth, browserPopupRedirectResolver).catch((err) => {
     authError.textContent = 'Anmeldung fehlgeschlagen: ' + err.message;
     console.error(err);
   });

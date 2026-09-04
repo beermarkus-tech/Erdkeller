@@ -3,9 +3,11 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, CACHE_SIZE_UNLIMITED,
   disableNetwork, enableNetwork,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import {
+  initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence,
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { firebaseConfig } from './firebase-config.js?v=168';
+import { firebaseConfig } from './firebase-config.js?v=169';
 
 // TEMPORARY (Build 161) — offline diagnostic probe, see the inline script in
 // index.html. Reaching this line proves the gstatic Firebase SDK imports
@@ -30,7 +32,40 @@ export const db = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager(),
   }),
 });
-export const auth = getAuth(app);
+// Build 169 — deliberately NOT getAuth(app). getAuth() on the browser
+// platform passes browserPopupRedirectResolver into initializeAuth() up
+// front, which on any device _isMobileBrowser() (i.e. Android and iOS,
+// confirmed both our test phone and tablet) makes Auth proactively load a
+// gapi iframe from apis.google.com/js/api.js as part of its OWN init
+// (auth_impl.ts: `if (this._popupRedirectResolver?._shouldInitProactively)
+// await this._popupRedirectResolver._initialize(this)`), and separately
+// makes initializeCurrentUser() call getRedirectResult() internally on
+// every single boot — regardless of whether the app itself ever calls it.
+// That is why Build 168 removing our own getRedirectResult() call changed
+// nothing: the SDK was making an equivalent call anyway.
+//
+// That iframe load has a 30s timeout (60s on a second attempt after the
+// first fails), and Delay.get()'s 5s "offline" shortcut only applies when
+// navigator.onLine is false — which this device reports as true in
+// airplane mode. So on mobile, every offline boot paid up to ~60s before
+// onAuthStateChanged could fire even once, because registerStateListener()
+// gates every auth callback behind this same _initializationPromise. And
+// because Firestore's own credentials provider (FirebaseAuthCredentialsProvider)
+// waits on Auth's listener before it will decide it's offline, the app's
+// getDocs() calls stayed stuck trying the server the whole time too — this
+// single SDK default explains both the auth stall AND the empty-data stall
+// observed in the field.
+//
+// Fix: initializeAuth() with no popupRedirectResolver. Auth then resolves
+// from IndexedDB/localStorage persistence alone, with no network call at
+// all, exactly as fast offline as on. The resolver is loaded on demand
+// instead, passed explicitly into signInWithPopup/signInWithRedirect/
+// getRedirectResult in js/auth.js — meaning apis.google.com is only ever
+// touched when someone actually taps "Anmelden", which needs network
+// anyway. Documented as supported: https://firebase.google.com/docs/reference/js/auth.dependencies
+export const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence],
+});
 // Only js/dictate.js's parseDictation call uses this — everything else in
 // the app is Firestore-only, no other screen needs a Cloud Function.
 export const functions = getFunctions(app);
