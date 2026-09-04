@@ -10,7 +10,7 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=173';
+import { db } from './firebase-init.js?v=174';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -1069,16 +1069,29 @@ async function buildMaintenanceSection(pdf) {
   const FREQ_LABELS = {
     weekly: 'Wöchentlich', monthly: 'Monatlich', quarterly: 'Vierteljährlich', halfYearly: 'Halbjährlich', yearly: 'Jährlich',
   };
+  // Reads the legacy single document for now (dev plan Step 16.3, step 5:
+  // this switches to the split /checklists + /checklistItems collections
+  // only at step 6's cutover, in lockstep with js/checklists.js and the
+  // CSV export below — switching any one of the three early would mean
+  // exports silently miss ticks still landing on whichever source hasn't
+  // cut over yet).
   const snap = await getDoc(doc(db, 'config', 'checklists'));
-  const lists = snap.exists() && Array.isArray(snap.data().lists) ? snap.data().lists : [];
-  if (lists.length === 0) {
+  const rawLists = snap.exists() && Array.isArray(snap.data().lists) ? snap.data().lists : [];
+  if (rawLists.length === 0) {
     bodyText(pdf, y, 'Keine Checklisten vorhanden.');
     return;
   }
+  // Explicit sort, not stored order: js/checklists.js's sortMaintenanceInPlace()
+  // is going away as part of the same migration (order stops being a
+  // stored property once items are individually-addressable documents),
+  // so this reproduces its exact comparator here to keep this export's
+  // output byte-identical across that change.
+  const lists = [...rawLists].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
   lists.forEach((list) => {
     y += SECTION_GAP;
     y = subheading(pdf, y, list.name || '');
-    (list.items || []).forEach((item) => {
+    const items = [...(list.items || [])].sort((a, b) => (a.text || '').localeCompare(b.text || '', 'de'));
+    items.forEach((item) => {
       const freq = FREQ_LABELS[item.frequency] || item.frequency || '';
       y = checkboxLine(pdf, y, item.text || '', freq);
     });

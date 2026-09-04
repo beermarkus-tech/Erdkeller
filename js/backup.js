@@ -14,7 +14,7 @@
 // replacement wrote (every subsequent write's isAdmin() check re-reads
 // /users/{currentUid}). Roles/names are managed only through Settings →
 // Personen, backup or no backup.
-import { db } from './firebase-init.js?v=173';
+import { db } from './firebase-init.js?v=174';
 import {
   collection, getDocs, doc, getDoc, setDoc, deleteDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -117,11 +117,21 @@ checklistsBtn.addEventListener('click', () => downloadCsv(checklistsBtn, 'checkl
   const FREQ_LABELS = {
     weekly: 'Wöchentlich', monthly: 'Monatlich', quarterly: 'Vierteljährlich', halfYearly: 'Halbjährlich', yearly: 'Jährlich',
   };
+  // Reads the legacy single document for now — see js/pdf-export.js's
+  // buildMaintenanceSection for why this and the PDF export both stay on
+  // /config/checklists until the Step 16.3 cutover switches all three
+  // read sites (this one, the PDF, and js/checklists.js itself) together.
   const snap = await getDoc(doc(db, 'config', 'checklists'));
-  const lists = snap.exists() && Array.isArray(snap.data().lists) ? snap.data().lists : [];
+  const rawLists = snap.exists() && Array.isArray(snap.data().lists) ? snap.data().lists : [];
+  // Explicit sort reproducing sortMaintenanceInPlace()'s comparator — see
+  // js/pdf-export.js's identical comment; that function is retired as
+  // part of this same migration, so this keeps CSV output byte-identical
+  // across the change rather than depending on stored array order.
+  const lists = [...rawLists].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
   const rows = [];
   lists.forEach((list) => {
-    (list.items || []).forEach((item) => {
+    const items = [...(list.items || [])].sort((a, b) => (a.text || '').localeCompare(b.text || '', 'de'));
+    items.forEach((item) => {
       rows.push({
         list: list.name || '',
         text: item.text || '',
