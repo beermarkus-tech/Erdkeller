@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=165';
+import { auth, db } from './firebase-init.js?v=166';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -240,7 +240,19 @@ function renderSignedIn(identity) {
 // down before attaching a new one — never more than one live at a time.
 let unsubscribeUserDoc = null;
 
+// Set the moment onAuthStateChanged fires for the first time, and used by
+// the boot grace-period timer below to know whether it still needs to act.
+// See that timer's comment for why this can't just check navigator.onLine.
+let authSettled = false;
+let bootDataTimer = null;
+
 onAuthStateChanged(auth, async (user) => {
+  authSettled = true;
+  if (bootDataTimer) {
+    clearTimeout(bootDataTimer);
+    bootDataTimer = null;
+  }
+
   // TEMPORARY (Build 161) — offline diagnostic probe, see index.html. This
   // distinguishes "onAuthStateChanged never fired at all" (auth init hung,
   // e.g. on the redirect resolver's iframe being unreachable offline) from
@@ -323,32 +335,39 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // Boot: before Firebase Auth has resolved anything at all, put the app on
-// screen from the cached identity. This is what makes an offline start feel
-// instant instead of a multi-second wait staring at a login screen you
-// already passed. With no cached identity (first ever run, or after a real
-// sign-out) nothing happens here and the normal login screen shows.
+// screen from the cached identity. This is what makes a start from a warm
+// cache feel instant instead of a multi-second wait staring at a login
+// screen you already passed. With no cached identity (first ever run, or
+// after a real sign-out) nothing happens here and the normal login screen
+// shows.
 const bootIdentity = readCachedIdentity();
 if (bootIdentity) {
-  if (navigator.onLine) {
-    // ONLINE: paint the shell only. Firing erdkeller:signedin now would have
-    // every screen issue Firestore reads while auth.currentUser is still
-    // null, and those reach the server unauthenticated and come back
-    // permission-denied — the hazard js/taxonomy.js:555-558 documents. The
-    // data can afford to wait the few hundred ms for auth here.
-    paintSignedIn(bootIdentity);
-  } else {
-    // OFFLINE: also start loading data immediately, without waiting for
-    // Auth. Safe precisely because that hazard is about SERVER-SIDE rule
-    // evaluation: offline, Firestore answers every read from its local
-    // persistent cache and never contacts the server, so no rule is ever
-    // evaluated and nothing can be rejected for missing credentials.
-    //
-    // This is the difference between "shell appears instantly but the
-    // screens sit empty for 20s" and the app actually being usable, because
-    // Auth's own init is still slow offline — it tries to refresh an expired
-    // ID token and has to wait for that to fail. renderedRole then stops
-    // onAuthStateChanged from re-dispatching and reloading everything again
-    // once it finally resolves to the same role.
-    renderSignedIn(bootIdentity);
-  }
+  // Paint the shell immediately either way. Whether it's also safe to start
+  // loading DATA immediately (i.e. dispatch erdkeller:signedin) depends on
+  // whether Firestore reads will hit the network unauthenticated — which is
+  // NOT reliably predicted by navigator.onLine, as Build 165 assumed.
+  //
+  // Observed in the field: navigator.onLine reported true (Wi-Fi was up)
+  // while auth was actually unreachable, and Firebase Auth's own init hung
+  // indefinitely trying to load its popup/redirect iframe helper from
+  // apis.google.com — onAuthStateChanged never fired at all, not even after
+  // 25+ seconds. The "wait for the real event, it's only a few hundred ms"
+  // assumption behind the online branch was therefore wrong exactly when it
+  // mattered: the household was online-per-navigator.onLine but staring at
+  // empty screens indefinitely.
+  //
+  // So: paint now, and ALSO start a short grace-period timer. If Auth
+  // hasn't settled by the time it fires, start loading data from the cached
+  // identity regardless of what navigator.onLine claims — a real
+  // onAuthStateChanged that resolves after this still corrects everything
+  // via the normal handler above (renderedRole's dedup means a matching
+  // role just doesn't re-dispatch; a different one, or no user, does the
+  // right thing). In the common case auth resolves in well under 1.5s and
+  // this timer never fires at all, so nothing changes for a healthy
+  // connection.
+  paintSignedIn(bootIdentity);
+  bootDataTimer = setTimeout(() => {
+    bootDataTimer = null;
+    if (!authSettled) renderSignedIn(bootIdentity);
+  }, 1500);
 }
