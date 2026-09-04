@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=176';
-import { renderRecentLog } from './stock-log.js?v=176';
-import { renderResultLines } from './format-batch.js?v=176';
-import { switchTabWithoutReset } from './app-shell.js?v=176';
+import { db } from './firebase-init.js?v=177';
+import { renderRecentLog } from './stock-log.js?v=177';
+import { renderResultLines } from './format-batch.js?v=177';
+import { switchTabWithoutReset } from './app-shell.js?v=177';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -638,10 +638,13 @@ checkinConfirmBtn.addEventListener('click', async () => {
   try {
     let productId = selection.product.id;
     if (selection.isNewProduct) {
+      const nowIso = new Date().toISOString();
       const newDoc = await addDoc(collection(db, 'products'), {
         name: selection.product.name,
         subcategoryId: selection.product.subcategoryId,
         unitType: selection.product.unitType,
+        createdAt: nowIso,
+        updatedAt: nowIso,
       });
       productId = newDoc.id;
       selection.product.id = productId;

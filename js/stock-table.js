@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=176';
-import { PALETTE } from './year-colors.js?v=176';
-import { openAddFlow } from './stock-checkin.js?v=176';
-import { switchTabWithoutReset } from './app-shell.js?v=176';
+import { db } from './firebase-init.js?v=177';
+import { PALETTE } from './year-colors.js?v=177';
+import { openAddFlow } from './stock-checkin.js?v=177';
+import { switchTabWithoutReset } from './app-shell.js?v=177';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -745,7 +745,7 @@ editSaveBtn.addEventListener('click', async () => {
     editSaveBtn.disabled = true;
     try {
       if (newName && newName !== productName(editingBatch.productId)) {
-        await updateDoc(doc(db, 'products', editingBatch.productId), { name: newName });
+        await updateDoc(doc(db, 'products', editingBatch.productId), { name: newName, updatedAt: new Date().toISOString() });
         const product = productIndex.get(editingBatch.productId);
         if (product) product.name = newName;
       }
@@ -779,7 +779,7 @@ editSaveBtn.addEventListener('click', async () => {
     // Product name lives on /products, not the batch — a rename here is a
     // catalog-wide rename, applying to every batch of this product.
     if (newName && newName !== productName(editingBatch.productId)) {
-      await updateDoc(doc(db, 'products', editingBatch.productId), { name: newName });
+      await updateDoc(doc(db, 'products', editingBatch.productId), { name: newName, updatedAt: new Date().toISOString() });
       const product = productIndex.get(editingBatch.productId);
       if (product) product.name = newName;
     }

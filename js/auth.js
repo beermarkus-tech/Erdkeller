@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=176';
+import { auth, db } from './firebase-init.js?v=177';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -211,7 +211,6 @@ async function ensureUserDoc(user) {
       name: user.displayName || '',
       photoURL: user.photoURL || '',
       role: 'member',
-      fcmToken: null,
       createdAt: new Date().toISOString(),
     });
     return;

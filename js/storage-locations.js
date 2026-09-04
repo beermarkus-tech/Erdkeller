@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=176';
+import { db } from './firebase-init.js?v=177';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const listEl = document.getElementById('storage-list');
@@ -34,7 +34,7 @@ async function saveStorage() {
   }
   statusEl.textContent = 'Speichere…';
   try {
-    await setDoc(ref, { locations });
+    await setDoc(ref, { locations, updatedAt: new Date().toISOString() });
     statusEl.textContent = '';
     // stock-checkin/-checkout/-table cache this list in memory and only
     // reload on this event — same bug class as js/taxonomy.js's

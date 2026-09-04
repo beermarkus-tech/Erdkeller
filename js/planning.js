@@ -7,7 +7,7 @@
 // category picker: which stock counts as water is now a whole Taxonomie
 // type tagged Wasser (js/taxonomy.js), summed globally in the Übersicht
 // (js/dashboard.js) rather than assigned to one hand-picked category here.
-import { db } from './firebase-init.js?v=176';
+import { db } from './firebase-init.js?v=177';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const planningCard = document.querySelector('.settings-card[data-target="planning"]');
@@ -80,6 +80,7 @@ async function saveHousehold() {
   }
   statusEl.textContent = 'Speichere…';
   try {
+    household.updatedAt = new Date().toISOString();
     await setDoc(doc(db, 'config', 'household'), household);
     statusEl.textContent = '';
     // Dashboard/Ziele cache household+planning in memory and only reload
@@ -99,6 +100,7 @@ async function savePlanning() {
   }
   statusEl.textContent = 'Speichere…';
   try {
+    planning.updatedAt = new Date().toISOString();
     await setDoc(doc(db, 'config', 'planning'), planning);
     statusEl.textContent = '';
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));

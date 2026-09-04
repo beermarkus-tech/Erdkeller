@@ -8,7 +8,7 @@ import {
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { firebaseConfig } from './firebase-config.js?v=176';
+import { firebaseConfig } from './firebase-config.js?v=177';
 
 export const app = initializeApp(firebaseConfig);
 // SPEC.md Section 13 — Firestore's own persistent cache IS the app's local

@@ -19,7 +19,7 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=176';
+import { db } from './firebase-init.js?v=177';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -179,6 +179,7 @@ async function saveTargets() {
   }
   statusEl.textContent = 'Speichere…';
   try {
+    targets.updatedAt = new Date().toISOString();
     await setDoc(doc(db, 'config', 'targets'), targets);
     statusEl.textContent = '';
     // js/dashboard.js caches /config/targets in memory (its Kategorien/
@@ -968,7 +969,10 @@ nonfoodNewCreateBtn.addEventListener('click', async () => {
   }
   nonfoodNewCreateBtn.disabled = true;
   try {
-    const newDoc = await addDoc(collection(db, 'products'), { name, subcategoryId, unitType: unit });
+    const nowIso = new Date().toISOString();
+    const newDoc = await addDoc(collection(db, 'products'), {
+      name, subcategoryId, unitType: unit, createdAt: nowIso, updatedAt: nowIso,
+    });
     const product = { id: newDoc.id, name, subcategoryId, unitType: unit };
     allProducts.push(product);
     productIndex.set(product.id, product);
@@ -1017,7 +1021,10 @@ newProductCreateBtn.addEventListener('click', async () => {
   }
   newProductCreateBtn.disabled = true;
   try {
-    const newDoc = await addDoc(collection(db, 'products'), { name, subcategoryId, unitType: newProductUnit });
+    const nowIso = new Date().toISOString();
+    const newDoc = await addDoc(collection(db, 'products'), {
+      name, subcategoryId, unitType: newProductUnit, createdAt: nowIso, updatedAt: nowIso,
+    });
     const product = { id: newDoc.id, name, subcategoryId, unitType: newProductUnit };
     allProducts.push(product);
     productIndex.set(product.id, product);

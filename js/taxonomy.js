@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=176';
+import { db } from './firebase-init.js?v=177';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const editorEl = document.getElementById('taxonomy-editor');
@@ -144,6 +144,7 @@ async function saveTaxonomy() {
   }
   statusEl.textContent = 'Speichere…';
   try {
+    taxonomy.updatedAt = new Date().toISOString();
     await setDoc(ref, taxonomy);
     statusEl.textContent = '';
     // Every other module that reads taxonomy (Ziele, Planung, Übersicht,

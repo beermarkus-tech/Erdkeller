@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js?v=176';
+import { db } from './firebase-init.js?v=177';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const listEl = document.getElementById('year-color-list');
@@ -51,6 +51,7 @@ async function saveYearColors() {
   }
   statusEl.textContent = 'Speichere…';
   try {
+    yearColorMap.updatedAt = new Date().toISOString();
     await setDoc(ref, yearColorMap);
     statusEl.textContent = '';
     // stock-checkin/-checkout/-table cache this map in memory and only
@@ -64,8 +65,11 @@ async function saveYearColors() {
 }
 
 function sortedKeys() {
+  // Excludes 'updatedAt' too now (Step 16.4) — a metadata field alongside
+  // the year keys, not a year itself; without this filter it would sort
+  // as NaN and render as a spurious row.
   const years = Object.keys(yearColorMap)
-    .filter((k) => k !== 'none')
+    .filter((k) => k !== 'none' && k !== 'updatedAt')
     .sort((a, b) => Number(a) - Number(b));
   return [...years, 'none'];
 }
