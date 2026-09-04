@@ -5,9 +5,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence,
+  onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { firebaseConfig } from './firebase-config.js?v=169';
+import { firebaseConfig } from './firebase-config.js?v=170';
 
 // TEMPORARY (Build 161) — offline diagnostic probe, see the inline script in
 // index.html. Reaching this line proves the gstatic Firebase SDK imports
@@ -63,8 +64,65 @@ export const db = initializeFirestore(app, {
 // getRedirectResult in js/auth.js — meaning apis.google.com is only ever
 // touched when someone actually taps "Anmelden", which needs network
 // anyway. Documented as supported: https://firebase.google.com/docs/reference/js/auth.dependencies
+// Build 170 — even with no popupRedirectResolver above, Auth's init still
+// unconditionally calls _reloadWithoutSaving(user) on every boot with a
+// cached session (reloadAndSetCurrentUserOrClear in the SDK's
+// auth_impl.ts) — a real fetch to identitytoolkit.googleapis.com to
+// re-fetch the account (and to securetoken.googleapis.com first, if the
+// stored ID token is stale), BEFORE the first onAuthStateChanged fires.
+// This is a separate, non-optional code path from the gapi iframe fixed
+// above, and it explains why Build 169 cut the offline stall from
+// ~52-90s to ~26s rather than to near-zero: it hit the exact same root
+// cause — Firebase's internal Delay(30000, 60000) timeout for this
+// request only takes its 5s "offline" shortcut when navigator.onLine is
+// false, which this device does not reliably report.
+//
+// Worse, this one call gates more than Auth: Firestore's local
+// persistence is keyed by uid, so it structurally cannot serve ANY
+// cached document — even ones already on disk — until it knows which
+// user's partition to read, which it only learns from Auth's first
+// credential callback. That's why DATA, not just the login screen, sat
+// empty for the same ~26-30s: never a Firestore problem, always
+// downstream of this one Auth network call.
+//
+// There is no public Auth option to skip it, so: race it against our own
+// signal instead of Firebase's. _performFetchWithErrorHandling (in the
+// SDK's api/index.ts) already races the real fetch against its own
+// internal timeout and explicitly re-labels ANY resulting exception that
+// isn't already a FirebaseError — an AbortError included — as
+// 'auth/network-request-failed', which is precisely the code
+// reloadAndSetCurrentUserOrClear treats as "keep the cached user, don't
+// sign out" rather than "clear it". So capping the fetch ourselves is
+// safe by the SDK's own design, not a hack around it: we're just
+// resolving that race faster than Firebase's own 30-60s branch would.
+//
+// Scoped tightly on purpose: only Auth's two REST hosts, only until the
+// FIRST onAuthStateChanged fires (covers exactly the boot-time reload
+// this exists for), restored immediately after — so a later interactive
+// sign-in or a background token refresh is never subject to this cap and
+// can never fail just because a real connection was momentarily slow.
+const AUTH_FETCH_HOSTS = ['identitytoolkit.googleapis.com', 'securetoken.googleapis.com'];
+const AUTH_FETCH_CAP_MS = 2000;
+const nativeFetch = window.fetch.bind(window);
+let capAuthFetch = true;
+window.fetch = (input, init) => {
+  if (!capAuthFetch) return nativeFetch(input, init);
+  let host = '';
+  try { host = new URL(typeof input === 'string' ? input : input.url, location.href).hostname; } catch (e) { /* ignore */ }
+  if (!AUTH_FETCH_HOSTS.includes(host)) return nativeFetch(input, init);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AUTH_FETCH_CAP_MS);
+  return nativeFetch(input, { ...(init || {}), signal: controller.signal }).finally(() => clearTimeout(timer));
+};
+
 export const auth = initializeAuth(app, {
   persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence],
+});
+
+const stopAuthFetchCap = onAuthStateChanged(auth, () => {
+  capAuthFetch = false;
+  window.fetch = nativeFetch;
+  stopAuthFetchCap();
 });
 // Only js/dictate.js's parseDictation call uses this — everything else in
 // the app is Firestore-only, no other screen needs a Cloud Function.
