@@ -14,7 +14,7 @@
 // replacement wrote (every subsequent write's isAdmin() check re-reads
 // /users/{currentUid}). Roles/names are managed only through Settings →
 // Personen, backup or no backup.
-import { db } from './firebase-init.js?v=171';
+import { db } from './firebase-init.js?v=172';
 import {
   collection, getDocs, doc, getDoc, setDoc, deleteDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -191,7 +191,15 @@ recipesBtn.addEventListener('click', () => downloadCsv(recipesBtn, 'rezepte', as
 // copy, not a readable report (that's what the CSVs above are for).
 // /users is intentionally not included — see the file header comment.
 
-const COLLECTIONS = ['products', 'stockItems', 'stockLog', 'contacts', 'notes', 'recipes'];
+// 'checklists'/'checklistItems' added ahead of the Step 16.3 migration
+// (dev plan) landing — until that migration action has actually run these
+// two collections are simply empty in every backup, no different from any
+// other unused collection. 'checklists' also still appears below in
+// CONFIG_DOCS for the legacy /config/checklists doc; both names are kept
+// deliberately distinct (a flat collection vs. a /config singleton) rather
+// than colliding, and the legacy entry is removed only once the migration
+// fully cuts over (see dev plan Step 16.3, step 7).
+const COLLECTIONS = ['products', 'stockItems', 'stockLog', 'contacts', 'notes', 'recipes', 'checklists', 'checklistItems'];
 const CONFIG_DOCS = [
   'taxonomy', 'targets', 'household', 'planning',
   'storageLocations', 'yearColorMap', 'checklists', 'crisisTypes', 'notifications',

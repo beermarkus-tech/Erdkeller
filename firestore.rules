@@ -42,19 +42,54 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Step 12: /config/checklists is the one /config doc any signed-in
-    // family member can write, not just admin — ticking off a task is a
-    // member action, same reasoning as /stockItems check-in/check-out
-    // (Step 7), not a structural edit. Firestore rules can't cheaply tell
-    // "toggled one item's lastCompletedAt" apart from "restructured the
-    // whole list" within one nested-array document, so the document-level
-    // permission is member-wide; the admin-only Settings → Checklisten
-    // editor is what actually keeps add/remove/rename behind admin in
-    // practice. This literal path match takes precedence over the generic
-    // /config/{docId} wildcard above regardless of file order — Firestore
-    // rules resolve to the most specific matching pattern for a path.
+    // Step 12 (legacy — superseded by /checklists + /checklistItems below,
+    // see dev plan Step 16.3): /config/checklists is the one /config doc
+    // any signed-in family member can write, not just admin — ticking off
+    // a task is a member action, same reasoning as /stockItems check-in/
+    // check-out (Step 7), not a structural edit. Firestore rules couldn't
+    // cheaply tell "toggled one item's lastCompletedAt" apart from
+    // "restructured the whole list" within one nested-array document, so
+    // the document-level permission had to be member-wide, with the
+    // admin-only Settings → Checklisten editor as the only thing actually
+    // keeping add/remove/rename behind admin — enforced by UI convention,
+    // not by these rules. This literal path match takes precedence over
+    // the generic /config/{docId} wildcard above regardless of file order
+    // — Firestore rules resolve to the most specific matching pattern for
+    // a path.
+    //
+    // Kept live (not `if false`) until the Step 16.3 migration's cutover
+    // ships and Cloud Functions' fallback read is retired — see the two
+    // new match blocks below, which supersede this one for anything that
+    // has migrated. Once cutover ships this becomes `allow write: if
+    // false` first (a stale long-lived tab should fail loudly, not write
+    // to a document nothing reads any more), then the whole block is
+    // deleted.
     match /config/checklists {
       allow read, write: if isSignedIn();
+    }
+
+    // Step 16.3: the per-document replacement for /config/checklists
+    // above, splitting one wholesale-rewritten document into two flat
+    // collections so two devices editing offline can merge instead of
+    // clobber (dev plan Step 16.3 has the full migration). Unlike the
+    // legacy doc, rules here CAN cheaply tell a tick apart from a
+    // restructure — each item is now its own document — so this is a
+    // real enforcement, not just a UI convention: a member can only ever
+    // change an item's lastCompletedAt/updatedAt: anything else (its
+    // text, frequency, listId, or any /checklists list itself) requires
+    // isAdmin(), for the first time actually server-enforced rather than
+    // merely hidden behind the admin-only pencil toggle in the UI.
+    match /checklists/{listId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+    match /checklistItems/{itemId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isSignedIn()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['lastCompletedAt', 'updatedAt']));
     }
 
     // Step 6: /products (master catalog). Unlike /config, any signed-in

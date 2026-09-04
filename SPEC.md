@@ -752,7 +752,8 @@ These need to happen outside Claude Code — mostly account/console setup that o
 
 ## 19. Remaining Open Items
 
-- **Offline support is the largest outstanding piece of work** — Section 13, built as Steps 16 / 16b / 16c. Section 2 lists offline-first as a core requirement and the app currently doesn't start without a connection at all, which makes this the biggest gap between what this spec promises and what ships.
+- **Offline support, checklist conflict resolution specifically** — Section 13, Step 16.3. App-shell caching and Firestore persistence are built and confirmed fast on real devices (Section 13.8), but `/config/checklists` is still one document rewritten wholesale on every tick, so two people ticking different items on two offline devices still lose one device's entire set of edits on reconnect — the last piece standing between "offline works" and "offline is actually safe to use with more than one person."
+- **QR / Labels (Step 18) — not built at all.** No QR generation, scanning, or printable label template exists anywhere in the code, despite Section 2 and Section 11 describing it as a planned core feature. Label printer/size is listed below as a separate open decision, but the feature itself hasn't been started.
 - **Best-before/MHD push reminders** — the second half of Section 12. Checklist reminders shipped in Builds 154–157; MHD reminders reuse the same scheduler, recipient resolution and display path, and still need their own threshold config (1/3/6 months) and due computation.
 - **Import conflict model undecided** — the shipped import is a full replace with a typed confirmation and an automatic safety backup; Section 20.2.4 describes a per-record timestamp comparison instead. Both are defensible; the choice is open, and `updatedAt` (a Section 13.4 prerequisite anyway) is what either needs.
 - Label printer/size — to decide once a printer is chosen (template stays flexible until then)
