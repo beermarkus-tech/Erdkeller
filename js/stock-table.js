@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=177';
-import { PALETTE } from './year-colors.js?v=177';
-import { openAddFlow } from './stock-checkin.js?v=177';
-import { switchTabWithoutReset } from './app-shell.js?v=177';
+import { db } from './firebase-init.js?v=178';
+import { PALETTE } from './year-colors.js?v=178';
+import { openAddFlow } from './stock-checkin.js?v=178';
+import { switchTabWithoutReset } from './app-shell.js?v=178';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";

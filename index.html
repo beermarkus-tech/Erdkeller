@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=177">
-<link rel="icon" href="icons/icon-192.png?v=177">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=177">
+<link rel="manifest" href="manifest.json?v=178">
+<link rel="icon" href="icons/icon-192.png?v=178">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=178">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=177">
+<link rel="stylesheet" href="css/styles.css?v=178">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 177</div>
+<div id="build-tag" class="build-tag">Build 178</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -692,6 +692,11 @@
         <div class="settings-card" data-target="pdf">
           <span class="sym">🖨️</span>
           <div class="sc-text"><div class="sc-title">PDF-Export</div><div class="sc-sub">Drucken &amp; Sichern</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="settings-card" data-target="verbindung">
+          <span class="sym">📡</span>
+          <div class="sc-text"><div class="sc-title">Verbindung</div><div class="sc-sub">Funkstille, Sync, KI-Diktieren</div></div>
           <span class="chev">›</span>
         </div>
       </div>
@@ -1446,6 +1451,44 @@
         <button type="button" class="confirm-btn" id="pdf-create-btn">PDF erstellen</button>
         <p id="pdf-status" class="taxonomy-status"></p>
       </div>
+
+      <div class="settings-panel hidden" id="settings-panel-verbindung">
+        <div class="sticky-panel-header">
+          <div class="panel-header-row">
+            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
+          </div>
+        </div>
+
+        <div class="tax-planning-toggle" id="verbindung-funkstille-row">
+          <input type="checkbox" id="verbindung-funkstille-toggle">
+          <label for="verbindung-funkstille-toggle">Funkstille — dieses Gerät komplett offline</label>
+        </div>
+        <p class="settings-note">Trennt nur dieses Gerät gezielt von Firebase: keine Synchronisation, kein KI-Diktieren, keine Push-Benachrichtigungen (die kommen ohne Netz ohnehin nicht an). Andere Geräte sind nicht betroffen. Änderungen bleiben lokal gespeichert und synchronisieren automatisch, sobald Funkstille wieder ausgeschaltet wird.</p>
+
+        <div class="section-label">Einzelne Funktionen</div>
+        <div id="verbindung-suboptions">
+          <div class="tax-planning-toggle" id="verbindung-sync-row">
+            <input type="checkbox" id="verbindung-sync-toggle" checked>
+            <label for="verbindung-sync-toggle">Synchronisation</label>
+          </div>
+          <div class="tax-planning-toggle" id="verbindung-ai-row">
+            <input type="checkbox" id="verbindung-ai-toggle" checked>
+            <label for="verbindung-ai-toggle">KI-Diktieren</label>
+          </div>
+        </div>
+
+        <div class="section-label">Weitere Einstellungen</div>
+        <div class="product-list">
+          <div class="settings-card" data-target="notifications">
+            <span class="sym">🔔</span>
+            <div class="sc-text"><div class="sc-title">Erinnerungen</div><div class="sc-sub" id="verbindung-notif-status">Wird geladen…</div></div>
+            <span class="chev">›</span>
+          </div>
+        </div>
+        <p class="settings-note">Cloud-Backup bekommt hier einen eigenen Schalter, sobald die automatische Sicherung gebaut ist (SPEC.md Section 14).</p>
+
+        <p id="verbindung-status" class="taxonomy-status"></p>
+      </div>
     </div>
   </main>
 
@@ -1469,34 +1512,35 @@
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="js/app.js?v=177"></script>
-<script type="module" src="js/auth.js?v=177"></script>
-<script type="module" src="js/app-shell.js?v=177"></script>
-<script type="module" src="js/account-menu.js?v=177"></script>
-<script type="module" src="js/refresh-button.js?v=177"></script>
-<script type="module" src="js/settings-nav.js?v=177"></script>
-<script type="module" src="js/data-tabs.js?v=177"></script>
-<script type="module" src="js/taxonomy.js?v=177"></script>
-<script type="module" src="js/storage-locations.js?v=177"></script>
-<script type="module" src="js/year-colors.js?v=177"></script>
-<script type="module" src="js/stock-checkin.js?v=177"></script>
-<script type="module" src="js/stock-checkout.js?v=177"></script>
-<script type="module" src="js/stock-table.js?v=177"></script>
-<script type="module" src="js/dashboard.js?v=177"></script>
-<script type="module" src="js/targets.js?v=177"></script>
-<script type="module" src="js/planning.js?v=177"></script>
-<script type="module" src="js/notifications.js?v=177"></script>
-<script type="module" src="js/checklists.js?v=177"></script>
-<script type="module" src="js/info-nav.js?v=177"></script>
-<script type="module" src="js/contacts.js?v=177"></script>
-<script type="module" src="js/notes.js?v=177"></script>
-<script type="module" src="js/recipes.js?v=177"></script>
-<script type="module" src="js/backup-tabs.js?v=177"></script>
-<script type="module" src="js/backup.js?v=177"></script>
-<script type="module" src="js/admin-log.js?v=177"></script>
-<script type="module" src="js/people.js?v=177"></script>
-<script type="module" src="js/pdf-export.js?v=177"></script>
-<script type="module" src="js/dictate.js?v=177"></script>
-<script type="module" src="js/back-nav.js?v=177"></script>
+<script src="js/app.js?v=178"></script>
+<script type="module" src="js/auth.js?v=178"></script>
+<script type="module" src="js/app-shell.js?v=178"></script>
+<script type="module" src="js/account-menu.js?v=178"></script>
+<script type="module" src="js/refresh-button.js?v=178"></script>
+<script type="module" src="js/settings-nav.js?v=178"></script>
+<script type="module" src="js/data-tabs.js?v=178"></script>
+<script type="module" src="js/taxonomy.js?v=178"></script>
+<script type="module" src="js/storage-locations.js?v=178"></script>
+<script type="module" src="js/year-colors.js?v=178"></script>
+<script type="module" src="js/stock-checkin.js?v=178"></script>
+<script type="module" src="js/stock-checkout.js?v=178"></script>
+<script type="module" src="js/stock-table.js?v=178"></script>
+<script type="module" src="js/dashboard.js?v=178"></script>
+<script type="module" src="js/targets.js?v=178"></script>
+<script type="module" src="js/planning.js?v=178"></script>
+<script type="module" src="js/notifications.js?v=178"></script>
+<script type="module" src="js/verbindung.js?v=178"></script>
+<script type="module" src="js/checklists.js?v=178"></script>
+<script type="module" src="js/info-nav.js?v=178"></script>
+<script type="module" src="js/contacts.js?v=178"></script>
+<script type="module" src="js/notes.js?v=178"></script>
+<script type="module" src="js/recipes.js?v=178"></script>
+<script type="module" src="js/backup-tabs.js?v=178"></script>
+<script type="module" src="js/backup.js?v=178"></script>
+<script type="module" src="js/admin-log.js?v=178"></script>
+<script type="module" src="js/people.js?v=178"></script>
+<script type="module" src="js/pdf-export.js?v=178"></script>
+<script type="module" src="js/dictate.js?v=178"></script>
+<script type="module" src="js/back-nav.js?v=178"></script>
 </body>
 </html>

@@ -15,7 +15,7 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=177';
+import { db, functions } from './firebase-init.js?v=178';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -185,6 +185,29 @@ function closeDictateModal() {
 startBtn.addEventListener('click', openDictateModal);
 closeBtn.addEventListener('click', closeDictateModal);
 modal.addEventListener('click', (e) => { if (e.target === modal) closeDictateModal(); });
+
+// Step 16b (SPEC.md Section 13.5) — KI-Diktieren is one of the per-device
+// toggles js/verbindung.js owns; a stray Anthropic API call from a device
+// someone deliberately put into Funkstille (or just turned this one
+// feature off) would defeat the whole point of that switch. Duplicated
+// read logic rather than importing js/verbindung.js, same reasoning as
+// js/firebase-init.js's own copy: this needs to run at module load, and
+// nothing guarantees load order between sibling <script> modules.
+function aiDisabled() {
+  try {
+    if (localStorage.getItem('erdkeller-funkstille') === '1') return true;
+    return localStorage.getItem('erdkeller-ai-enabled') === '0';
+  } catch (err) {
+    return false;
+  }
+}
+
+function applyAiAvailability() {
+  startBtn.classList.toggle('hidden', aiDisabled());
+}
+
+applyAiAvailability();
+window.addEventListener('erdkeller:verbindung-changed', applyAiAvailability);
 
 // --- Web Speech API wrapper -------------------------------------------
 

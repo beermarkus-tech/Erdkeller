@@ -717,6 +717,15 @@ nav.bottomnav button .icon {
   pointer-events: none;
 }
 
+/* Same greying pattern as #notif-body.notif-disabled above, but that rule
+   is id-scoped and this is a different panel — Funkstille overrides Sync/
+   KI-Diktieren rather than toggling its own body, so it needs its own
+   selector rather than reusing that one. */
+#verbindung-suboptions.verbindung-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 #notif-enable-push-btn.enabled {
   background: var(--stone);
   color: var(--charcoal);

@@ -8,7 +8,25 @@ import {
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { firebaseConfig } from './firebase-config.js?v=177';
+import { firebaseConfig } from './firebase-config.js?v=178';
+
+// Step 16b (SPEC.md Section 13.5) — Funkstille/Sync are deliberately
+// per-device localStorage flags (js/verbindung.js owns writing them), not
+// Firestore fields: they must be readable synchronously, before Firestore
+// is even reachable, which is exactly why they can't live there. This
+// file needs its own read-only copy rather than importing js/verbindung.js
+// — that module's own <script> tag runs much later in index.html, well
+// after this file has already executed (many earlier modules import it),
+// so importing from it here would be backwards. Same duplicate-small-
+// helpers convention as everywhere else in this codebase.
+function verbindungOffline() {
+  try {
+    if (localStorage.getItem('erdkeller-funkstille') === '1') return true;
+    return localStorage.getItem('erdkeller-sync-enabled') === '0';
+  } catch (err) {
+    return false;
+  }
+}
 
 export const app = initializeApp(firebaseConfig);
 // SPEC.md Section 13 — Firestore's own persistent cache IS the app's local
@@ -27,6 +45,11 @@ export const db = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager(),
   }),
 });
+// Applied immediately, before any screen loads (SPEC.md Section 13.5) —
+// if this device has Funkstille or Sync turned off, the network should
+// never even be attempted, not briefly enabled and then disabled once the
+// connectivity probe below eventually runs.
+if (verbindungOffline()) disableNetwork(db).catch(() => {});
 // Build 169 — deliberately NOT getAuth(app). getAuth() on the browser
 // platform passes browserPopupRedirectResolver into initializeAuth() up
 // front, which on any device _isMobileBrowser() (i.e. Android and iOS,
@@ -160,5 +183,11 @@ export const functions = getFunctions(app);
 
 // Recovery: an edge-triggered 'online' event is a much stronger signal than
 // reading navigator.onLine's static value (it only fires on an actual
-// transition the OS detected), so it's safe to trust for re-enabling.
-window.addEventListener('online', () => { enableNetwork(db).catch(() => {}); });
+// transition the OS detected), so it's safe to trust for re-enabling —
+// UNLESS this device has deliberately been put into Funkstille/Sync-off
+// (Section 13.5): a real network transition must never override that, or
+// the household's own "verifiably talk to nothing" switch would flip back
+// on by itself the moment a real connection reappeared.
+window.addEventListener('online', () => {
+  if (!verbindungOffline()) enableNetwork(db).catch(() => {});
+});
