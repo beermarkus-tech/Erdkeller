@@ -483,6 +483,40 @@ function isItemDoneThisPeriod(item, frequency, cfg, nowParts) {
   return new Date(item.lastCompletedAt) >= occInstant;
 }
 
+// --- Maintenance data: /checklists + /checklistItems, with a legacy
+// fallback to /config/checklists (dev plan Step 16.3) --------------------
+//
+// Reassembles the exact nested shape (`{ lists: [{ ...list, items: [...] }]
+// }`) computeFrequencyDue/recipientBreakdown below were already written
+// against, so neither of them (nor isItemDoneThisPeriod/buildNotificationText)
+// needed to change for the split. The fallback makes this function safe to
+// deploy independently of when the client-side migration action actually
+// runs: an empty /checklists collection (not-yet-migrated, or a genuinely
+// checklist-less household) reads the old single document exactly as
+// before. Once migrated, the legacy document is no longer touched by this
+// function at all — only Firestore rules (see firestore.rules) keep it
+// legally writable in the meantime.
+async function loadMaintenance() {
+  const listsSnap = await db.collection('checklists').get();
+  if (listsSnap.empty) {
+    const maintSnap = await db.doc('config/checklists').get();
+    return maintSnap.exists && Array.isArray(maintSnap.data().lists) ? maintSnap.data() : { lists: [] };
+  }
+  const itemsSnap = await db.collection('checklistItems').get();
+  const itemsByList = new Map();
+  itemsSnap.docs.forEach((d) => {
+    const data = d.data();
+    const arr = itemsByList.get(data.listId) || [];
+    arr.push({ id: d.id, text: data.text, frequency: data.frequency, lastCompletedAt: data.lastCompletedAt });
+    itemsByList.set(data.listId, arr);
+  });
+  return {
+    lists: listsSnap.docs
+      .map((d) => ({ id: d.id, ...d.data(), items: itemsByList.get(d.id) || [] }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de')),
+  };
+}
+
 // --- Due computation, grouped per checklist then per recipient ------------
 
 function computeFrequencyDue(maintenance, frequency, cfg, nowParts) {
@@ -567,10 +601,9 @@ async function sendToTokens(tokenEntries, title, body, data) {
 // function — each tick is a near-free early exit unless it's actually the
 // right Paris-local hour.
 exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: CHECKLIST_TZ }, async () => {
-  const [notifSnap, stateSnap, maintSnap] = await Promise.all([
+  const [notifSnap, stateSnap] = await Promise.all([
     db.doc('config/notifications').get(),
     db.doc('config/notificationState').get(),
-    db.doc('config/checklists').get(),
   ]);
 
   const notifications = notifSnap.exists ? notifSnap.data() : {};
@@ -581,7 +614,12 @@ exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: CHECKL
   const nowParts = parisDateParts(nowInstant);
   if (nowParts.hour !== cfg.hour) return;
 
-  const maintenance = maintSnap.exists && Array.isArray(maintSnap.data().lists) ? maintSnap.data() : { lists: [] };
+  // Only fetched once we already know this is the configured hour — with
+  // the checklist split (dev plan Step 16.3) this is a full collection
+  // read rather than one document, so doing it unconditionally on every
+  // hourly tick (as the single old /config/checklists doc read used to,
+  // harmlessly) would turn one wasted read/hour into ~123 wasted reads/hour.
+  const maintenance = await loadMaintenance();
   const stateChecklists = (stateSnap.exists && stateSnap.data().checklists) || {};
 
   // Both this write and the client's dismiss-action write use targeted
@@ -641,16 +679,15 @@ exports.previewReminders = onCall(async (request) => {
     throw new HttpsError('permission-denied', 'Nur für Admins.');
   }
 
-  const [notifSnap, stateSnap, maintSnap] = await Promise.all([
+  const [notifSnap, stateSnap, maintenance] = await Promise.all([
     db.doc('config/notifications').get(),
     db.doc('config/notificationState').get(),
-    db.doc('config/checklists').get(),
+    loadMaintenance(),
   ]);
   const notifications = notifSnap.exists ? notifSnap.data() : {};
   const cfg = mergeNotificationsChecklists(notifications.checklists);
   const nowInstant = new Date();
   const nowParts = parisDateParts(nowInstant);
-  const maintenance = maintSnap.exists && Array.isArray(maintSnap.data().lists) ? maintSnap.data() : { lists: [] };
   const stateChecklists = (stateSnap.exists && stateSnap.data().checklists) || {};
 
   const result = { enabled: notifications.enabled !== false, currentParisHour: nowParts.hour, configuredHour: cfg.hour, frequencies: {} };
