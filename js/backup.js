@@ -14,7 +14,7 @@
 // replacement wrote (every subsequent write's isAdmin() check re-reads
 // /users/{currentUid}). Roles/names are managed only through Settings →
 // Personen, backup or no backup.
-import { db } from './firebase-init.js?v=172';
+import { db } from './firebase-init.js?v=173';
 import {
   collection, getDocs, doc, getDoc, setDoc, deleteDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -27,6 +27,9 @@ const contactsBtn = document.getElementById('export-contacts-btn');
 const notesBtn = document.getElementById('export-notes-btn');
 const recipesBtn = document.getElementById('export-recipes-btn');
 const jsonBtn = document.getElementById('export-json-btn');
+const migrateBtn = document.getElementById('migrate-checklists-btn');
+const migrateMeta = document.getElementById('migrate-checklists-meta');
+const migrateStatus = document.getElementById('migrate-checklists-status');
 
 function todayStamp() {
   const d = new Date();
@@ -199,6 +202,11 @@ recipesBtn.addEventListener('click', () => downloadCsv(recipesBtn, 'rezepte', as
 // deliberately distinct (a flat collection vs. a /config singleton) rather
 // than colliding, and the legacy entry is removed only once the migration
 // fully cuts over (see dev plan Step 16.3, step 7).
+// Shared by the full-replace import's chunked delete/write below AND the
+// checklists migration further down — Firestore's own cap is 500 writes
+// per batch, this stays comfortably under it.
+const BATCH_SIZE = 450;
+
 const COLLECTIONS = ['products', 'stockItems', 'stockLog', 'contacts', 'notes', 'recipes', 'checklists', 'checklistItems'];
 const CONFIG_DOCS = [
   'taxonomy', 'targets', 'household', 'planning',
@@ -237,6 +245,176 @@ jsonBtn.addEventListener('click', async () => {
   }
 });
 
+// --- Checklisten-Migration (dev plan Step 16.3) -------------------------
+// Splits the single /config/checklists document (rewritten wholesale on
+// every tick, see js/checklists.js) into two flat collections,
+// /checklists/{listId} and /checklistItems/{itemId}, so two devices
+// ticking different items offline merge on reconnect instead of one
+// device's entire set of edits silently clobbering the other's. This
+// button only ever WRITES the two new collections — js/checklists.js
+// itself keeps reading/writing the legacy document until its own
+// switchover ships separately, so running this migration (even
+// repeatedly) has no visible effect on the live app until that lands.
+//
+// The one real hazard of moving from one nested document to two flat
+// collections: a duplicate item id across two different lists would
+// collapse into a single document. Every id in this app already comes
+// from genId() (js/checklists.js), which is virtually certain to be
+// unique, but "virtually certain" isn't good enough for a migration that
+// can't be un-run cleanly — so this validates real uniqueness first and
+// refuses loudly rather than silently merging two items into one.
+function validateChecklistsForMigration(maintenance) {
+  const lists = Array.isArray(maintenance.lists) ? maintenance.lists : [];
+  if (!lists.length) return 'Keine Checklisten gefunden — nichts zu migrieren.';
+  const listIds = new Set();
+  const itemIds = new Set();
+  for (const list of lists) {
+    if (!list.id) return `Checkliste "${list.name || '(ohne Namen)'}" hat keine ID.`;
+    if (String(list.id).includes('/')) return `Checklisten-ID "${list.id}" enthält ein "/" und kann nicht migriert werden.`;
+    if (listIds.has(list.id)) return `Doppelte Checklisten-ID "${list.id}".`;
+    listIds.add(list.id);
+    for (const item of (list.items || [])) {
+      if (!item.id) return `Ein Eintrag in "${list.name || list.id}" hat keine ID.`;
+      if (String(item.id).includes('/')) return `Eintrags-ID "${item.id}" enthält ein "/" und kann nicht migriert werden.`;
+      if (itemIds.has(item.id)) return `Doppelte Eintrags-ID "${item.id}" — würde beim Umstieg auf einzelne Dokumente kollidieren.`;
+      itemIds.add(item.id);
+    }
+  }
+  return null;
+}
+
+// Same chunking shape as replaceCollection() below, generalised to take
+// prebuilt mutation closures rather than doc lists — the migration writes
+// two different kinds of documents (lists and items) plus one marker doc
+// in a single logical operation, which replaceCollection's single-name
+// shape doesn't fit. In real use this is one household's ~10 lists + ~113
+// items + 1 marker ≈ 124 writes, so it always runs as exactly one batch;
+// chunking only matters as a safety net well past today's data volume,
+// same reasoning as the dev plan's own "well under the 500 cap" note.
+async function commitInChunks(ops) {
+  for (let i = 0; i < ops.length; i += BATCH_SIZE) {
+    const batch = writeBatch(db);
+    ops.slice(i, i + BATCH_SIZE).forEach((op) => op(batch));
+    await batch.commit();
+  }
+}
+
+// Read-only status display, driven by the marker doc written at the end
+// of a successful run — see runChecklistsMigration() below for the two
+// fields that matter: migratedAt (pre-cutover, freely re-runnable) and
+// cutoverAt (set only once js/checklists.js's own switchover ships and
+// actually starts reading these collections — NOT by this button, which
+// only ever prepares data for that future switchover). Once cutoverAt is
+// set, re-running is disabled: after cutover the legacy doc is frozen, so
+// this migration's own max-wins reconciliation (see below) could
+// otherwise resurrect a completion status someone deliberately un-ticked
+// on the new collections after that point.
+async function loadMigrationMarker() {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'checklistsMigration'));
+    if (!snap.exists()) {
+      migrateMeta.textContent = 'Noch nicht ausgeführt';
+      migrateBtn.textContent = 'Migration starten';
+      migrateBtn.disabled = false;
+      return;
+    }
+    const data = snap.data();
+    if (data.cutoverAt) {
+      migrateMeta.textContent = `Abgeschlossen am ${new Date(data.cutoverAt).toLocaleString('de-DE')}`;
+      migrateBtn.textContent = 'Abgeschlossen';
+      migrateBtn.disabled = true;
+      return;
+    }
+    migrateMeta.textContent = `Migriert am ${new Date(data.migratedAt).toLocaleString('de-DE')} — ${data.listCount} Checklisten, ${data.itemCount} Einträge`;
+    migrateBtn.textContent = 'Erneut ausführen';
+    migrateBtn.disabled = false;
+  } catch (err) {
+    migrateMeta.textContent = 'Status konnte nicht geladen werden';
+    console.error('Migrations-Status konnte nicht geladen werden', err);
+  }
+}
+
+async function runChecklistsMigration() {
+  migrateBtn.disabled = true;
+  migrateStatus.textContent = 'Prüfe Daten…';
+  try {
+    const snap = await getDoc(doc(db, 'config', 'checklists'));
+    const maintenance = snap.exists() && Array.isArray(snap.data().lists) ? snap.data() : { lists: [] };
+    const validationError = validateChecklistsForMigration(maintenance);
+    if (validationError) {
+      migrateStatus.textContent = 'Migration abgebrochen: ' + validationError;
+      migrateBtn.disabled = false;
+      return;
+    }
+
+    migrateStatus.textContent = 'Sicherheits-Backup wird heruntergeladen…';
+    const safetyBackup = await buildBackup();
+    download(`erdkeller-vor-checklisten-migration-${todayStamp()}.json`, JSON.stringify(safetyBackup, null, 2), 'application/json;charset=utf-8');
+
+    // Max-wins reconciliation (dev plan Step 16.3): on a re-run before
+    // cutover, an item already migrated may have a NEWER lastCompletedAt
+    // than the legacy doc if someone ticked it on the new collections in
+    // the meantime (possible once js/checklists.js's switchover is live
+    // for testing but before this migration's "run again" is disabled).
+    // Read what's there now so the newer of the two timestamps always
+    // wins, never the legacy one just because it happens to run last.
+    migrateStatus.textContent = 'Lese bereits migrierte Einträge…';
+    const existingItemsSnap = await getDocs(collection(db, 'checklistItems'));
+    const existingItems = new Map(existingItemsSnap.docs.map((d) => [d.id, d.data()]));
+
+    const nowIso = new Date().toISOString();
+    const lists = maintenance.lists;
+    let itemCount = 0;
+    lists.forEach((list) => { itemCount += (list.items || []).length; });
+
+    migrateStatus.textContent = `Migriere ${lists.length} Checklisten, ${itemCount} Einträge…`;
+    const ops = [];
+    lists.forEach((list) => {
+      ops.push((batch) => batch.set(doc(db, 'checklists', list.id), {
+        name: list.name || '',
+        recipients: list.recipients || [],
+        createdAt: list.createdAt || nowIso,
+        updatedAt: nowIso,
+      }));
+      (list.items || []).forEach((item) => {
+        const existing = existingItems.get(item.id);
+        const legacyCompleted = item.lastCompletedAt || null;
+        const existingCompleted = existing ? (existing.lastCompletedAt || null) : null;
+        let lastCompletedAt = legacyCompleted;
+        if (existingCompleted && (!legacyCompleted || existingCompleted > legacyCompleted)) {
+          lastCompletedAt = existingCompleted;
+        }
+        ops.push((batch) => batch.set(doc(db, 'checklistItems', item.id), {
+          listId: list.id,
+          text: item.text || '',
+          frequency: item.frequency || '',
+          lastCompletedAt,
+          createdAt: (existing && existing.createdAt) || item.createdAt || nowIso,
+          updatedAt: nowIso,
+        }));
+      });
+    });
+    ops.push((batch) => batch.set(doc(db, 'config', 'checklistsMigration'), {
+      status: 'migrated',
+      migratedAt: nowIso,
+      listCount: lists.length,
+      itemCount,
+      cutoverAt: null,
+    }));
+    await commitInChunks(ops);
+
+    migrateStatus.textContent = `Migration abgeschlossen: ${lists.length} Checklisten, ${itemCount} Einträge.`;
+    await loadMigrationMarker();
+  } catch (err) {
+    migrateStatus.textContent = 'Migration fehlgeschlagen: ' + err.message;
+    console.error(err);
+    migrateBtn.disabled = false;
+  }
+}
+
+migrateBtn.addEventListener('click', runChecklistsMigration);
+loadMigrationMarker();
+
 // --- Import (full-replace JSON restore) -------------------------------
 // Deletes every doc in each collection above and every /config doc, then
 // recreates them from the chosen backup file — a complete replace, not a
@@ -245,7 +423,6 @@ jsonBtn.addEventListener('click', async () => {
 // Verlauf's "Verlauf löschen", js/stock-log.js's deleteAllLogs).
 
 const CONFIRM_PHRASE = 'ALLES ERSETZEN';
-const BATCH_SIZE = 450;
 
 const importFileInput = document.getElementById('import-file-input');
 const importFileBtn = document.getElementById('import-file-btn');
