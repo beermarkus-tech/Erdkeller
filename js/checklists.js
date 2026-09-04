@@ -36,8 +36,35 @@
 // if still there"). Items that were one-time in the source list (Kompass,
 // Reisepass, ...) are seeded as yearly, the closest "occasionally" already
 // in the model.
-import { db } from './firebase-init.js?v=174';
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+//
+// --- Data model (Build 175 — dev plan Step 16.3 cutover) -------------------
+// Checklist content used to live in ONE document (/config/checklists,
+// `{ lists: [{ ...list, items: [...] }] }`), rewritten wholesale on every
+// tick. Offline, that meant two people ticking different items on two
+// devices silently lost one device's entire set of edits on reconnect —
+// not just the contested item. It's now split into two flat collections,
+// /checklists/{listId} and /checklistItems/{itemId} (SPEC.md Section 13.4),
+// kept live in this module via two onSnapshot listeners (subscribeChecklists
+// below) rather than one-shot getDoc/setDoc — this is the one screen in the
+// app with a genuinely high-frequency write path, and snapshot listeners
+// give Firestore's own latency compensation for free: a local write is
+// reflected back through the SAME listener almost instantly, before the
+// server round-trip completes, offline included. The in-memory `maintenance`
+// shape stays IDENTICAL to before (`{ lists: [{ ...list, items: [...] }] }`,
+// rebuilt from the two collections on every snapshot event) specifically so
+// every render function below — sortedLists, sortedItems,
+// flattenMaintenanceItems, all of render() — needed NO changes at all.
+// Only the WRITE side changed: no more local mutate-then-setDoc-the-whole-
+// thing; each edit is now a small independent Firestore write (saveList/
+// saveItem/createList/createItem/deleteList/deleteItem/moveItem below), and
+// the snapshot listener is the ONLY thing that ever mutates `maintenance`
+// or triggers a render — never a manual optimistic flip in the same tick,
+// which would be a second writer to the same state and risk a visible
+// flicker if a slightly-lagged snapshot event arrived after it.
+import { db } from './firebase-init.js?v=175';
+import {
+  collection, doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // --- DOM refs: main screen ------------------------------------------------
 //
@@ -77,15 +104,14 @@ const crisisEditorEl = document.getElementById('crisis-editor');
 const addCrisisTypeBtn = document.getElementById('add-crisis-type-btn');
 const statusEl = document.getElementById('checklists-status');
 
-const maintenanceRef = doc(db, 'config', 'checklists');
 const crisisRef = doc(db, 'config', 'crisisTypes');
 const notificationsRef = doc(db, 'config', 'notifications');
 // Step 17 — send-tracking + per-period dismissal, written by both
 // functions/index.js's sendReminders AND this file's own dismissPeriod()
-// below. Deliberately its own doc, not a key inside maintenanceRef/
-// notificationsRef above — both of those are saved wholesale from an
-// in-memory object by their own screens, so any field written there by
-// something else would be silently clobbered on the next unrelated save.
+// below. Deliberately its own doc, not a key inside notificationsRef above
+// — that one is saved wholesale from an in-memory object by its own
+// screen, so any field written there by something else would be silently
+// clobbered on the next unrelated save.
 const notificationStateRef = doc(db, 'config', 'notificationState');
 
 const RECIPIENT_OPTIONS = [
@@ -112,11 +138,17 @@ function defaultNotificationsChecklists() {
   };
 }
 
-let maintenance = { lists: [] };
+let maintenance = { lists: [], orphanItems: [] };
 let crisis = { types: [] };
 let notifications = { checklists: defaultNotificationsChecklists() };
 let notificationState = { checklists: {} };
-// Same data-integrity guard as taxonomy.js/storage-locations.js.
+// Same data-integrity guard as taxonomy.js/storage-locations.js — scoped
+// now to crisis/notifications/notificationState only (loadRest below).
+// The checklist writers (saveList/saveItem/... further down) are each a
+// small, targeted write to a document whose id is already known, not a
+// "rewrite everything based on possibly-stale local state" operation, so
+// the original clobbering hazard this flag guards against doesn't apply
+// to them the way it did to the old whole-document saveMaintenance().
 let loadOk = false;
 let maintenanceFilter = 'due'; // 'due' | 'all' — live view
 // Which checklist groups to show on the live view — separate from the
@@ -136,6 +168,12 @@ let editMode = false;
 let maintenanceSearch = '';
 let selectedListFilters = new Set();
 let selectedFreqFilters = new Set();
+// Set right before createItem() so the flat list can focus/select the new
+// row's text input once it actually appears via the onSnapshot-driven
+// render — the write and the render are no longer the same synchronous
+// call, so this replaces the old "save then immediately query the DOM for
+// the row we just added" pattern.
+let pendingFocusItemId = null;
 
 function genId() {
   return crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
@@ -145,41 +183,179 @@ function escapeAttr(str) {
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
-// --- Data loading -----------------------------------------------------
+// --- Checklist/item data: live via onSnapshot, not getDoc/getDocs --------
 
-async function loadAll() {
-  try {
-    const [mSnap, cSnap, nSnap, nsSnap] = await Promise.all([
-      getDoc(maintenanceRef), getDoc(crisisRef), getDoc(notificationsRef), getDoc(notificationStateRef),
-    ]);
-    maintenance = mSnap.exists() && Array.isArray(mSnap.data().lists) ? mSnap.data() : { lists: [] };
-    crisis = cSnap.exists() && Array.isArray(cSnap.data().types) ? cSnap.data() : { types: [] };
-    notifications = nSnap.exists() ? nSnap.data() : { checklists: defaultNotificationsChecklists() };
-    if (!notifications.checklists) notifications.checklists = defaultNotificationsChecklists();
-    notificationState = nsSnap.exists() ? nsSnap.data() : { checklists: {} };
-    if (!notificationState.checklists) notificationState.checklists = {};
-    loadOk = true;
-  } catch (err) {
-    loadOk = false;
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message;
-    console.error(err);
-  }
-  render();
+const listsById = new Map();
+const itemsById = new Map();
+let checklistsSubscribed = false;
+
+// Joins the two live collections back into the exact nested shape every
+// render function below already expects. Orphan items (a listId with no
+// matching list doc — possible after a concurrent offline list delete)
+// are kept out of every list's own .items so the live view naturally
+// skips them, but surfaced separately via maintenance.orphanItems so the
+// editor's flat list can still show and re-home them (see
+// flattenMaintenanceItems below) rather than having them silently vanish.
+function rebuildMaintenance() {
+  const itemsByListId = new Map();
+  const knownListIds = new Set(listsById.keys());
+  const orphanItems = [];
+  itemsById.forEach((item) => {
+    if (!knownListIds.has(item.listId)) {
+      orphanItems.push(item);
+      return;
+    }
+    const arr = itemsByListId.get(item.listId) || [];
+    arr.push(item);
+    itemsByListId.set(item.listId, arr);
+  });
+  maintenance = {
+    // Sorted by createdAt so maintenance.lists' own natural order is
+    // always creation order everywhere it's read unsorted (the editor's
+    // renderMaintenanceManageList and its move-select dropdowns) — a plain
+    // Map iterates in insertion order, which for listsById is whatever
+    // order onSnapshot happened to deliver documents in, not this. The
+    // live view's sortedLists() still produces its own alphabetical copy
+    // on top of this regardless, so this ordering never reaches it.
+    lists: Array.from(listsById.values())
+      .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''))
+      .map((list) => ({
+        ...list,
+        items: itemsByListId.get(list.id) || [],
+      })),
+    orphanItems,
+  };
 }
 
-async function saveMaintenance() {
-  if (!loadOk) {
-    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
-    return;
-  }
+// Subscribed once for the lifetime of the page, not re-subscribed on
+// erdkeller:signedin/erdkeller:refresh the way the old one-shot loadAll()
+// was — the listeners themselves stay live and self-update, and Firestore
+// re-authenticates an existing listener automatically when the signed-in
+// user changes, so there's nothing to redo. Called from erdkeller:signedin
+// below (not at bare module-load time): reads need isSignedIn() per
+// firestore.rules, and firing before auth has resolved is exactly the
+// permission-denied hazard js/auth.js's own comments document elsewhere.
+function subscribeChecklists() {
+  if (checklistsSubscribed) return;
+  checklistsSubscribed = true;
+  let listsReady = false;
+  let itemsReady = false;
+  const maybeRender = () => {
+    if (!listsReady || !itemsReady) return;
+    rebuildMaintenance();
+    render();
+  };
+  onSnapshot(collection(db, 'checklists'), (snap) => {
+    snap.docChanges().forEach((change) => {
+      if (change.type === 'removed') listsById.delete(change.doc.id);
+      else listsById.set(change.doc.id, { id: change.doc.id, ...change.doc.data() });
+    });
+    listsReady = true;
+    maybeRender();
+  }, (err) => {
+    statusEl.textContent = 'Fehler beim Laden der Checklisten: ' + err.message;
+    console.error(err);
+  });
+  onSnapshot(collection(db, 'checklistItems'), (snap) => {
+    snap.docChanges().forEach((change) => {
+      if (change.type === 'removed') itemsById.delete(change.doc.id);
+      else itemsById.set(change.doc.id, { id: change.doc.id, ...change.doc.data() });
+    });
+    itemsReady = true;
+    maybeRender();
+  }, (err) => {
+    statusEl.textContent = 'Fehler beim Laden der Einträge: ' + err.message;
+    console.error(err);
+  });
+}
+
+// --- Checklist/item writers ------------------------------------------------
+//
+// Replaces the old saveMaintenance() (one whole-document setDoc on every
+// edit). Ticking (toggleItemDone, further down) never dispatches
+// erdkeller:refresh — nothing outside this screen reads checklist state,
+// and this is the one high-frequency write path in the app (17 other
+// modules listen for that event and would otherwise reload their own
+// unrelated screens on every single tick). Structural edits below DO keep
+// dispatching it, matching today's existing behaviour for the rare case.
+
+async function saveList(list, patch) {
   try {
-    await setDoc(maintenanceRef, maintenance);
-    statusEl.textContent = '';
+    await updateDoc(doc(db, 'checklists', list.id), { ...patch, updatedAt: new Date().toISOString() });
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
     console.error(err);
   }
+}
+
+async function createList() {
+  const nowIso = new Date().toISOString();
+  try {
+    await setDoc(doc(db, 'checklists', genId()), {
+      name: 'Neue Checkliste', recipients: ['markus'], createdAt: nowIso, updatedAt: nowIso,
+    });
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+  } catch (err) {
+    statusEl.textContent = 'Fehler beim Anlegen: ' + err.message;
+    console.error(err);
+  }
+}
+
+async function deleteList(list) {
+  try {
+    const batch = writeBatch(db);
+    batch.delete(doc(db, 'checklists', list.id));
+    (list.items || []).forEach((item) => batch.delete(doc(db, 'checklistItems', item.id)));
+    await batch.commit();
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+  } catch (err) {
+    statusEl.textContent = 'Fehler beim Löschen: ' + err.message;
+    console.error(err);
+  }
+}
+
+async function saveItem(item, patch) {
+  try {
+    await updateDoc(doc(db, 'checklistItems', item.id), { ...patch, updatedAt: new Date().toISOString() });
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+  } catch (err) {
+    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    console.error(err);
+  }
+}
+
+async function createItem(list) {
+  const nowIso = new Date().toISOString();
+  const id = genId();
+  try {
+    await setDoc(doc(db, 'checklistItems', id), {
+      listId: list.id, text: 'Neuer Eintrag', frequency: 'yearly', lastCompletedAt: null, createdAt: nowIso, updatedAt: nowIso,
+    });
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+    return id;
+  } catch (err) {
+    statusEl.textContent = 'Fehler beim Anlegen: ' + err.message;
+    console.error(err);
+    return null;
+  }
+}
+
+async function deleteItem(item) {
+  try {
+    await deleteDoc(doc(db, 'checklistItems', item.id));
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+  } catch (err) {
+    statusEl.textContent = 'Fehler beim Löschen: ' + err.message;
+    console.error(err);
+  }
+}
+
+// A single { listId } field write — atomic, offline-safe, keeps the
+// document id and lastCompletedAt intact. Under a subcollection design
+// this would have been a delete-plus-create with a new id instead.
+async function moveItem(item, targetList) {
+  return saveItem(item, { listId: targetList.id });
 }
 
 async function saveCrisis() {
@@ -195,6 +371,34 @@ async function saveCrisis() {
     statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
     console.error(err);
   }
+}
+
+// --- Data loading: crisis/notifications/notificationState only -----------
+//
+// Checklist content itself is loaded live via subscribeChecklists() above,
+// not here — this is the slimmed-down replacement for the old loadAll(),
+// which used to also getDoc the single /config/checklists document on
+// every erdkeller:signedin/erdkeller:refresh. Renamed to make that split
+// explicit rather than leaving a same-named function that quietly does
+// less than it used to.
+
+async function loadRest() {
+  try {
+    const [cSnap, nSnap, nsSnap] = await Promise.all([
+      getDoc(crisisRef), getDoc(notificationsRef), getDoc(notificationStateRef),
+    ]);
+    crisis = cSnap.exists() && Array.isArray(cSnap.data().types) ? cSnap.data() : { types: [] };
+    notifications = nSnap.exists() ? nSnap.data() : { checklists: defaultNotificationsChecklists() };
+    if (!notifications.checklists) notifications.checklists = defaultNotificationsChecklists();
+    notificationState = nsSnap.exists() ? nsSnap.data() : { checklists: {} };
+    if (!notificationState.checklists) notificationState.checklists = {};
+    loadOk = true;
+  } catch (err) {
+    loadOk = false;
+    statusEl.textContent = 'Fehler beim Laden: ' + err.message;
+    console.error(err);
+  }
+  render();
 }
 
 // --- Reset-boundary completion model ---------------------------------------
@@ -294,10 +498,16 @@ function formatLastDone(iso) {
   return `zuletzt: ${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
+// No manual optimistic flip and no manual re-render call here — see the
+// file header comment. onSnapshot's own latency compensation reflects
+// this write back through subscribeChecklists' listener almost instantly,
+// which is what actually updates `maintenance` and re-renders. On genuine
+// failure (offline queue rejection, permission-denied) the checkbox simply
+// doesn't change, which is correct and needs no hand-written revert path.
 function toggleItemDone(item) {
-  item.lastCompletedAt = isDoneThisPeriod(item) ? null : new Date().toISOString();
-  saveMaintenance();
-  renderMaintenanceList();
+  const next = isDoneThisPeriod(item) ? null : new Date().toISOString();
+  updateDoc(doc(db, 'checklistItems', item.id), { lastCompletedAt: next, updatedAt: new Date().toISOString() })
+    .catch((err) => console.error('Ankreuzen fehlgeschlagen', err));
 }
 
 // --- Main screen: Wartung -------------------------------------------------
@@ -311,6 +521,16 @@ function sortedLists() {
 
 function sortedItems(items) {
   return [...items].sort((a, b) => a.text.localeCompare(b.text, 'de'));
+}
+
+// Used where the "current" checklist has to be inferred with no filter
+// active (the flat editor's "+ Eintrag hinzufügen") — the list with the
+// greatest createdAt, i.e. actually the most recently created one. Order
+// in maintenance.lists is no longer a stored/meaningful property once
+// items are individually-addressable documents (see rebuildMaintenance
+// above), so this can't just read off array position any more.
+function mostRecentlyCreatedList() {
+  return maintenance.lists.reduce((latest, l) => (!latest || (l.createdAt || '') > (latest.createdAt || '') ? l : latest), null);
 }
 
 function renderMaintenanceLiveFilters() {
@@ -331,9 +551,13 @@ function renderMaintenanceLiveFreqFilters() {
   });
 }
 
+// Deliberately no `if (!loadOk) return` here any more — loadOk now only
+// reflects crisis/notifications/notificationState (loadRest above);
+// checklist data is sourced independently via subscribeChecklists, with
+// its own error handling, so a failed loadRest() no longer has any
+// business hiding checklist items that loaded fine.
 function renderMaintenanceList() {
   maintenanceListEl.innerHTML = '';
-  if (!loadOk) return;
   sortedLists().forEach((list) => {
     if (selectedLiveListFilters.size && !selectedLiveListFilters.has(list.name)) return;
     const freqScoped = selectedLiveFreqFilters.size
@@ -519,12 +743,6 @@ function focusFirstInput(container) {
 // items nested here any more, those live in the flat filterable list
 // below. Same .checklist-edit-group/.checklist-edit-head/.checklist-
 // recipients markup as before, just without the per-list items loop.
-// Deliberately raw (creation) order here, not sortedLists() — while the
-// editor is open, a just-added checklist/item should stay where you put
-// it instead of instantly jumping to its alphabetical slot mid-edit.
-// Only the live Wartung view (always sorted, see above) is what's shown
-// once you actually close the editor, so the sorted arrangement is what
-// "closing the editor" reveals — no separate sort-on-close step needed.
 function renderMaintenanceManageList() {
   maintenanceManageListEl.innerHTML = '';
   maintenance.lists.forEach((list) => {
@@ -538,16 +756,11 @@ function renderMaintenanceManageList() {
       <button class="tax-del" title="Checkliste löschen">✕</button>
     `;
     head.querySelector('.tax-name-input').addEventListener('change', (e) => {
-      list.name = e.target.value.trim();
-      saveMaintenance();
+      saveList(list, { name: e.target.value.trim() });
     });
     head.querySelector('.tax-del').addEventListener('click', () => {
       if (!confirm(`Checkliste "${list.name}" inkl. aller Einträge löschen?`)) return;
-      maintenance.lists = maintenance.lists.filter((l) => l.id !== list.id);
-      saveMaintenance();
-      renderMaintenanceManageList();
-      renderMaintenanceFilters();
-      renderMaintenanceFlatList();
+      deleteList(list);
     });
     group.appendChild(head);
 
@@ -558,14 +771,10 @@ function renderMaintenanceManageList() {
     `).join('');
     recipients.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
       cb.addEventListener('change', () => {
-        if (!list.recipients) list.recipients = [];
+        const current = list.recipients || [];
         const id = cb.dataset.recipient;
-        if (cb.checked) {
-          if (!list.recipients.includes(id)) list.recipients.push(id);
-        } else {
-          list.recipients = list.recipients.filter((r) => r !== id);
-        }
-        saveMaintenance();
+        const next = cb.checked ? [...new Set([...current, id])] : current.filter((r) => r !== id);
+        saveList(list, { recipients: next });
       });
     });
     group.appendChild(recipients);
@@ -575,8 +784,6 @@ function renderMaintenanceManageList() {
 }
 
 addMaintenanceListBtn.addEventListener('click', () => {
-  const newList = { id: genId(), name: 'Neue Checkliste', recipients: ['markus'], items: [] };
-  maintenance.lists.push(newList);
   // Clear both filter rows rather than pointing them at the brand-new
   // checklist: it has no items yet, so filtering to it emptied the item
   // list entirely and left you re-picking filters to see anything again.
@@ -585,12 +792,7 @@ addMaintenanceListBtn.addEventListener('click', () => {
   // handler below), which is exactly the one just added here.
   selectedListFilters = new Set();
   selectedLiveListFilters = new Set();
-  saveMaintenance();
-  renderMaintenanceManageList();
-  renderMaintenanceFilters();
-  renderMaintenanceFlatList();
-  renderMaintenanceLiveFilters();
-  renderMaintenanceList();
+  createList();
 });
 
 // --- Flat, filterable item list (Build 74) ---------------------------------
@@ -605,11 +807,25 @@ function flattenMaintenanceItems() {
   maintenance.lists.forEach((list) => {
     (list.items || []).forEach((item) => flat.push({ item, list }));
   });
+  // Orphan items (see rebuildMaintenance) surfaced here under a synthetic
+  // placeholder "list" so they stay editable/re-homeable rather than
+  // silently disappearing — they're deliberately absent from
+  // maintenance.lists itself, which is what keeps them out of the live
+  // view and the list-management editor above.
+  (maintenance.orphanItems || []).forEach((item) => {
+    flat.push({ item, list: { id: null, name: '(unbekannte Checkliste)' } });
+  });
+  // Sorted by createdAt, not left in Map-iteration order — a plain
+  // JS Map iterates in insertion order, which for itemsById is whatever
+  // order onSnapshot happened to deliver documents in, not a stable or
+  // meaningful sequence. createdAt reproduces the old raw-creation-order
+  // behaviour (individually-addressable documents have no array position
+  // of their own any more to preserve instead) — a freshly-added row
+  // still doesn't jump elsewhere in the list while you're still editing it.
+  flat.sort((a, b) => (a.item.createdAt || '').localeCompare(b.item.createdAt || ''));
   return flat;
 }
 
-// Raw (creation) order too, same reasoning as renderMaintenanceManageList
-// above — a freshly-added entry stays put instead of jumping mid-edit.
 function filteredFlatItems() {
   const q = maintenanceSearch.trim().toLowerCase();
   return flattenMaintenanceItems()
@@ -661,13 +877,10 @@ function renderMaintenanceFlatList() {
       <button class="tax-del" title="Eintrag löschen">✕</button>
     `;
     main.querySelector('.tax-name-input').addEventListener('change', (e) => {
-      item.text = e.target.value.trim();
-      saveMaintenance();
+      saveItem(item, { text: e.target.value.trim() });
     });
     main.querySelector('.tax-del').addEventListener('click', () => {
-      list.items = list.items.filter((it) => it.id !== item.id);
-      saveMaintenance();
-      renderMaintenanceFlatList();
+      deleteItem(item);
     });
     row.appendChild(main);
 
@@ -682,19 +895,12 @@ function renderMaintenanceFlatList() {
       </select>
     `;
     meta.querySelector('.checklist-freq-select').addEventListener('change', (e) => {
-      item.frequency = e.target.value;
-      saveMaintenance();
-      renderMaintenanceFilters();
-      renderMaintenanceFlatList();
+      saveItem(item, { frequency: e.target.value });
     });
     meta.querySelector('.checklist-move-select').addEventListener('change', (e) => {
       const targetList = maintenance.lists.find((l) => l.id === e.target.value);
       if (!targetList || targetList.id === list.id) return;
-      list.items = list.items.filter((it) => it.id !== item.id);
-      targetList.items = targetList.items || [];
-      targetList.items.push(item);
-      saveMaintenance();
-      renderMaintenanceFlatList();
+      moveItem(item, targetList);
     });
     row.appendChild(meta);
 
@@ -707,6 +913,15 @@ function renderMaintenanceFlatList() {
     p.textContent = 'Keine Einträge für diese Auswahl.';
     maintenanceFlatListEl.appendChild(p);
   }
+
+  if (pendingFocusItemId) {
+    const newRow = maintenanceFlatListEl.querySelector(`[data-item-id="${pendingFocusItemId}"] .tax-name-input`);
+    if (newRow) {
+      newRow.focus();
+      newRow.select();
+      pendingFocusItemId = null;
+    }
+  }
 }
 
 maintenanceSearchInput.addEventListener('input', (e) => {
@@ -714,7 +929,7 @@ maintenanceSearchInput.addEventListener('input', (e) => {
   renderMaintenanceFlatList();
 });
 
-addMaintenanceItemBtn.addEventListener('click', () => {
+addMaintenanceItemBtn.addEventListener('click', async () => {
   if (!maintenance.lists.length) {
     statusEl.textContent = 'Zuerst eine Checkliste anlegen ("+ Neue Checkliste").';
     return;
@@ -723,18 +938,11 @@ addMaintenanceItemBtn.addEventListener('click', () => {
   // "whichever checklist you were probably just working on" is a much
   // safer guess with no filter active than "whichever came first".
   const targetList = selectedListFilters.size === 1
-    ? maintenance.lists.find((l) => selectedListFilters.has(l.name)) || maintenance.lists[maintenance.lists.length - 1]
-    : maintenance.lists[maintenance.lists.length - 1];
-  if (!targetList.items) targetList.items = [];
-  const newItem = { id: genId(), text: 'Neuer Eintrag', frequency: 'yearly', lastCompletedAt: null };
-  targetList.items.push(newItem);
-  saveMaintenance();
-  renderMaintenanceFlatList();
-  const newRow = maintenanceFlatListEl.querySelector(`[data-item-id="${newItem.id}"] .tax-name-input`);
-  if (newRow) {
-    newRow.focus();
-    newRow.select();
-  }
+    ? maintenance.lists.find((l) => selectedListFilters.has(l.name)) || mostRecentlyCreatedList()
+    : mostRecentlyCreatedList();
+  if (!targetList) return;
+  const newId = await createItem(targetList);
+  if (newId) pendingFocusItemId = newId;
 });
 
 // --- Inline editor: Krise -----------------------------------------------
@@ -834,32 +1042,14 @@ function applyEditMode() {
   checklistsEditToggleBtn.textContent = editMode ? '✓ Fertig' : '✏️';
 }
 
-// Reorders the stored arrays themselves, unlike the live view's own
-// non-destructive sortedLists()/sortedItems() — that's what makes the
-// *editor* come back up sorted the next time it's opened too, not just
-// the read view. Returns whether anything actually moved, so closing an
-// editor that changed nothing doesn't trigger a pointless Firestore
-// write. Only ever called on leaving edit mode (leaveEditMode below):
-// during editing everything stays in creation order, so a just-added
-// checklist/entry never jumps out from under you mid-edit.
-function sortMaintenanceInPlace() {
-  const order = () => maintenance.lists
-    .map((l) => l.id + ':' + (l.items || []).map((i) => i.id).join(','))
-    .join('|');
-  const before = order();
-  maintenance.lists.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
-  maintenance.lists.forEach((list) => {
-    if (Array.isArray(list.items)) {
-      list.items.sort((a, b) => (a.text || '').localeCompare(b.text || '', 'de'));
-    }
-  });
-  return order() !== before;
-}
-
+// No more sortMaintenanceInPlace()/save-on-leave here — array order was
+// never a stored property once items became individually-addressable
+// documents (see the file header comment); the live view's own
+// non-destructive sortedLists()/sortedItems() are the only sort now,
+// applied at render time regardless of when the editor was last closed.
 function leaveEditMode() {
   editMode = false;
   applyEditMode();
-  if (sortMaintenanceInPlace()) saveMaintenance();
   render();
 }
 
@@ -924,17 +1114,16 @@ function applyDeepLinkFromHash() {
 }
 
 window.addEventListener('erdkeller:signedin', async () => {
-  await loadAll();
+  subscribeChecklists();
+  await loadRest();
   applyDeepLinkFromHash();
 });
-window.addEventListener('erdkeller:refresh', () => loadAll());
+window.addEventListener('erdkeller:refresh', () => loadRest());
 window.addEventListener('hashchange', applyDeepLinkFromHash);
 
 window.addEventListener('erdkeller:navreset', (e) => {
   if (e.detail.tab !== 'checklists') return;
   crisisReferenceEl.classList.remove('show');
-  // Navigating away counts as closing the editor — same sort-and-save
-  // as the ✓ Fertig button, so an edit session left via the nav bar
-  // still lands sorted.
+  // Navigating away counts as closing the editor.
   leaveEditMode();
 });

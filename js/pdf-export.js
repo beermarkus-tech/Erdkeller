@@ -10,7 +10,7 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=174';
+import { db } from './firebase-init.js?v=175';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -1069,28 +1069,38 @@ async function buildMaintenanceSection(pdf) {
   const FREQ_LABELS = {
     weekly: 'Wöchentlich', monthly: 'Monatlich', quarterly: 'Vierteljährlich', halfYearly: 'Halbjährlich', yearly: 'Jährlich',
   };
-  // Reads the legacy single document for now (dev plan Step 16.3, step 5:
-  // this switches to the split /checklists + /checklistItems collections
-  // only at step 6's cutover, in lockstep with js/checklists.js and the
-  // CSV export below — switching any one of the three early would mean
-  // exports silently miss ticks still landing on whichever source hasn't
-  // cut over yet).
-  const snap = await getDoc(doc(db, 'config', 'checklists'));
-  const rawLists = snap.exists() && Array.isArray(snap.data().lists) ? snap.data().lists : [];
-  if (rawLists.length === 0) {
+  // Reads the split /checklists + /checklistItems collections (dev plan
+  // Step 16.3, step 6 cutover) — js/checklists.js stopped writing the
+  // legacy /config/checklists document in this same build, so reading it
+  // here would silently go stale from this point on.
+  const [listsSnap, itemsSnap] = await Promise.all([
+    getDocs(collection(db, 'checklists')),
+    getDocs(collection(db, 'checklistItems')),
+  ]);
+  if (listsSnap.empty) {
     bodyText(pdf, y, 'Keine Checklisten vorhanden.');
     return;
   }
-  // Explicit sort, not stored order: js/checklists.js's sortMaintenanceInPlace()
-  // is going away as part of the same migration (order stops being a
-  // stored property once items are individually-addressable documents),
-  // so this reproduces its exact comparator here to keep this export's
-  // output byte-identical across that change.
-  const lists = [...rawLists].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+  const itemsByListId = new Map();
+  itemsSnap.docs.forEach((d) => {
+    const data = d.data();
+    const arr = itemsByListId.get(data.listId) || [];
+    arr.push(data);
+    itemsByListId.set(data.listId, arr);
+  });
+  // Explicit sort, not stored order — a flat collection has no array
+  // position to preserve, so this reproduces the same
+  // localeCompare(…, 'de') comparator the old sortMaintenanceInPlace()
+  // (retired along with the legacy document) used to apply.
+  const lists = listsSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
   lists.forEach((list) => {
     y += SECTION_GAP;
     y = subheading(pdf, y, list.name || '');
-    const items = [...(list.items || [])].sort((a, b) => (a.text || '').localeCompare(b.text || '', 'de'));
+    const items = (itemsByListId.get(list.id) || [])
+      .slice()
+      .sort((a, b) => (a.text || '').localeCompare(b.text || '', 'de'));
     items.forEach((item) => {
       const freq = FREQ_LABELS[item.frequency] || item.frequency || '';
       y = checkboxLine(pdf, y, item.text || '', freq);
