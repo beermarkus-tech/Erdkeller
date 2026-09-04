@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=164';
+import { auth, db } from './firebase-init.js?v=165';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -248,6 +248,7 @@ onAuthStateChanged(auth, async (user) => {
   // the rest of the diagnostic.
   if (window.__ekDiag) {
     window.__ekDiag.authState = user ? ('angemeldet: ' + (user.email || user.uid)) : 'kein Nutzer';
+    window.__ekDiag.mark('auth');
     window.__ekDiag.paint();
   }
   if (unsubscribeUserDoc) {
@@ -321,15 +322,33 @@ onAuthStateChanged(auth, async (user) => {
   renderSignedOut();
 });
 
-// Boot paint: before Firebase Auth has resolved anything at all, put the app
-// shell on screen from the cached identity. This is what makes an offline
-// start feel instant instead of a multi-second wait staring at a login
-// screen you already passed.
-//
-// Deliberately paintSignedIn, not renderSignedIn — see the comment there.
-// Data loading still waits for onAuthStateChanged, because auth.currentUser
-// has to be set before any Firestore read is allowed. With no cached
-// identity (first ever run, or after a real sign-out) nothing happens here
-// and the normal login screen shows, exactly as before.
+// Boot: before Firebase Auth has resolved anything at all, put the app on
+// screen from the cached identity. This is what makes an offline start feel
+// instant instead of a multi-second wait staring at a login screen you
+// already passed. With no cached identity (first ever run, or after a real
+// sign-out) nothing happens here and the normal login screen shows.
 const bootIdentity = readCachedIdentity();
-if (bootIdentity) paintSignedIn(bootIdentity);
+if (bootIdentity) {
+  if (navigator.onLine) {
+    // ONLINE: paint the shell only. Firing erdkeller:signedin now would have
+    // every screen issue Firestore reads while auth.currentUser is still
+    // null, and those reach the server unauthenticated and come back
+    // permission-denied — the hazard js/taxonomy.js:555-558 documents. The
+    // data can afford to wait the few hundred ms for auth here.
+    paintSignedIn(bootIdentity);
+  } else {
+    // OFFLINE: also start loading data immediately, without waiting for
+    // Auth. Safe precisely because that hazard is about SERVER-SIDE rule
+    // evaluation: offline, Firestore answers every read from its local
+    // persistent cache and never contacts the server, so no rule is ever
+    // evaluated and nothing can be rejected for missing credentials.
+    //
+    // This is the difference between "shell appears instantly but the
+    // screens sit empty for 20s" and the app actually being usable, because
+    // Auth's own init is still slow offline — it tries to refresh an expired
+    // ID token and has to wait for that to fail. renderedRole then stops
+    // onAuthStateChanged from re-dispatching and reloading everything again
+    // once it finally resolves to the same role.
+    renderSignedIn(bootIdentity);
+  }
+}

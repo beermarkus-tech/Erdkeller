@@ -2,7 +2,7 @@
 // index.html. app.js imports nothing, so this flag proves whether LOCAL
 // modules execute at all, independently of whether the gstatic Firebase SDK
 // could be fetched. Remove together with the rest of the diagnostic.
-if (window.__ekDiag) window.__ekDiag.appModule = true;
+if (window.__ekDiag) { window.__ekDiag.appModule = true; window.__ekDiag.mark('appModule'); }
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

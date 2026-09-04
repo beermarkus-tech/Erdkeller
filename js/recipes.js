@@ -19,7 +19,7 @@
 //   on purpose (a "nice to have" signal, not a checklist that nags), and
 //   no summary badge on the card either (Markus's call) — the dot only
 //   ever shows up once a recipe is actually opened.
-import { db } from './firebase-init.js?v=164';
+import { db } from './firebase-init.js?v=165';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";

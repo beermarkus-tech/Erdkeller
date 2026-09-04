@@ -5,17 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=164">
-<link rel="icon" href="icons/icon-192.png?v=164">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=164">
+<link rel="manifest" href="manifest.json?v=165">
+<link rel="icon" href="icons/icon-192.png?v=165">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=165">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=164">
+<link rel="stylesheet" href="css/styles.css?v=165">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 164</div>
+<div id="build-tag" class="build-tag">Build 165</div>
 
-<!-- TEMPORARY offline diagnostic (Build 164) — remove once Step 16 offline
+<!-- TEMPORARY offline diagnostic (Build 165) — remove once Step 16 offline
      support is working. Deliberately a plain inline script with NO imports
      and no dependency on any module: the whole point is that it still runs
      when the module graph itself fails to load (e.g. the Firebase SDK from
@@ -25,13 +25,24 @@
      the app never got as far as revealing itself. -->
 <script>
 (function () {
+  var t0 = Date.now();
+  function ms() { return (Date.now() - t0) + 'ms'; }
+
   var d = {
     appModule: false,      // js/app.js executed (local modules load at all)
     firebaseInit: false,   // js/firebase-init.js executed (gstatic SDK loaded)
     authState: 'nie gefeuert',
     errors: [],
+    t: {},                 // elapsed-at-milestone, so slowness is measurable
   };
   window.__ekDiag = d;
+  // Called by the probes in js/app.js / js/firebase-init.js / js/auth.js.
+  d.mark = function (key) { if (!d.t[key]) d.t[key] = ms(); };
+
+  // Timing the moment the data-loading event fires is the whole point on
+  // mobile: the shell can be up instantly while every screen still sits
+  // empty, and only this number distinguishes those two phases.
+  window.addEventListener('erdkeller:signedin', function () { d.mark('signedin'); paint(); });
 
   function paint() {
     var el = document.getElementById('offline-diag');
@@ -40,14 +51,17 @@
     if ('serviceWorker' in navigator) {
       sw = navigator.serviceWorker.controller ? 'aktiv' : 'NICHT aktiv';
     }
+    var app = document.getElementById('app');
+    var shellUp = app && !app.classList.contains('hidden');
     el.textContent = [
-      'Offline-Diagnose',
-      'Inline-JS: ja',
+      'Offline-Diagnose (' + ms() + ')',
       'Netz: ' + (navigator.onLine ? 'online' : 'offline'),
       'Service Worker: ' + sw,
-      'App-Module: ' + (d.appModule ? 'ja' : 'NEIN'),
-      'Firebase-SDK: ' + (d.firebaseInit ? 'ja' : 'NEIN'),
-      'Auth: ' + d.authState,
+      'App-Module: ' + (d.appModule ? ('ja ' + (d.t.appModule || '')) : 'NEIN'),
+      'Firebase-SDK: ' + (d.firebaseInit ? ('ja ' + (d.t.firebaseInit || '')) : 'NEIN'),
+      'Auth: ' + d.authState + (d.t.auth ? ' (' + d.t.auth + ')' : ''),
+      'Daten gestartet: ' + (d.t.signedin || 'noch nicht'),
+      'App sichtbar: ' + (shellUp ? 'ja' : 'nein'),
       d.errors.length ? 'Fehler:\n- ' + d.errors.join('\n- ') : 'Keine Fehler erfasst',
     ].join('\n');
     el.classList.remove('hidden');
@@ -68,10 +82,19 @@
     paint();
   });
 
-  setTimeout(function () {
-    var app = document.getElementById('app');
-    if (!app || app.classList.contains('hidden')) paint();
-  }, 5000);
+  // Show it whenever we're offline (so the timings are readable even on a
+  // successful load — "shell instant, data 20s later" is invisible
+  // otherwise), and online only if the app failed to appear at all.
+  // Repainted a few times so the later milestones land in the panel rather
+  // than freezing whatever was true at the first paint.
+  if (!navigator.onLine) {
+    [400, 1500, 4000, 10000, 25000].forEach(function (t) { setTimeout(paint, t); });
+  } else {
+    setTimeout(function () {
+      var app = document.getElementById('app');
+      if (!app || app.classList.contains('hidden')) paint();
+    }, 5000);
+  }
 })();
 </script>
 
@@ -82,8 +105,13 @@
   <p>Vorratsverwaltung &amp; Krisenvorsorge</p>
   <button id="google-signin-btn" class="google-btn">Mit Google anmelden</button>
   <p id="auth-error" class="auth-error"></p>
-  <pre id="offline-diag" class="offline-diag hidden"></pre>
 </div>
+
+<!-- TEMPORARY (Build 165) — deliberately a sibling of #auth-gate, not a
+     child: the gate gets hidden the moment the app shell appears, and the
+     whole point now is to read the timings in exactly that case, where the
+     shell is up instantly but the screens are still empty. -->
+<pre id="offline-diag" class="offline-diag hidden"></pre>
 
 <!-- App shell (shown once signed in) -->
 <div id="app" class="shell hidden">
@@ -1520,34 +1548,34 @@
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="js/app.js?v=164"></script>
-<script type="module" src="js/auth.js?v=164"></script>
-<script type="module" src="js/app-shell.js?v=164"></script>
-<script type="module" src="js/account-menu.js?v=164"></script>
-<script type="module" src="js/refresh-button.js?v=164"></script>
-<script type="module" src="js/settings-nav.js?v=164"></script>
-<script type="module" src="js/data-tabs.js?v=164"></script>
-<script type="module" src="js/taxonomy.js?v=164"></script>
-<script type="module" src="js/storage-locations.js?v=164"></script>
-<script type="module" src="js/year-colors.js?v=164"></script>
-<script type="module" src="js/stock-checkin.js?v=164"></script>
-<script type="module" src="js/stock-checkout.js?v=164"></script>
-<script type="module" src="js/stock-table.js?v=164"></script>
-<script type="module" src="js/dashboard.js?v=164"></script>
-<script type="module" src="js/targets.js?v=164"></script>
-<script type="module" src="js/planning.js?v=164"></script>
-<script type="module" src="js/notifications.js?v=164"></script>
-<script type="module" src="js/checklists.js?v=164"></script>
-<script type="module" src="js/info-nav.js?v=164"></script>
-<script type="module" src="js/contacts.js?v=164"></script>
-<script type="module" src="js/notes.js?v=164"></script>
-<script type="module" src="js/recipes.js?v=164"></script>
-<script type="module" src="js/backup-tabs.js?v=164"></script>
-<script type="module" src="js/backup.js?v=164"></script>
-<script type="module" src="js/admin-log.js?v=164"></script>
-<script type="module" src="js/people.js?v=164"></script>
-<script type="module" src="js/pdf-export.js?v=164"></script>
-<script type="module" src="js/dictate.js?v=164"></script>
-<script type="module" src="js/back-nav.js?v=164"></script>
+<script src="js/app.js?v=165"></script>
+<script type="module" src="js/auth.js?v=165"></script>
+<script type="module" src="js/app-shell.js?v=165"></script>
+<script type="module" src="js/account-menu.js?v=165"></script>
+<script type="module" src="js/refresh-button.js?v=165"></script>
+<script type="module" src="js/settings-nav.js?v=165"></script>
+<script type="module" src="js/data-tabs.js?v=165"></script>
+<script type="module" src="js/taxonomy.js?v=165"></script>
+<script type="module" src="js/storage-locations.js?v=165"></script>
+<script type="module" src="js/year-colors.js?v=165"></script>
+<script type="module" src="js/stock-checkin.js?v=165"></script>
+<script type="module" src="js/stock-checkout.js?v=165"></script>
+<script type="module" src="js/stock-table.js?v=165"></script>
+<script type="module" src="js/dashboard.js?v=165"></script>
+<script type="module" src="js/targets.js?v=165"></script>
+<script type="module" src="js/planning.js?v=165"></script>
+<script type="module" src="js/notifications.js?v=165"></script>
+<script type="module" src="js/checklists.js?v=165"></script>
+<script type="module" src="js/info-nav.js?v=165"></script>
+<script type="module" src="js/contacts.js?v=165"></script>
+<script type="module" src="js/notes.js?v=165"></script>
+<script type="module" src="js/recipes.js?v=165"></script>
+<script type="module" src="js/backup-tabs.js?v=165"></script>
+<script type="module" src="js/backup.js?v=165"></script>
+<script type="module" src="js/admin-log.js?v=165"></script>
+<script type="module" src="js/people.js?v=165"></script>
+<script type="module" src="js/pdf-export.js?v=165"></script>
+<script type="module" src="js/dictate.js?v=165"></script>
+<script type="module" src="js/back-nav.js?v=165"></script>
 </body>
 </html>
