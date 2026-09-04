@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=167';
+import { auth, db } from './firebase-init.js?v=168';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -104,6 +104,11 @@ function clearCachedIdentity() {
 // couldn't reach the network (ignore it).
 let explicitSignOut = false;
 
+// Set right before signInWithRedirect() and checked at the NEXT boot to
+// decide whether getRedirectResult() is even worth calling — see that call
+// below for why this matters far more than it looks like it should.
+const PENDING_REDIRECT_KEY = 'erdkeller-pending-redirect';
+
 signinBtn.addEventListener('click', async () => {
   authError.textContent = '';
   try {
@@ -118,6 +123,7 @@ signinBtn.addEventListener('click', async () => {
     await signInWithPopup(auth, provider);
   } catch (err) {
     if (FALLBACK_TO_REDIRECT_CODES.includes(err.code)) {
+      try { sessionStorage.setItem(PENDING_REDIRECT_KEY, '1'); } catch (e) { /* ignore */ }
       signInWithRedirect(auth, provider).catch((err2) => {
         authError.textContent = 'Anmeldung fehlgeschlagen: ' + err2.message;
         console.error(err2);
@@ -139,16 +145,36 @@ signoutButtons.forEach((btn) => btn.addEventListener('click', () => {
   signOut(auth);
 }));
 
-// Only check for a pending redirect result when online. getRedirectResult()
-// forces Firebase to load its popup/redirect helper — a gapi iframe from
-// apis.google.com/js/api.js — which is unreachable offline; confirmed via
-// the Build 161 diagnostic to add a 5-25s startup delay while that request
-// times out before the app gives up and proceeds with the cached session
-// anyway. A genuine pending redirect can only exist if we were online when
-// it started, so skipping this check offline is safe and removes the delay
-// entirely — onAuthStateChanged still fires immediately from Auth's own
-// persisted session either way.
-if (navigator.onLine) {
+// Only call getRedirectResult() if there is ACTUAL evidence a redirect
+// sign-in was just started — not merely "we appear to be online" as Build
+// 162 tried. That navigator.onLine guard turned out to be dead code: field
+// testing proved this exact device reports navigator.onLine === true even
+// with WLAN and Flugmodus both fully off, so the guard never once actually
+// skipped this call, and every "offline" boot since Build 162 kept hitting
+// the same hang it was meant to prevent.
+//
+// getRedirectResult() forces Firebase Auth to lazily initialise its
+// popup/redirect helper (a gapi iframe from apis.google.com/js/api.js) if
+// it hasn't been already — confirmed in the field to hang for 15-45+
+// SECONDS when that request can't complete, and this was blocking far more
+// than just the redirect check: Firestore's own listeners appear to queue
+// behind Auth's internal state settling, so onAuthStateChanged staying
+// unresolved this long meant even cached data sat empty on screen the
+// whole time, despite the app-level grace-period fallback (js/auth.js's
+// boot logic) dispatching erdkeller:signedin promptly on its own schedule.
+//
+// signInWithPopup is the PRIMARY sign-in method (see the click handler
+// above) and never touches this path — getRedirectResult only matters for
+// the rare fallback where popup failed and the app fell back to
+// signInWithRedirect. So: only call it if that fallback just ran, recorded
+// via a sessionStorage flag set immediately before signInWithRedirect() is
+// called. Cleared unconditionally after checking, whether or not a result
+// was found, so a stale flag can never cause this to fire again on some
+// unrelated later boot.
+let hadPendingRedirect = false;
+try { hadPendingRedirect = sessionStorage.getItem(PENDING_REDIRECT_KEY) === '1'; } catch (e) { /* ignore */ }
+if (hadPendingRedirect) {
+  try { sessionStorage.removeItem(PENDING_REDIRECT_KEY); } catch (e) { /* ignore */ }
   getRedirectResult(auth).catch((err) => {
     authError.textContent = 'Anmeldung fehlgeschlagen: ' + err.message;
     console.error(err);
