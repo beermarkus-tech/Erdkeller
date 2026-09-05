@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=178">
-<link rel="icon" href="icons/icon-192.png?v=178">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=178">
+<link rel="manifest" href="manifest.json?v=179">
+<link rel="icon" href="icons/icon-192.png?v=179">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=179">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=178">
+<link rel="stylesheet" href="css/styles.css?v=179">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 178</div>
+<div id="build-tag" class="build-tag">Build 179</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -317,35 +317,28 @@
           <div id="maintenance-list"></div>
         </div>
         <div class="checklist-edit-view hidden" id="maintenance-edit-view">
-          <div class="checklist-section">
-            <button class="checklist-section-header" type="button">
-              <span>Checklisten verwalten</span>
-              <span class="tax-toggle">▴</span>
-            </button>
-            <div class="checklist-section-body" id="maintenance-manage-section-body">
-              <div id="maintenance-manage-list"></div>
-              <button class="add-row-btn" id="add-maintenance-list-btn">+ Neue Checkliste</button>
-            </div>
+          <div class="segmented">
+            <button class="seg-btn active" data-maintenance-edit-tab="lists" type="button">Checklisten</button>
+            <button class="seg-btn" data-maintenance-edit-tab="items" type="button">Einträge</button>
           </div>
 
-          <div class="checklist-section">
-            <button class="checklist-section-header" type="button">
-              <span>Einträge</span>
-              <span class="tax-toggle">▴</span>
-            </button>
-            <div class="checklist-section-body" id="maintenance-entries-section-body">
-              <div class="search-bar"><span>🔍</span><input placeholder="Suchen…" id="maintenance-search-input"></div>
-              <div class="filter-section">
-                <div class="filter-label">Checkliste</div>
-                <div class="filter-chip-row" id="maintenance-list-filters"></div>
-              </div>
-              <div class="filter-section">
-                <div class="filter-label">Häufigkeit</div>
-                <div class="filter-chip-row" id="maintenance-freq-filters"></div>
-              </div>
-              <div id="maintenance-flat-list"></div>
-              <button class="add-row-btn" id="add-maintenance-item-btn">+ Eintrag hinzufügen</button>
+          <div class="maintenance-edit-tab" data-maintenance-edit-tab-panel="lists">
+            <div id="maintenance-manage-list"></div>
+            <button class="add-row-btn" id="add-maintenance-list-btn">+ Neue Checkliste</button>
+          </div>
+
+          <div class="maintenance-edit-tab hidden" data-maintenance-edit-tab-panel="items">
+            <div class="search-bar"><span>🔍</span><input placeholder="Suchen…" id="maintenance-search-input"></div>
+            <div class="filter-section">
+              <div class="filter-label">Checkliste</div>
+              <div class="filter-chip-row" id="maintenance-list-filters"></div>
             </div>
+            <div class="filter-section">
+              <div class="filter-label">Häufigkeit</div>
+              <div class="filter-chip-row" id="maintenance-freq-filters"></div>
+            </div>
+            <div id="maintenance-flat-list"></div>
+            <button class="add-row-btn" id="add-maintenance-item-btn">+ Eintrag hinzufügen</button>
           </div>
         </div>
       </div>
@@ -1512,35 +1505,35 @@
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="js/app.js?v=178"></script>
-<script type="module" src="js/auth.js?v=178"></script>
-<script type="module" src="js/app-shell.js?v=178"></script>
-<script type="module" src="js/account-menu.js?v=178"></script>
-<script type="module" src="js/refresh-button.js?v=178"></script>
-<script type="module" src="js/settings-nav.js?v=178"></script>
-<script type="module" src="js/data-tabs.js?v=178"></script>
-<script type="module" src="js/taxonomy.js?v=178"></script>
-<script type="module" src="js/storage-locations.js?v=178"></script>
-<script type="module" src="js/year-colors.js?v=178"></script>
-<script type="module" src="js/stock-checkin.js?v=178"></script>
-<script type="module" src="js/stock-checkout.js?v=178"></script>
-<script type="module" src="js/stock-table.js?v=178"></script>
-<script type="module" src="js/dashboard.js?v=178"></script>
-<script type="module" src="js/targets.js?v=178"></script>
-<script type="module" src="js/planning.js?v=178"></script>
-<script type="module" src="js/notifications.js?v=178"></script>
-<script type="module" src="js/verbindung.js?v=178"></script>
-<script type="module" src="js/checklists.js?v=178"></script>
-<script type="module" src="js/info-nav.js?v=178"></script>
-<script type="module" src="js/contacts.js?v=178"></script>
-<script type="module" src="js/notes.js?v=178"></script>
-<script type="module" src="js/recipes.js?v=178"></script>
-<script type="module" src="js/backup-tabs.js?v=178"></script>
-<script type="module" src="js/backup.js?v=178"></script>
-<script type="module" src="js/admin-log.js?v=178"></script>
-<script type="module" src="js/people.js?v=178"></script>
-<script type="module" src="js/pdf-export.js?v=178"></script>
-<script type="module" src="js/dictate.js?v=178"></script>
-<script type="module" src="js/back-nav.js?v=178"></script>
+<script src="js/app.js?v=179"></script>
+<script type="module" src="js/auth.js?v=179"></script>
+<script type="module" src="js/app-shell.js?v=179"></script>
+<script type="module" src="js/account-menu.js?v=179"></script>
+<script type="module" src="js/refresh-button.js?v=179"></script>
+<script type="module" src="js/settings-nav.js?v=179"></script>
+<script type="module" src="js/data-tabs.js?v=179"></script>
+<script type="module" src="js/taxonomy.js?v=179"></script>
+<script type="module" src="js/storage-locations.js?v=179"></script>
+<script type="module" src="js/year-colors.js?v=179"></script>
+<script type="module" src="js/stock-checkin.js?v=179"></script>
+<script type="module" src="js/stock-checkout.js?v=179"></script>
+<script type="module" src="js/stock-table.js?v=179"></script>
+<script type="module" src="js/dashboard.js?v=179"></script>
+<script type="module" src="js/targets.js?v=179"></script>
+<script type="module" src="js/planning.js?v=179"></script>
+<script type="module" src="js/notifications.js?v=179"></script>
+<script type="module" src="js/verbindung.js?v=179"></script>
+<script type="module" src="js/checklists.js?v=179"></script>
+<script type="module" src="js/info-nav.js?v=179"></script>
+<script type="module" src="js/contacts.js?v=179"></script>
+<script type="module" src="js/notes.js?v=179"></script>
+<script type="module" src="js/recipes.js?v=179"></script>
+<script type="module" src="js/backup-tabs.js?v=179"></script>
+<script type="module" src="js/backup.js?v=179"></script>
+<script type="module" src="js/admin-log.js?v=179"></script>
+<script type="module" src="js/people.js?v=179"></script>
+<script type="module" src="js/pdf-export.js?v=179"></script>
+<script type="module" src="js/dictate.js?v=179"></script>
+<script type="module" src="js/back-nav.js?v=179"></script>
 </body>
 </html>

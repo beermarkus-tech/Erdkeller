@@ -61,7 +61,7 @@
 // or triggers a render — never a manual optimistic flip in the same tick,
 // which would be a second writer to the same state and risk a visible
 // flicker if a slightly-lagged snapshot event arrived after it.
-import { db } from './firebase-init.js?v=178';
+import { db } from './firebase-init.js?v=179';
 import {
   collection, doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -1065,14 +1065,18 @@ checklistsEditToggleBtn.addEventListener('click', () => {
 
 applyEditMode();
 
-// Checklisten verwalten / Einträge — collapsible, same
-// .targets-section-header pattern as Ziele (js/targets.js), scoped to this
-// screen so it doesn't pick up Ziele's own section headers.
-maintenanceEditViewEl.querySelectorAll('.checklist-section-header').forEach((btn) => {
+// Checklisten verwalten / Einträge — sub-tabs within the editor (Build 179;
+// were stacked collapsible sections before, so managing a long list of
+// checklists always pushed "Einträge" out of view below it). Same generic
+// segmented/.hidden pattern as the Wartung/Krise tabs above and Info's own
+// Kontakte/Notizen/Rezepte (js/info-nav.js) — its own tiny switcher per
+// house convention, not a shared module.
+const maintenanceEditTabBtns = maintenanceEditViewEl.querySelectorAll('.seg-btn[data-maintenance-edit-tab]');
+const maintenanceEditTabPanels = maintenanceEditViewEl.querySelectorAll('.maintenance-edit-tab[data-maintenance-edit-tab-panel]');
+maintenanceEditTabBtns.forEach((btn) => {
   btn.addEventListener('click', () => {
-    const body = btn.nextElementSibling;
-    const collapsed = body.classList.toggle('collapsed');
-    btn.querySelector('.tax-toggle').textContent = collapsed ? '▾' : '▴';
+    maintenanceEditTabBtns.forEach((b) => b.classList.toggle('active', b === btn));
+    maintenanceEditTabPanels.forEach((p) => p.classList.toggle('hidden', p.dataset.maintenanceEditTabPanel !== btn.dataset.maintenanceEditTab));
   });
 });
 

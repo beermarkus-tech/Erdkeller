@@ -12,7 +12,7 @@
 // Notifications stay genuinely household-level (/config/notifications.enabled,
 // Build 154) — surfaced here as a link, not duplicated as a second toggle.
 // Cloud backup will be the same shape once Step 16c builds it.
-import { db } from './firebase-init.js?v=178';
+import { db } from './firebase-init.js?v=179';
 import { doc, getDoc, disableNetwork, enableNetwork } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const panelEl = document.getElementById('settings-panel-verbindung');

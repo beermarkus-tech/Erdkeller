@@ -803,19 +803,17 @@ nav.bottomnav button .icon {
 /* Ziele's three top-level collapsible sections (Kategorien / Unterkategorien
    / Produktziele) — separated by a rule rather than nested inside one
    another, so each level's targets live in exactly one place. Checklisten's
-   Wartung editor (Build 75) reuses the same look for its "Checklisten
-   verwalten"/"Einträge" sections via its own class names — same CSS,
-   separate JS toggle wiring per file (avoids two files' click listeners
-   both attaching to one shared class and double-toggling each other). */
-.targets-section + .targets-section,
-.checklist-section + .checklist-section {
+   Wartung editor used to reuse this same look for its "Checklisten
+   verwalten"/"Einträge" sections (Build 75); Build 179 turned those into
+   sub-tabs (.maintenance-edit-tab below) instead, since managing a long
+   checklist list always pushed the entries section out of view below it. */
+.targets-section + .targets-section {
   border-top: 1px solid var(--stone-dark);
   padding-top: 16px;
   margin-top: 16px;
 }
 
-.targets-section-header,
-.checklist-section-header {
+.targets-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -830,13 +828,11 @@ nav.bottomnav button .icon {
   cursor: pointer;
 }
 
-.targets-section-body,
-.checklist-section-body {
+.targets-section-body {
   margin-top: 10px;
 }
 
-.targets-section-body.collapsed,
-.checklist-section-body.collapsed {
+.targets-section-body.collapsed {
   display: none;
 }
 
