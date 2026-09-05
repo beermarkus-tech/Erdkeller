@@ -1769,27 +1769,24 @@ nav.bottomnav button .icon {
   }
 }
 
-/* Build 180 — Checklisten's admin edit-mode toggle moved from an inline
-   header button to a floating one, same .fab look as every "+" button in
-   the app, but it can't sit in the same bottom-right spot: whenever edit
-   mode is open, this button (to leave it) and the editor's own "+" FAB (to
-   add a list/item/crisis type) are both on screen at once. Mirrored to
-   the opposite corner instead of stacking two circles on top of each
-   other. */
-.fab-secondary {
-  left: 28px;
-  right: auto;
+/* Build 182 — Checklisten's admin edit-mode toggle: same bottom-right
+   spot as every "+" FAB in the app while the live view is showing (an
+   earlier version mirrored it to the opposite corner instead, which read
+   as inconsistent with every other floating button — Markus wanted the
+   same position). The conflict that motivated the opposite corner in the
+   first place — this button (to leave edit mode) and the editor's own
+   "+" FAB (to add a list/item/crisis type) both on screen at once while
+   editing — is solved by stacking instead: js/checklists.js's
+   applyEditMode() adds .fab-stacked only while edit mode is open, which
+   raises this button one full circle + a gap above the "+" FAB sitting
+   in its usual spot underneath, rather than moving it sideways. */
+.fab-stacked {
+  bottom: calc(96px + env(safe-area-inset-bottom) + 70px);
 }
 
 @media (min-width: 900px) {
-  .fab-secondary {
-    /* Not a flat 32px like mobile: position:fixed is relative to the
-       VIEWPORT, but on tablet the 220px-wide .sidebar sits to the left of
-       main in normal flow — a flat left offset landed the button inside
-       the sidebar's own space. Same dark-green background on both, so it
-       wasn't just misplaced, it was camouflaged into invisibility. */
-    left: calc(220px + 32px);
-    right: auto;
+  .fab-stacked {
+    bottom: 106px;
   }
 }
 

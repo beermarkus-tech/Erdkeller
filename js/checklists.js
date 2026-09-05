@@ -61,7 +61,7 @@
 // or triggers a render — never a manual optimistic flip in the same tick,
 // which would be a second writer to the same state and risk a visible
 // flicker if a slightly-lagged snapshot event arrived after it.
-import { db } from './firebase-init.js?v=182';
+import { db } from './firebase-init.js?v=183';
 import {
   collection, doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -1040,6 +1040,11 @@ function applyEditMode() {
   crisisViewEl.classList.toggle('hidden', editMode);
   crisisEditViewEl.classList.toggle('hidden', !editMode);
   checklistsEditToggleBtn.classList.toggle('editing', editMode);
+  // Build 182 — stacked above the editor's own "+" FAB (add a list/item/
+  // crisis type) only while both are on screen at once; the rest of the
+  // time this sits in the exact same spot every other "+" FAB in the app
+  // uses (css/styles.css's .fab-stacked).
+  checklistsEditToggleBtn.classList.toggle('fab-stacked', editMode);
   checklistsEditToggleBtn.textContent = editMode ? '✓' : '✏️';
 }
 
