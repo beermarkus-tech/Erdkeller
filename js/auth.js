@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=184';
+import { auth, db } from './firebase-init.js?v=185';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -198,11 +198,12 @@ if (hadPendingRedirect) {
 // Personen's own updateDoc (or self-provisioning above) ever writes it.
 async function ensureUserDoc(user) {
   // Skipped entirely when offline. getDoc's default mode tries the server
-  // first and only reads cache once that attempt fails, so offline this is
-  // pure waiting — and neither of the two things it does (create the doc on
-  // first sign-in, patch a drifted name/photo) is urgent enough to block
-  // startup for. The onSnapshot listener below still delivers the profile
-  // from cache regardless.
+  // first and only reads cache once that attempt fails, so offline this
+  // would be pure waiting for no benefit — the onSnapshot listener below
+  // still delivers the cached profile regardless, and there's no other
+  // client that could be racing this device's own offline read anyway
+  // (see the Build 185 comment at this function's call site for why this
+  // call is awaited — bounded to 3s — everywhere else).
   if (!navigator.onLine) return;
   const ref = doc(db, 'users', user.uid);
   const snap = await getDoc(ref);
@@ -279,7 +280,18 @@ let unsubscribeUserDoc = null;
 let authSettled = false;
 let bootDataTimer = null;
 
+// Build 185 — this callback now awaits ensureUserDoc (below) before it may
+// touch renderSignedIn/onSnapshot, so a second invocation (a real sign-out
+// then sign-in in quick succession — unlikely, but this is core auth
+// plumbing) could otherwise start and finish entirely while an earlier one
+// is still paused mid-await, and the earlier one's stale completion could
+// then overwrite the newer one's subscription or briefly render outdated
+// info after the fresh one already rendered current info. A generation
+// token makes a stale invocation's post-await continuation a no-op.
+let authGeneration = 0;
+
 onAuthStateChanged(auth, async (user) => {
+  const myGeneration = ++authGeneration;
   authSettled = true;
   if (bootDataTimer) {
     clearTimeout(bootDataTimer);
@@ -292,20 +304,14 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   if (user) {
-    // Deliberately NOT awaited, and its failure no longer blocks rendering.
-    // Previously an error here returned early, so a single failed profile
-    // read left the app stuck on the login screen forever even though the
-    // session was perfectly valid.
-    ensureUserDoc(user).catch((err) => {
-      console.error('Nutzerprofil konnte nicht aktualisiert werden', err);
-    });
-
-    // Render straight away from whatever we already know, so the UI never
-    // waits on Firestore. The snapshot below refines this the moment it
-    // arrives (from cache offline, from the server online).
+    // Paint straight away from whatever we already know, so the UI never
+    // waits on Firestore just to show the shell. The snapshot below
+    // refines this the moment it arrives (from cache offline, from the
+    // server online).
     const cached = readCachedIdentity();
+    let signedInIdentity;
     if (cached && cached.uid === user.uid) {
-      renderSignedIn(cached);
+      signedInIdentity = cached;
     } else {
       // A different account than the one cached (or none cached). Drop the
       // stale entry and fall back to 'member' rather than inheriting the
@@ -313,12 +319,38 @@ onAuthStateChanged(auth, async (user) => {
       // an admin's device never gets a flash of admin UI before the real
       // profile arrives.
       if (cached) clearCachedIdentity();
-      renderSignedIn({
-        name: user.displayName || '',
-        photoURL: user.photoURL || '',
-        role: 'member',
-      });
+      signedInIdentity = { name: user.displayName || '', photoURL: user.photoURL || '', role: 'member' };
     }
+    paintSignedIn(signedInIdentity);
+
+    // Build 185 — AWAITED, unlike before, but bounded to 3s so a slow (not
+    // fully hung) connection can never block this longer than that. This
+    // closes a real race: a session with no persisted Firestore cache at
+    // all — a brand-new member's very first sign-in, or any member's
+    // sign-in after clearing browser data — was seen showing a completely
+    // blank app (every screen's own data read denied) until an admin
+    // toggled their role, which just forces every screen to reload,
+    // working the second time because the race had resolved by then. The
+    // dispatch below (via renderSignedIn) is what actually triggers every
+    // other screen's first data read, all of which need this exact uid's
+    // /users/{uid} doc to already exist and be reachable — ensureUserDoc
+    // is what creates that doc on a brand-new sign-in, and simply
+    // confirms it's reachable on a returning one, so waiting for its one
+    // attempt here is a real readiness gate, not a formality. Its own
+    // failure still never blocks rendering (caught below, same as
+    // before) — only the guaranteed ATTEMPT is awaited, not success.
+    // Skips itself immediately while offline (see its own comment), so
+    // this adds no delay at all to the offline cold-start path that
+    // Section 13.8 spent three builds getting fast.
+    await Promise.race([
+      ensureUserDoc(user).catch((err) => {
+        console.error('Nutzerprofil konnte nicht aktualisiert werden', err);
+      }),
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+    if (myGeneration !== authGeneration) return;
+
+    renderSignedIn(signedInIdentity);
 
     const ref = doc(db, 'users', user.uid);
     unsubscribeUserDoc = onSnapshot(ref, (snap) => {
