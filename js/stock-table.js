@@ -1,9 +1,9 @@
-import { db } from './firebase-init.js?v=183';
-import { PALETTE } from './year-colors.js?v=183';
-import { openAddFlow } from './stock-checkin.js?v=183';
-import { switchTabWithoutReset } from './app-shell.js?v=183';
+import { db } from './firebase-init.js?v=184';
+import { PALETTE } from './year-colors.js?v=184';
+import { openAddFlow } from './stock-checkin.js?v=184';
+import { switchTabWithoutReset } from './app-shell.js?v=184';
 import {
-  doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc,
+  doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const stocktableCard = document.querySelector('.settings-card[data-target="stocktable"]');
@@ -38,6 +38,7 @@ const editTitleEl = document.getElementById('table-edit-title');
 const editBatchFieldsEl = document.getElementById('table-edit-batch-fields');
 const editNoStockNoteEl = document.getElementById('table-edit-no-stock-note');
 const editNameInput = document.getElementById('table-edit-name');
+const editSubcategorySelect = document.getElementById('table-edit-subcategory');
 const editQtyNumEl = document.getElementById('table-edit-qty-num');
 const editQtyMinusBtn = document.getElementById('table-edit-qty-minus');
 const editQtyPlusBtn = document.getElementById('table-edit-qty-plus');
@@ -176,6 +177,25 @@ function findSubcategoryContext(subcategoryId) {
     }
   }
   return null;
+}
+
+// Build 184 — one flat, breadcrumb-labelled list rather than a Typ/
+// Kategorie/Unterkategorie 3-select cascade, same shape as js/targets.js's
+// own flatSubcategories() (its own duplicate, per house convention: that
+// one is filtered to food-only for the Lebensmittel new-product picker,
+// this one is deliberately unfiltered — reassigning a product in
+// Bestandsliste can move it into any type, including across Lebensmittel/
+// Wasser/Sonstiges). Taxonomy order (admin-defined), not alphabetical —
+// matches every other subcategory listing in the app.
+function flatSubcategoryOptions() {
+  const list = [];
+  (taxonomy.types || []).forEach((type) => (type.categories || []).forEach((cat) => (cat.subcategories || []).forEach((sub) => {
+    // A Wasser subcategory's name mirrors its category (js/taxonomy.js's
+    // ensureWaterSubcategory) — drop the redundant trailing segment.
+    const label = sub.name === cat.name ? `${type.name} › ${cat.name}` : `${type.name} › ${cat.name} › ${sub.name}`;
+    list.push({ id: sub.id, label, cls: typeClass(type) });
+  })));
+  return list;
 }
 
 // Typ › Kategorie › Unterkategorie, symbols included — resolved live from
@@ -572,6 +592,8 @@ filtersResetBtn.addEventListener('click', () => {
   selectedCategories.clear();
   selectedSubcategories.clear();
   selectedStorages.clear();
+  searchText = '';
+  searchInput.value = '';
   renderFilters();
   renderRows();
 });
@@ -661,6 +683,23 @@ function openEditModal(batch) {
 
   editTitleEl.textContent = isPhantom ? 'Produkt (kein Bestand)' : 'Bestand bearbeiten';
   editNameInput.value = productName(batch.productId);
+
+  editSubcategorySelect.innerHTML = '';
+  const subcategoryOptions = flatSubcategoryOptions();
+  subcategoryOptions.forEach((s) => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.label;
+    editSubcategorySelect.appendChild(opt);
+  });
+  // A product whose subcategory was since deleted in Taxonomie (orphaned
+  // data, same case js/targets.js's own context labels warn about) has no
+  // matching option — leave the select on its own first entry rather than
+  // silently picking one; the admin picking any real option here fixes it.
+  if (product && subcategoryOptions.some((s) => s.id === product.subcategoryId)) {
+    editSubcategorySelect.value = product.subcategoryId;
+  }
+
   editBatchFieldsEl.classList.toggle('hidden', isPhantom);
   editNoStockNoteEl.classList.toggle('hidden', !isPhantom);
   editDeleteBtn.textContent = isPhantom ? 'Produkt löschen' : 'Löschen';
@@ -734,6 +773,75 @@ editModal.addEventListener('click', (e) => {
   if (e.target === editModal) closeEdit();
 });
 
+// Build 184 — reassigning a product's category/subcategory from the
+// Bestandsliste detail view. Three things happen together here, all load-
+// bearing:
+// 1. /products/{id}.subcategoryId — the one address Dashboard/Ziele/the
+//    shopping list all resolve live from (see js/targets.js's
+//    findSubcategoryContext, js/dashboard.js's own copy).
+// 2. EVERY existing /stockItems batch for this product gets its own
+//    frozen type/category/subcategory/subcategorySymbol text rewritten to
+//    match. Unlike Dashboard/Ziele, THIS screen's own filtering, sorting,
+//    and the CSV/PDF Bestand exports (js/backup.js, js/pdf-export.js) all
+//    read that frozen text directly, not a live-resolved context (see
+//    rowBreadcrumb's own comment above, which already had to special-case
+//    this) — skipping this step would leave the very screen hosting this
+//    edit filtering/sorting/exporting on stale data for every batch that
+//    already existed before the change.
+// 3. A Ziele product target, if one exists, only makes sense for a
+//    Lebensmittel/Sonstiges product — js/targets.js's productTypeClass
+//    returns 'water' for anything filed under a Wasser-classed type, and
+//    renderProductTargets() then stops showing that target on EITHER tab,
+//    forever, without ever deleting the underlying document: a silent
+//    orphan. Confirmed with the admin and cleared here instead, same
+//    cleanup convention as deleting a product that still has a target
+//    (editDeleteBtn's phantom-row branch below).
+async function applyCategoryChange(productId) {
+  const newSubcategoryId = editSubcategorySelect.value;
+  const product = productIndex.get(productId);
+  if (!product || !newSubcategoryId || newSubcategoryId === product.subcategoryId) return;
+
+  const ctx = findSubcategoryContext(newSubcategoryId);
+  if (!ctx) return;
+
+  const existingTarget = targets.products[productId];
+  const movesToWater = typeClass(ctx.type) === 'water';
+  if (movesToWater && existingTarget) {
+    const ok = confirm(`"${productName(productId)}" hat einen Ziele-Zielwert (${targetLabel(existingTarget)}). Wasser-Produkte unterstützen keine einzelnen Zielwerte — beim Verschieben wird dieser Zielwert entfernt. Fortfahren?`);
+    if (!ok) {
+      editSubcategorySelect.value = product.subcategoryId;
+      return;
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+  await updateDoc(doc(db, 'products', productId), { subcategoryId: newSubcategoryId, updatedAt: nowIso });
+  product.subcategoryId = newSubcategoryId;
+
+  if (movesToWater && existingTarget) {
+    delete targets.products[productId];
+    await setDoc(doc(db, 'config', 'targets'), targets);
+  }
+
+  const matchingBatches = allBatches.filter((b) => b.productId === productId);
+  if (matchingBatches.length) {
+    const patch = {
+      type: ctx.type.name,
+      category: ctx.cat.name,
+      subcategory: ctx.sub.name,
+      subcategorySymbol: ctx.sub.sym || '',
+      updatedAt: nowIso,
+    };
+    const batchWrite = writeBatch(db);
+    matchingBatches.forEach((b) => batchWrite.update(doc(db, 'stockItems', b.id), patch));
+    await batchWrite.commit();
+    matchingBatches.forEach((b) => {
+      const idx = allBatches.findIndex((x) => x.id === b.id);
+      if (idx >= 0) allBatches[idx] = { ...allBatches[idx], ...patch };
+    });
+  }
+}
+
 editSaveBtn.addEventListener('click', async () => {
   if (!editingBatch) return;
   const newName = editNameInput.value.trim();
@@ -749,6 +857,7 @@ editSaveBtn.addEventListener('click', async () => {
         const product = productIndex.get(editingBatch.productId);
         if (product) product.name = newName;
       }
+      await applyCategoryChange(editingBatch.productId);
       closeEdit();
       window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
     } catch (err) {
@@ -783,6 +892,7 @@ editSaveBtn.addEventListener('click', async () => {
       const product = productIndex.get(editingBatch.productId);
       if (product) product.name = newName;
     }
+    await applyCategoryChange(editingBatch.productId);
 
     closeEdit();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));

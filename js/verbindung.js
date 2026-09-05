@@ -23,7 +23,7 @@
 // same lazy-load-on-shown convention already used everywhere else in
 // Settings, not a live listener, since the two are tabs in one screen and
 // only one is ever visible at a time.
-import { db } from './firebase-init.js?v=183';
+import { db } from './firebase-init.js?v=184';
 import {
   doc, getDoc, updateDoc, disableNetwork, enableNetwork,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";

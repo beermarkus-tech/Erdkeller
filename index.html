@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=183">
-<link rel="icon" href="icons/icon-192.png?v=183">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=183">
+<link rel="manifest" href="manifest.json?v=184">
+<link rel="icon" href="icons/icon-192.png?v=184">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=184">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=183">
+<link rel="stylesheet" href="css/styles.css?v=184">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 183</div>
+<div id="build-tag" class="build-tag">Build 184</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -792,6 +792,11 @@
                     <input type="text" id="table-edit-name">
                     <p class="settings-note">Gilt für alle Chargen dieses Produkts.</p>
                   </div>
+                  <div class="form-group">
+                    <label>Kategorie / Unterkategorie</label>
+                    <select id="table-edit-subcategory"></select>
+                    <p class="settings-note">Gilt für alle Chargen dieses Produkts und einen evtl. verknüpften Ziele-Zielwert.</p>
+                  </div>
                   <p class="settings-note hidden" id="table-edit-no-stock-note">Kein Bestand vorhanden — Menge, Details und Mindesthaltbarkeit gibt es erst nach dem Einlagern.</p>
                   <div id="table-edit-batch-fields">
                     <div class="form-group">
@@ -1489,36 +1494,36 @@
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="js/app.js?v=183"></script>
-<script type="module" src="js/auth.js?v=183"></script>
-<script type="module" src="js/app-shell.js?v=183"></script>
-<script type="module" src="js/account-menu.js?v=183"></script>
-<script type="module" src="js/refresh-button.js?v=183"></script>
-<script type="module" src="js/settings-nav.js?v=183"></script>
-<script type="module" src="js/data-tabs.js?v=183"></script>
-<script type="module" src="js/reminders-tabs.js?v=183"></script>
-<script type="module" src="js/taxonomy.js?v=183"></script>
-<script type="module" src="js/storage-locations.js?v=183"></script>
-<script type="module" src="js/year-colors.js?v=183"></script>
-<script type="module" src="js/stock-checkin.js?v=183"></script>
-<script type="module" src="js/stock-checkout.js?v=183"></script>
-<script type="module" src="js/stock-table.js?v=183"></script>
-<script type="module" src="js/dashboard.js?v=183"></script>
-<script type="module" src="js/targets.js?v=183"></script>
-<script type="module" src="js/planning.js?v=183"></script>
-<script type="module" src="js/notifications.js?v=183"></script>
-<script type="module" src="js/verbindung.js?v=183"></script>
-<script type="module" src="js/checklists.js?v=183"></script>
-<script type="module" src="js/info-nav.js?v=183"></script>
-<script type="module" src="js/contacts.js?v=183"></script>
-<script type="module" src="js/notes.js?v=183"></script>
-<script type="module" src="js/recipes.js?v=183"></script>
-<script type="module" src="js/backup-tabs.js?v=183"></script>
-<script type="module" src="js/backup.js?v=183"></script>
-<script type="module" src="js/admin-log.js?v=183"></script>
-<script type="module" src="js/people.js?v=183"></script>
-<script type="module" src="js/pdf-export.js?v=183"></script>
-<script type="module" src="js/dictate.js?v=183"></script>
-<script type="module" src="js/back-nav.js?v=183"></script>
+<script src="js/app.js?v=184"></script>
+<script type="module" src="js/auth.js?v=184"></script>
+<script type="module" src="js/app-shell.js?v=184"></script>
+<script type="module" src="js/account-menu.js?v=184"></script>
+<script type="module" src="js/refresh-button.js?v=184"></script>
+<script type="module" src="js/settings-nav.js?v=184"></script>
+<script type="module" src="js/data-tabs.js?v=184"></script>
+<script type="module" src="js/reminders-tabs.js?v=184"></script>
+<script type="module" src="js/taxonomy.js?v=184"></script>
+<script type="module" src="js/storage-locations.js?v=184"></script>
+<script type="module" src="js/year-colors.js?v=184"></script>
+<script type="module" src="js/stock-checkin.js?v=184"></script>
+<script type="module" src="js/stock-checkout.js?v=184"></script>
+<script type="module" src="js/stock-table.js?v=184"></script>
+<script type="module" src="js/dashboard.js?v=184"></script>
+<script type="module" src="js/targets.js?v=184"></script>
+<script type="module" src="js/planning.js?v=184"></script>
+<script type="module" src="js/notifications.js?v=184"></script>
+<script type="module" src="js/verbindung.js?v=184"></script>
+<script type="module" src="js/checklists.js?v=184"></script>
+<script type="module" src="js/info-nav.js?v=184"></script>
+<script type="module" src="js/contacts.js?v=184"></script>
+<script type="module" src="js/notes.js?v=184"></script>
+<script type="module" src="js/recipes.js?v=184"></script>
+<script type="module" src="js/backup-tabs.js?v=184"></script>
+<script type="module" src="js/backup.js?v=184"></script>
+<script type="module" src="js/admin-log.js?v=184"></script>
+<script type="module" src="js/people.js?v=184"></script>
+<script type="module" src="js/pdf-export.js?v=184"></script>
+<script type="module" src="js/dictate.js?v=184"></script>
+<script type="module" src="js/back-nav.js?v=184"></script>
 </body>
 </html>
