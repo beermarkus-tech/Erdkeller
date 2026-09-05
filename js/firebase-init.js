@@ -8,7 +8,7 @@ import {
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { firebaseConfig } from './firebase-config.js?v=185';
+import { firebaseConfig } from './firebase-config.js?v=186';
 
 // Step 16b (SPEC.md Section 13.5) — Funkstille/Sync are deliberately
 // per-device localStorage flags (js/verbindung.js owns writing them), not

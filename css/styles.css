@@ -2445,12 +2445,28 @@ nav.bottomnav button .icon {
   margin-bottom: 14px;
 }
 
+/* Build 186 — Jahr links, Monat rechts (was the other way round), sized to
+   show all 12 months with no internal scrolling (12 × 30px item height =
+   360px, up from the old 216px/6-visible-rows). The year list is split
+   into two 10-year columns side by side rather than one 20-tall scrolling
+   list, both grouped in .picker-year-group so they read as "the year
+   picker" — flex:2 there against the month column's implicit flex:1 makes
+   all three visual columns (year-a, year-b, month) come out equal width. */
 .picker-row {
   display: flex;
-  height: 216px;
+  height: 360px;
   border-top: 1px solid var(--stone-dark);
   border-bottom: 1px solid var(--stone-dark);
   position: relative;
+}
+
+.picker-year-group {
+  display: flex;
+  flex: 2;
+}
+
+.picker-year-group .picker-col {
+  flex: 1;
 }
 
 .picker-col {
@@ -2459,7 +2475,8 @@ nav.bottomnav button .icon {
   text-align: center;
 }
 
-.picker-col + .picker-col {
+.picker-col + .picker-col,
+.picker-year-group + .picker-col {
   border-left: 1px solid var(--stone-dark);
 }
 
@@ -2467,11 +2484,19 @@ nav.bottomnav button .icon {
   display: none;
 }
 
+/* The month column before any year is picked — greyed out and inert, not
+   just visually muted, since a best-before month has no meaning without a
+   year yet (Build 186: month can no longer be chosen first). */
+.picker-col.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 .picker-item {
-  padding: 14px 0;
+  padding: 6px 0;
   font-size: 17px;
   color: #9a9788;
-  height: 36px;
+  height: 30px;
   box-sizing: border-box;
   cursor: pointer;
   user-select: none;
@@ -2501,6 +2526,11 @@ nav.bottomnav button .icon {
   font-weight: 700;
   font-size: 15px;
   cursor: pointer;
+}
+
+.modal-confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Undo toast */

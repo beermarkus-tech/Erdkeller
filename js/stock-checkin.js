@@ -1,7 +1,7 @@
-import { db } from './firebase-init.js?v=185';
-import { renderRecentLog } from './stock-log.js?v=185';
-import { renderResultLines } from './format-batch.js?v=185';
-import { switchTabWithoutReset } from './app-shell.js?v=185';
+import { db } from './firebase-init.js?v=186';
+import { renderRecentLog } from './stock-log.js?v=186';
+import { renderResultLines } from './format-batch.js?v=186';
+import { switchTabWithoutReset } from './app-shell.js?v=186';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -75,7 +75,8 @@ function setHeader(text) {
 
 const dateModal = document.getElementById('date-modal');
 const monthCol = document.getElementById('month-col');
-const yearCol = document.getElementById('year-col');
+const yearColA = document.getElementById('year-col-a');
+const yearColB = document.getElementById('year-col-b');
 const dateModalConfirm = document.getElementById('date-modal-confirm');
 
 const undoToast = document.getElementById('undo-toast');
@@ -98,8 +99,8 @@ let selection = {
 let lastCheckInId = null;
 let lastLogId = null;
 let undoTimer = null;
-let pendingMonthIndex = 0;
-let pendingYearIndex = 0;
+let pendingMonthIndex = null;
+let pendingYearIndex = null;
 let years = [];
 let months = [];
 
@@ -537,7 +538,18 @@ contentInput.addEventListener('blur', () => {
 });
 storageSelect.addEventListener('change', () => { selection.storage = storageSelect.value; });
 
-// --- Date picker modal ---------------------------------------------------
+// --- Date picker modal (Build 186) -----------------------------------------
+//
+// Year on the left (split into two 10-year columns so all 20 fit without
+// scrolling, same as the month column below fitting all 12), month on the
+// right — greyed out and unclickable until a year is picked, since a
+// best-before month means nothing without one. Nothing is preselected on
+// open (unless editing an existing best-before, which restores its exact
+// year/month) — no auto-scroll-to-selection either, a plain highlight is
+// enough now that everything is visible without scrolling anyway.
+// pendingYearIndex/pendingMonthIndex are null (not just a fallback index)
+// specifically so "nothing chosen yet" is a real, distinct state driving
+// the disabled month column and disabled confirm button.
 
 function buildPickerColumn(colEl, items, selectedIndex, onPick) {
   colEl.innerHTML = '';
@@ -548,43 +560,60 @@ function buildPickerColumn(colEl, items, selectedIndex, onPick) {
     item.addEventListener('click', () => onPick(idx));
     colEl.appendChild(item);
   });
-  const activeEl = colEl.children[selectedIndex];
-  if (activeEl) activeEl.scrollIntoView({ block: 'center' });
 }
 
 function renderMonthColumn() {
-  buildPickerColumn(monthCol, months, pendingMonthIndex, (idx) => {
+  const yearChosen = pendingYearIndex !== null;
+  monthCol.classList.toggle('disabled', !yearChosen);
+  buildPickerColumn(monthCol, months, yearChosen ? pendingMonthIndex : null, (idx) => {
     pendingMonthIndex = idx;
     renderMonthColumn();
   });
 }
 
-function renderYearColumn() {
-  buildPickerColumn(yearCol, years.map(String), pendingYearIndex, (idx) => {
+function renderYearColumns() {
+  const half = years.length / 2;
+  const selA = pendingYearIndex !== null && pendingYearIndex < half ? pendingYearIndex : null;
+  const selB = pendingYearIndex !== null && pendingYearIndex >= half ? pendingYearIndex - half : null;
+  buildPickerColumn(yearColA, years.slice(0, half).map(String), selA, (idx) => {
     pendingYearIndex = idx;
-    renderYearColumn();
+    onYearChanged();
   });
+  buildPickerColumn(yearColB, years.slice(half).map(String), selB, (idx) => {
+    pendingYearIndex = half + idx;
+    onYearChanged();
+  });
+}
+
+// Picking a year can newly enable the month column (and always changes
+// whether the confirm button may be pressed at all), so all three re-render
+// together rather than just the year columns' own selection state.
+function onYearChanged() {
+  renderYearColumns();
+  renderMonthColumn();
+  dateModalConfirm.disabled = pendingYearIndex === null;
 }
 
 function openDateModal() {
   months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   const nowYear = new Date().getFullYear();
-  years = Array.from({ length: 21 }, (_, i) => nowYear - 1 + i);
+  years = Array.from({ length: 20 }, (_, i) => nowYear - 1 + i);
 
-  let monthIdx = new Date().getMonth();
-  let yearIdx = years.indexOf(nowYear);
+  pendingYearIndex = null;
+  pendingMonthIndex = null;
   if (selection.bestBefore) {
     const [mm, yyyy] = selection.bestBefore.split('/');
-    const mi = months.indexOf(mm);
     const yi = years.indexOf(Number(yyyy));
-    if (mi >= 0) monthIdx = mi;
-    if (yi >= 0) yearIdx = yi;
+    if (yi >= 0) {
+      pendingYearIndex = yi;
+      const mi = months.indexOf(mm);
+      if (mi >= 0) pendingMonthIndex = mi;
+    }
   }
-  pendingMonthIndex = monthIdx;
-  pendingYearIndex = yearIdx >= 0 ? yearIdx : 0;
 
+  renderYearColumns();
   renderMonthColumn();
-  renderYearColumn();
+  dateModalConfirm.disabled = pendingYearIndex === null;
 
   dateModal.classList.add('show');
 }
@@ -592,7 +621,11 @@ function openDateModal() {
 bestbeforeDisplay.addEventListener('click', openDateModal);
 
 dateModalConfirm.addEventListener('click', () => {
-  const mm = String(pendingMonthIndex + 1).padStart(2, '0');
+  if (pendingYearIndex === null) return;
+  // No month picked defaults to December — "just a year" means "sometime
+  // in that year," and end-of-year is the safer (later) MHD reading than
+  // silently assuming January.
+  const mm = pendingMonthIndex !== null ? String(pendingMonthIndex + 1).padStart(2, '0') : '12';
   const yyyy = years[pendingYearIndex];
   selection.bestBefore = `${mm}/${yyyy}`;
   bestbeforeInput.value = selection.bestBefore;

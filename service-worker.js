@@ -23,7 +23,7 @@
 //      161/162 diagnostics as load-bearing for the auth flow.
 //   4. Install is resilient: one bad URL degrades that single entry rather
 //      than failing the whole installation atomically (cache.addAll would).
-const VERSION = 'erdkeller-v21';
+const VERSION = 'erdkeller-v22';
 const PRECACHE = `erdkeller-precache-${VERSION}`;
 // Build 171 — deliberately NOT suffixed with VERSION like PRECACHE. This
 // holds opportunistically-cached cross-origin CDN responses (Google
@@ -45,15 +45,15 @@ const RUNTIME_CACHE = 'erdkeller-runtime';
 // The app shell, at the exact versioned URLs the app requests. The ?v=
 // literals here are swept by the same version bump as every other file, so
 // this list stays in sync automatically.
-const SHELL_URL = 'index.html?v=185';
+const SHELL_URL = 'index.html?v=186';
 const PRECACHE_URLS = [
   SHELL_URL,
-  'css/styles.css?v=185',
-  'manifest.json?v=185',
+  'css/styles.css?v=186',
+  'manifest.json?v=186',
   // Icons are referenced versioned from index.html/manifest.json but bare
   // from the push handler below, so both forms are cached.
-  'icons/icon-192.png?v=185',
-  'icons/icon-512.png?v=185',
+  'icons/icon-192.png?v=186',
+  'icons/icon-512.png?v=186',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/badge-96.png',
@@ -61,42 +61,42 @@ const PRECACHE_URLS = [
   // (firebase-init, firebase-config, push, stock-log, format-batch) are
   // reachable only via ESM import and are the easiest to forget, since
   // nothing in index.html names them.
-  'js/account-menu.js?v=185',
-  'js/admin-log.js?v=185',
-  'js/app-shell.js?v=185',
-  'js/app.js?v=185',
-  'js/auth.js?v=185',
-  'js/back-nav.js?v=185',
-  'js/backup-tabs.js?v=185',
-  'js/backup.js?v=185',
-  'js/checklists.js?v=185',
-  'js/contacts.js?v=185',
-  'js/dashboard.js?v=185',
-  'js/data-tabs.js?v=185',
-  'js/dictate.js?v=185',
-  'js/firebase-config.js?v=185',
-  'js/firebase-init.js?v=185',
-  'js/format-batch.js?v=185',
-  'js/info-nav.js?v=185',
-  'js/notes.js?v=185',
-  'js/notifications.js?v=185',
-  'js/pdf-export.js?v=185',
-  'js/people.js?v=185',
-  'js/planning.js?v=185',
-  'js/push.js?v=185',
-  'js/recipes.js?v=185',
-  'js/refresh-button.js?v=185',
-  'js/reminders-tabs.js?v=185',
-  'js/settings-nav.js?v=185',
-  'js/stock-checkin.js?v=185',
-  'js/stock-checkout.js?v=185',
-  'js/stock-log.js?v=185',
-  'js/stock-table.js?v=185',
-  'js/storage-locations.js?v=185',
-  'js/targets.js?v=185',
-  'js/taxonomy.js?v=185',
-  'js/verbindung.js?v=185',
-  'js/year-colors.js?v=185',
+  'js/account-menu.js?v=186',
+  'js/admin-log.js?v=186',
+  'js/app-shell.js?v=186',
+  'js/app.js?v=186',
+  'js/auth.js?v=186',
+  'js/back-nav.js?v=186',
+  'js/backup-tabs.js?v=186',
+  'js/backup.js?v=186',
+  'js/checklists.js?v=186',
+  'js/contacts.js?v=186',
+  'js/dashboard.js?v=186',
+  'js/data-tabs.js?v=186',
+  'js/dictate.js?v=186',
+  'js/firebase-config.js?v=186',
+  'js/firebase-init.js?v=186',
+  'js/format-batch.js?v=186',
+  'js/info-nav.js?v=186',
+  'js/notes.js?v=186',
+  'js/notifications.js?v=186',
+  'js/pdf-export.js?v=186',
+  'js/people.js?v=186',
+  'js/planning.js?v=186',
+  'js/push.js?v=186',
+  'js/recipes.js?v=186',
+  'js/refresh-button.js?v=186',
+  'js/reminders-tabs.js?v=186',
+  'js/settings-nav.js?v=186',
+  'js/stock-checkin.js?v=186',
+  'js/stock-checkout.js?v=186',
+  'js/stock-log.js?v=186',
+  'js/stock-table.js?v=186',
+  'js/storage-locations.js?v=186',
+  'js/targets.js?v=186',
+  'js/taxonomy.js?v=186',
+  'js/verbindung.js?v=186',
+  'js/year-colors.js?v=186',
 ];
 
 // Cross-origin hosts whose responses may be cached. The Firebase SDK's ESM
