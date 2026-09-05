@@ -23,7 +23,7 @@
 // same lazy-load-on-shown convention already used everywhere else in
 // Settings, not a live listener, since the two are tabs in one screen and
 // only one is ever visible at a time.
-import { db } from './firebase-init.js?v=181';
+import { db } from './firebase-init.js?v=182';
 import {
   doc, getDoc, updateDoc, disableNetwork, enableNetwork,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -83,8 +83,23 @@ function applyNetworkState() {
   }
 }
 
+// Build 181 — a greyed-but-still-checked box read as "still on" (Markus:
+// wanted Funkstille to visibly uncheck the three below it, not just grey
+// them). This only changes what's DISPLAYED while Funkstille is on: the
+// underlying stored preference (localStorage for Sync/AI, lastKnownRemindersEnabled
+// for Erinnerungen) is untouched, so switching Funkstille back off restores
+// each toggle to whatever it actually was — never forces them back on.
+// isSyncEnabled()/js/dictate.js's aiDisabled() already treated Funkstille
+// as an override for the REAL behavior regardless of the checkbox's own
+// state; this just makes the display stop contradicting that.
+let lastKnownRemindersEnabled = true;
+
 function applySuboptionsGreyedOut() {
-  suboptionsEl.classList.toggle('verbindung-disabled', isFunkstille());
+  const funkstille = isFunkstille();
+  suboptionsEl.classList.toggle('verbindung-disabled', funkstille);
+  syncToggle.checked = funkstille ? false : readBool(SYNC_KEY, true);
+  aiToggle.checked = funkstille ? false : readBool(AI_KEY, true);
+  remindersToggle.checked = funkstille ? false : lastKnownRemindersEnabled;
 }
 
 // Lets js/dictate.js (and anything else per-device-setting-aware in the
@@ -119,6 +134,7 @@ remindersToggle.addEventListener('change', async () => {
   statusEl.textContent = '';
   try {
     await updateDoc(notificationsRef, { enabled, updatedAt: new Date().toISOString() });
+    lastKnownRemindersEnabled = enabled;
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     remindersToggle.checked = !enabled;
@@ -134,14 +150,13 @@ remindersToggle.addEventListener('change', async () => {
 // network read.
 async function loadPanel() {
   funkstilleToggle.checked = isFunkstille();
-  syncToggle.checked = readBool(SYNC_KEY, true);
-  aiToggle.checked = readBool(AI_KEY, true);
   applySuboptionsGreyedOut();
 
   statusEl.textContent = '';
   try {
     const snap = await getDoc(notificationsRef);
-    remindersToggle.checked = !snap.exists() || snap.data().enabled !== false;
+    lastKnownRemindersEnabled = !snap.exists() || snap.data().enabled !== false;
+    applySuboptionsGreyedOut();
   } catch (err) {
     statusEl.textContent = 'Status der Erinnerungen unbekannt: ' + err.message;
     console.error(err);

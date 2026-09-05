@@ -1783,7 +1783,12 @@ nav.bottomnav button .icon {
 
 @media (min-width: 900px) {
   .fab-secondary {
-    left: 32px;
+    /* Not a flat 32px like mobile: position:fixed is relative to the
+       VIEWPORT, but on tablet the 220px-wide .sidebar sits to the left of
+       main in normal flow — a flat left offset landed the button inside
+       the sidebar's own space. Same dark-green background on both, so it
+       wasn't just misplaced, it was camouflaged into invisibility. */
+    left: calc(220px + 32px);
     right: auto;
   }
 }
