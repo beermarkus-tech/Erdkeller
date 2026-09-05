@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=179">
-<link rel="icon" href="icons/icon-192.png?v=179">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=179">
+<link rel="manifest" href="manifest.json?v=180">
+<link rel="icon" href="icons/icon-192.png?v=180">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=180">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=179">
+<link rel="stylesheet" href="css/styles.css?v=180">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 179</div>
+<div id="build-tag" class="build-tag">Build 180</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
@@ -295,9 +295,9 @@
           <button class="seg-btn active" data-checklists-tab="maintenance" type="button">Wartung</button>
           <button class="seg-btn" data-checklists-tab="crisis" type="button">Krise</button>
         </div>
-        <button type="button" class="checklists-edit-toggle admin-only hidden" id="checklists-edit-toggle" title="Bearbeiten">✏️</button>
       </div>
       <p id="checklists-status" class="taxonomy-status"></p>
+      <button type="button" class="fab fab-secondary admin-only hidden" id="checklists-edit-toggle" title="Bearbeiten">✏️</button>
 
       <div class="checklists-tab" data-checklists-tab-panel="maintenance">
         <div class="checklist-view" id="maintenance-view">
@@ -317,14 +317,14 @@
           <div id="maintenance-list"></div>
         </div>
         <div class="checklist-edit-view hidden" id="maintenance-edit-view">
-          <div class="segmented">
-            <button class="seg-btn active" data-maintenance-edit-tab="lists" type="button">Checklisten</button>
-            <button class="seg-btn" data-maintenance-edit-tab="items" type="button">Einträge</button>
+          <div class="sub-segmented">
+            <button class="sub-seg-btn active" data-maintenance-edit-tab="lists" type="button">Checklisten</button>
+            <button class="sub-seg-btn" data-maintenance-edit-tab="items" type="button">Einträge</button>
           </div>
 
           <div class="maintenance-edit-tab" data-maintenance-edit-tab-panel="lists">
             <div id="maintenance-manage-list"></div>
-            <button class="add-row-btn" id="add-maintenance-list-btn">+ Neue Checkliste</button>
+            <button type="button" class="fab" id="add-maintenance-list-btn" title="Neue Checkliste">+</button>
           </div>
 
           <div class="maintenance-edit-tab hidden" data-maintenance-edit-tab-panel="items">
@@ -338,7 +338,7 @@
               <div class="filter-chip-row" id="maintenance-freq-filters"></div>
             </div>
             <div id="maintenance-flat-list"></div>
-            <button class="add-row-btn" id="add-maintenance-item-btn">+ Eintrag hinzufügen</button>
+            <button type="button" class="fab" id="add-maintenance-item-btn" title="Eintrag hinzufügen">+</button>
           </div>
         </div>
       </div>
@@ -664,7 +664,7 @@
         </div>
         <div class="settings-card" data-target="notifications">
           <span class="sym">🔔</span>
-          <div class="sc-text"><div class="sc-title">Erinnerungen</div><div class="sc-sub">Wann Checklisten-Erinnerungen fällig sind</div></div>
+          <div class="sc-text"><div class="sc-title">Erinnerungen &amp; Verbindung</div><div class="sc-sub">Checklisten-Erinnerungen, Funkstille &amp; Sync</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="planning">
@@ -679,17 +679,7 @@
         </div>
         <div class="settings-card" data-target="export">
           <span class="sym">🔄</span>
-          <div class="sc-text"><div class="sc-title">Sicherung</div><div class="sc-sub">Export &amp; Wiederherstellung</div></div>
-          <span class="chev">›</span>
-        </div>
-        <div class="settings-card" data-target="pdf">
-          <span class="sym">🖨️</span>
-          <div class="sc-text"><div class="sc-title">PDF-Export</div><div class="sc-sub">Drucken &amp; Sichern</div></div>
-          <span class="chev">›</span>
-        </div>
-        <div class="settings-card" data-target="verbindung">
-          <span class="sym">📡</span>
-          <div class="sc-text"><div class="sc-title">Verbindung</div><div class="sc-sub">Funkstille, Sync, KI-Diktieren</div></div>
+          <div class="sc-text"><div class="sc-title">Sicherung</div><div class="sc-sub">Export, Wiederherstellung &amp; PDF</div></div>
           <span class="chev">›</span>
         </div>
       </div>
@@ -882,8 +872,13 @@
           <div class="panel-header-row">
             <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
           </div>
+          <div class="segmented">
+            <button class="seg-btn active" data-reminders-tab="notifications">Erinnerungen</button>
+            <button class="seg-btn" data-reminders-tab="verbindung">Verbindung</button>
+          </div>
         </div>
 
+        <div class="reminders-tab" data-reminders-tab-panel="notifications">
         <div class="tax-planning-toggle" id="notif-enabled-row">
           <input type="checkbox" id="notif-enabled-toggle" checked>
           <label for="notif-enabled-toggle">Erinnerungen aktiviert</label>
@@ -1102,6 +1097,36 @@
         </div>
 
         <p id="notifications-status" class="taxonomy-status"></p>
+        </div>
+
+        <div class="reminders-tab hidden" data-reminders-tab-panel="verbindung">
+          <div class="tax-planning-toggle" id="verbindung-funkstille-row">
+            <input type="checkbox" id="verbindung-funkstille-toggle">
+            <label for="verbindung-funkstille-toggle">Funkstille — dieses Gerät komplett offline</label>
+          </div>
+          <p class="settings-note">Trennt nur dieses Gerät gezielt von Firebase: keine Synchronisation, kein KI-Diktieren, keine Push-Benachrichtigungen (die kommen ohne Netz ohnehin nicht an). Andere Geräte sind nicht betroffen. Änderungen bleiben lokal gespeichert und synchronisieren automatisch, sobald Funkstille wieder ausgeschaltet wird.</p>
+
+          <div class="section-label">Einzelne Funktionen</div>
+          <div id="verbindung-suboptions">
+            <div class="tax-planning-toggle" id="verbindung-sync-row">
+              <input type="checkbox" id="verbindung-sync-toggle" checked>
+              <label for="verbindung-sync-toggle">Synchronisation</label>
+            </div>
+            <div class="tax-planning-toggle" id="verbindung-ai-row">
+              <input type="checkbox" id="verbindung-ai-toggle" checked>
+              <label for="verbindung-ai-toggle">KI-Diktieren</label>
+            </div>
+            <div class="tax-planning-toggle" id="verbindung-reminders-row">
+              <input type="checkbox" id="verbindung-reminders-toggle" checked>
+              <label for="verbindung-reminders-toggle">Erinnerungen</label>
+            </div>
+          </div>
+          <p class="settings-note">Erinnerungen gilt für den ganzen Haushalt (wie im Tab „Erinnerungen“); Synchronisation und KI-Diktieren gelten nur für dieses Gerät.</p>
+
+          <p class="settings-note">Cloud-Backup bekommt hier einen eigenen Schalter, sobald die automatische Sicherung gebaut ist (SPEC.md Section 14).</p>
+
+          <p id="verbindung-status" class="taxonomy-status"></p>
+        </div>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-targets">
@@ -1319,6 +1344,7 @@
           <div class="segmented">
             <button class="seg-btn active" data-backup-tab="export">Export</button>
             <button class="seg-btn" data-backup-tab="import">Import</button>
+            <button class="seg-btn" data-backup-tab="pdf">PDF-Export</button>
           </div>
         </div>
 
@@ -1391,97 +1417,55 @@
 
           <p id="import-status" class="taxonomy-status"></p>
         </div>
+
+        <div class="backup-tab hidden" data-backup-tab-panel="pdf">
+          <p class="settings-note">Erzeugt eine PDF-Datei zum Herunterladen — kein Druckdialog. Jeder ausgewählte Abschnitt beginnt auf einer neuen Seite.</p>
+
+          <div class="tax-expand-row">
+            <button class="select-mode-btn" id="pdf-select-all-btn" type="button">Alle auswählen</button>
+            <button class="select-mode-btn" id="pdf-select-none-btn" type="button">Alle abwählen</button>
+          </div>
+
+          <div class="product-list">
+            <div class="stock-product-row">
+              <input type="checkbox" class="pdf-section-check" id="pdf-section-dashboard" data-pdf-section="dashboard" checked>
+              <label for="pdf-section-dashboard" class="export-row-text"><span class="pname">Übersicht</span><span class="pmeta">Stand heute: Bestand vs. Ziel, MHD-Alarme, Einkaufsliste</span></label>
+            </div>
+            <div class="stock-product-row">
+              <input type="checkbox" class="pdf-section-check" id="pdf-section-stock" data-pdf-section="stock" checked>
+              <label for="pdf-section-stock" class="export-row-text"><span class="pname">Bestand</span><span class="pmeta">Alle Chargen mit Produkt, Menge, MHD, Lagerort</span></label>
+            </div>
+            <div class="stock-product-row">
+              <input type="checkbox" class="pdf-section-check" id="pdf-section-maintenance" data-pdf-section="maintenance" checked>
+              <label for="pdf-section-maintenance" class="export-row-text"><span class="pname">Checkliste – Wartung</span><span class="pmeta">Alle Aufgaben mit Häufigkeit, leere Kästchen zum Ausfüllen</span></label>
+            </div>
+            <div class="stock-product-row">
+              <input type="checkbox" class="pdf-section-check" id="pdf-section-crisis" data-pdf-section="crisis" checked>
+              <label for="pdf-section-crisis" class="export-row-text"><span class="pname">Checkliste – Krise</span><span class="pmeta">Alle Krisentypen mit nummerierten Schritten</span></label>
+            </div>
+            <div class="stock-product-row">
+              <input type="checkbox" class="pdf-section-check" id="pdf-section-contacts" data-pdf-section="contacts" checked>
+              <label for="pdf-section-contacts" class="export-row-text"><span class="pname">Kontakte</span><span class="pmeta">Notruf zuerst, dann alle weiteren Kontakte</span></label>
+            </div>
+            <div class="stock-product-row">
+              <input type="checkbox" class="pdf-section-check" id="pdf-section-notes" data-pdf-section="notes" checked>
+              <label for="pdf-section-notes" class="export-row-text"><span class="pname">Notizen</span><span class="pmeta">Titel, Text und Foto je Notiz</span></label>
+            </div>
+            <div class="stock-product-row">
+              <input type="checkbox" class="pdf-section-check" id="pdf-section-recipes" data-pdf-section="recipes" checked>
+              <label for="pdf-section-recipes" class="export-row-text"><span class="pname">Rezepte</span><span class="pmeta">Titel, Tags, Zutaten und Zubereitung je Rezept</span></label>
+            </div>
+            <div class="stock-product-row">
+              <input type="checkbox" class="pdf-section-check" id="pdf-section-targets" data-pdf-section="targets" checked>
+              <label for="pdf-section-targets" class="export-row-text"><span class="pname">Ziele</span><span class="pmeta">Konfigurierte Zielmengen je Kategorie/Unterkategorie/Produkt</span></label>
+            </div>
+          </div>
+
+          <button type="button" class="confirm-btn" id="pdf-create-btn">PDF erstellen</button>
+          <p id="pdf-status" class="taxonomy-status"></p>
+        </div>
       </div>
 
-      <div class="settings-panel hidden" id="settings-panel-pdf">
-        <div class="sticky-panel-header">
-          <div class="panel-header-row">
-            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
-          </div>
-        </div>
-        <p class="settings-note">Erzeugt eine PDF-Datei zum Herunterladen — kein Druckdialog. Jeder ausgewählte Abschnitt beginnt auf einer neuen Seite.</p>
-
-        <div class="tax-expand-row">
-          <button class="select-mode-btn" id="pdf-select-all-btn" type="button">Alle auswählen</button>
-          <button class="select-mode-btn" id="pdf-select-none-btn" type="button">Alle abwählen</button>
-        </div>
-
-        <div class="product-list">
-          <div class="stock-product-row">
-            <input type="checkbox" class="pdf-section-check" id="pdf-section-dashboard" data-pdf-section="dashboard" checked>
-            <label for="pdf-section-dashboard" class="export-row-text"><span class="pname">Übersicht</span><span class="pmeta">Stand heute: Bestand vs. Ziel, MHD-Alarme, Einkaufsliste</span></label>
-          </div>
-          <div class="stock-product-row">
-            <input type="checkbox" class="pdf-section-check" id="pdf-section-stock" data-pdf-section="stock" checked>
-            <label for="pdf-section-stock" class="export-row-text"><span class="pname">Bestand</span><span class="pmeta">Alle Chargen mit Produkt, Menge, MHD, Lagerort</span></label>
-          </div>
-          <div class="stock-product-row">
-            <input type="checkbox" class="pdf-section-check" id="pdf-section-maintenance" data-pdf-section="maintenance" checked>
-            <label for="pdf-section-maintenance" class="export-row-text"><span class="pname">Checkliste – Wartung</span><span class="pmeta">Alle Aufgaben mit Häufigkeit, leere Kästchen zum Ausfüllen</span></label>
-          </div>
-          <div class="stock-product-row">
-            <input type="checkbox" class="pdf-section-check" id="pdf-section-crisis" data-pdf-section="crisis" checked>
-            <label for="pdf-section-crisis" class="export-row-text"><span class="pname">Checkliste – Krise</span><span class="pmeta">Alle Krisentypen mit nummerierten Schritten</span></label>
-          </div>
-          <div class="stock-product-row">
-            <input type="checkbox" class="pdf-section-check" id="pdf-section-contacts" data-pdf-section="contacts" checked>
-            <label for="pdf-section-contacts" class="export-row-text"><span class="pname">Kontakte</span><span class="pmeta">Notruf zuerst, dann alle weiteren Kontakte</span></label>
-          </div>
-          <div class="stock-product-row">
-            <input type="checkbox" class="pdf-section-check" id="pdf-section-notes" data-pdf-section="notes" checked>
-            <label for="pdf-section-notes" class="export-row-text"><span class="pname">Notizen</span><span class="pmeta">Titel, Text und Foto je Notiz</span></label>
-          </div>
-          <div class="stock-product-row">
-            <input type="checkbox" class="pdf-section-check" id="pdf-section-recipes" data-pdf-section="recipes" checked>
-            <label for="pdf-section-recipes" class="export-row-text"><span class="pname">Rezepte</span><span class="pmeta">Titel, Tags, Zutaten und Zubereitung je Rezept</span></label>
-          </div>
-          <div class="stock-product-row">
-            <input type="checkbox" class="pdf-section-check" id="pdf-section-targets" data-pdf-section="targets" checked>
-            <label for="pdf-section-targets" class="export-row-text"><span class="pname">Ziele</span><span class="pmeta">Konfigurierte Zielmengen je Kategorie/Unterkategorie/Produkt</span></label>
-          </div>
-        </div>
-
-        <button type="button" class="confirm-btn" id="pdf-create-btn">PDF erstellen</button>
-        <p id="pdf-status" class="taxonomy-status"></p>
-      </div>
-
-      <div class="settings-panel hidden" id="settings-panel-verbindung">
-        <div class="sticky-panel-header">
-          <div class="panel-header-row">
-            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
-          </div>
-        </div>
-
-        <div class="tax-planning-toggle" id="verbindung-funkstille-row">
-          <input type="checkbox" id="verbindung-funkstille-toggle">
-          <label for="verbindung-funkstille-toggle">Funkstille — dieses Gerät komplett offline</label>
-        </div>
-        <p class="settings-note">Trennt nur dieses Gerät gezielt von Firebase: keine Synchronisation, kein KI-Diktieren, keine Push-Benachrichtigungen (die kommen ohne Netz ohnehin nicht an). Andere Geräte sind nicht betroffen. Änderungen bleiben lokal gespeichert und synchronisieren automatisch, sobald Funkstille wieder ausgeschaltet wird.</p>
-
-        <div class="section-label">Einzelne Funktionen</div>
-        <div id="verbindung-suboptions">
-          <div class="tax-planning-toggle" id="verbindung-sync-row">
-            <input type="checkbox" id="verbindung-sync-toggle" checked>
-            <label for="verbindung-sync-toggle">Synchronisation</label>
-          </div>
-          <div class="tax-planning-toggle" id="verbindung-ai-row">
-            <input type="checkbox" id="verbindung-ai-toggle" checked>
-            <label for="verbindung-ai-toggle">KI-Diktieren</label>
-          </div>
-        </div>
-
-        <div class="section-label">Weitere Einstellungen</div>
-        <div class="product-list">
-          <div class="settings-card" data-target="notifications">
-            <span class="sym">🔔</span>
-            <div class="sc-text"><div class="sc-title">Erinnerungen</div><div class="sc-sub" id="verbindung-notif-status">Wird geladen…</div></div>
-            <span class="chev">›</span>
-          </div>
-        </div>
-        <p class="settings-note">Cloud-Backup bekommt hier einen eigenen Schalter, sobald die automatische Sicherung gebaut ist (SPEC.md Section 14).</p>
-
-        <p id="verbindung-status" class="taxonomy-status"></p>
-      </div>
     </div>
   </main>
 
@@ -1505,35 +1489,36 @@
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="js/app.js?v=179"></script>
-<script type="module" src="js/auth.js?v=179"></script>
-<script type="module" src="js/app-shell.js?v=179"></script>
-<script type="module" src="js/account-menu.js?v=179"></script>
-<script type="module" src="js/refresh-button.js?v=179"></script>
-<script type="module" src="js/settings-nav.js?v=179"></script>
-<script type="module" src="js/data-tabs.js?v=179"></script>
-<script type="module" src="js/taxonomy.js?v=179"></script>
-<script type="module" src="js/storage-locations.js?v=179"></script>
-<script type="module" src="js/year-colors.js?v=179"></script>
-<script type="module" src="js/stock-checkin.js?v=179"></script>
-<script type="module" src="js/stock-checkout.js?v=179"></script>
-<script type="module" src="js/stock-table.js?v=179"></script>
-<script type="module" src="js/dashboard.js?v=179"></script>
-<script type="module" src="js/targets.js?v=179"></script>
-<script type="module" src="js/planning.js?v=179"></script>
-<script type="module" src="js/notifications.js?v=179"></script>
-<script type="module" src="js/verbindung.js?v=179"></script>
-<script type="module" src="js/checklists.js?v=179"></script>
-<script type="module" src="js/info-nav.js?v=179"></script>
-<script type="module" src="js/contacts.js?v=179"></script>
-<script type="module" src="js/notes.js?v=179"></script>
-<script type="module" src="js/recipes.js?v=179"></script>
-<script type="module" src="js/backup-tabs.js?v=179"></script>
-<script type="module" src="js/backup.js?v=179"></script>
-<script type="module" src="js/admin-log.js?v=179"></script>
-<script type="module" src="js/people.js?v=179"></script>
-<script type="module" src="js/pdf-export.js?v=179"></script>
-<script type="module" src="js/dictate.js?v=179"></script>
-<script type="module" src="js/back-nav.js?v=179"></script>
+<script src="js/app.js?v=180"></script>
+<script type="module" src="js/auth.js?v=180"></script>
+<script type="module" src="js/app-shell.js?v=180"></script>
+<script type="module" src="js/account-menu.js?v=180"></script>
+<script type="module" src="js/refresh-button.js?v=180"></script>
+<script type="module" src="js/settings-nav.js?v=180"></script>
+<script type="module" src="js/data-tabs.js?v=180"></script>
+<script type="module" src="js/reminders-tabs.js?v=180"></script>
+<script type="module" src="js/taxonomy.js?v=180"></script>
+<script type="module" src="js/storage-locations.js?v=180"></script>
+<script type="module" src="js/year-colors.js?v=180"></script>
+<script type="module" src="js/stock-checkin.js?v=180"></script>
+<script type="module" src="js/stock-checkout.js?v=180"></script>
+<script type="module" src="js/stock-table.js?v=180"></script>
+<script type="module" src="js/dashboard.js?v=180"></script>
+<script type="module" src="js/targets.js?v=180"></script>
+<script type="module" src="js/planning.js?v=180"></script>
+<script type="module" src="js/notifications.js?v=180"></script>
+<script type="module" src="js/verbindung.js?v=180"></script>
+<script type="module" src="js/checklists.js?v=180"></script>
+<script type="module" src="js/info-nav.js?v=180"></script>
+<script type="module" src="js/contacts.js?v=180"></script>
+<script type="module" src="js/notes.js?v=180"></script>
+<script type="module" src="js/recipes.js?v=180"></script>
+<script type="module" src="js/backup-tabs.js?v=180"></script>
+<script type="module" src="js/backup.js?v=180"></script>
+<script type="module" src="js/admin-log.js?v=180"></script>
+<script type="module" src="js/people.js?v=180"></script>
+<script type="module" src="js/pdf-export.js?v=180"></script>
+<script type="module" src="js/dictate.js?v=180"></script>
+<script type="module" src="js/back-nav.js?v=180"></script>
 </body>
 </html>

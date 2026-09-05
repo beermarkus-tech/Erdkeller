@@ -9,20 +9,35 @@
 // that bootstrap problem, since a device that was already offline when it
 // was flipped would never learn about it.
 //
-// Notifications stay genuinely household-level (/config/notifications.enabled,
-// Build 154) — surfaced here as a link, not duplicated as a second toggle.
-// Cloud backup will be the same shape once Step 16c builds it.
-import { db } from './firebase-init.js?v=179';
-import { doc, getDoc, disableNetwork, enableNetwork } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+// Build 180 — merged into the same card/panel as Erinnerungen, as its own
+// "Verbindung" tab (js/reminders-tabs.js), and the Erinnerungen master
+// toggle got a THIRD checkbox here (Markus: a link out to the other tab
+// wasn't wanted). Unlike Funkstille/Sync/AI, this one is genuinely
+// household-level — it's the exact same /config/notifications.enabled
+// field js/notifications.js's own toggle writes (Build 154) — so this
+// file writes it with a targeted updateDoc (enabled + updatedAt only),
+// never a whole-object setDoc, so it can never clobber the schedule
+// fields js/notifications.js keeps in memory. The two checkboxes stay in
+// sync by both re-reading this field fresh every time their OWN tab is
+// opened (this file's loadPanel, js/notifications.js's loadAll) — the
+// same lazy-load-on-shown convention already used everywhere else in
+// Settings, not a live listener, since the two are tabs in one screen and
+// only one is ever visible at a time.
+import { db } from './firebase-init.js?v=180';
+import {
+  doc, getDoc, updateDoc, disableNetwork, enableNetwork,
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
-const panelEl = document.getElementById('settings-panel-verbindung');
-const verbindungCard = document.querySelector('.settings-card[data-target="verbindung"]');
+const panelEl = document.getElementById('settings-panel-notifications');
+const verbindungTabEl = document.querySelector('.reminders-tab[data-reminders-tab-panel="verbindung"]');
+const verbindungTabBtn = document.querySelector('.seg-btn[data-reminders-tab="verbindung"]');
 const funkstilleToggle = document.getElementById('verbindung-funkstille-toggle');
 const suboptionsEl = document.getElementById('verbindung-suboptions');
 const syncToggle = document.getElementById('verbindung-sync-toggle');
 const aiToggle = document.getElementById('verbindung-ai-toggle');
-const notifStatusEl = document.getElementById('verbindung-notif-status');
+const remindersToggle = document.getElementById('verbindung-reminders-toggle');
 const statusEl = document.getElementById('verbindung-status');
+const notificationsRef = doc(db, 'config', 'notifications');
 
 const FUNKSTILLE_KEY = 'erdkeller-funkstille';
 const SYNC_KEY = 'erdkeller-sync-enabled';
@@ -99,10 +114,23 @@ aiToggle.addEventListener('change', () => {
   announceChange();
 });
 
-// Loaded on card click, same lazy pattern as every other Settings panel
-// (e.g. js/notifications.js's own notificationsCard listener) — the
-// toggles themselves are pure localStorage reads (instant, no Firestore
-// round trip needed), only the Erinnerungen status line below needs a
+remindersToggle.addEventListener('change', async () => {
+  const enabled = remindersToggle.checked;
+  statusEl.textContent = '';
+  try {
+    await updateDoc(notificationsRef, { enabled, updatedAt: new Date().toISOString() });
+    window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
+  } catch (err) {
+    remindersToggle.checked = !enabled;
+    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    console.error(err);
+  }
+});
+
+// Loaded on this tab's own button click, same lazy pattern as every other
+// Settings panel (e.g. js/notifications.js's own notificationsCard
+// listener) — the per-device toggles are pure localStorage reads (instant,
+// no Firestore round trip needed), only the Erinnerungen checkbox needs a
 // network read.
 async function loadPanel() {
   funkstilleToggle.checked = isFunkstille();
@@ -111,18 +139,16 @@ async function loadPanel() {
   applySuboptionsGreyedOut();
 
   statusEl.textContent = '';
-  notifStatusEl.textContent = 'Wird geladen…';
   try {
-    const snap = await getDoc(doc(db, 'config', 'notifications'));
-    const enabled = !snap.exists() || snap.data().enabled !== false;
-    notifStatusEl.textContent = enabled ? 'Aktiviert' : 'Deaktiviert';
+    const snap = await getDoc(notificationsRef);
+    remindersToggle.checked = !snap.exists() || snap.data().enabled !== false;
   } catch (err) {
-    notifStatusEl.textContent = 'Status unbekannt';
+    statusEl.textContent = 'Status der Erinnerungen unbekannt: ' + err.message;
     console.error(err);
   }
 }
 
-verbindungCard.addEventListener('click', loadPanel);
+verbindungTabBtn.addEventListener('click', loadPanel);
 window.addEventListener('erdkeller:refresh', () => {
-  if (!panelEl.classList.contains('hidden')) loadPanel();
+  if (!panelEl.classList.contains('hidden') && !verbindungTabEl.classList.contains('hidden')) loadPanel();
 });

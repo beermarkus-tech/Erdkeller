@@ -12,11 +12,11 @@
 // whether an item is done-for-the-current-period; functions/index.js's
 // sendReminders is what actually reads the send-time half and dispatches
 // the push.
-import { db } from './firebase-init.js?v=179';
+import { db } from './firebase-init.js?v=180';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   permissionState, enableOnThisDevice, refreshIfAlreadyEnabled, listMyDevices, sendTestNotification, previewReminders,
-} from './push.js?v=179';
+} from './push.js?v=180';
 
 const notificationsCard = document.querySelector('.settings-card[data-target="notifications"]');
 const panelEl = document.getElementById('settings-panel-notifications');
@@ -297,6 +297,12 @@ previewBtn.addEventListener('click', async () => {
 });
 
 notificationsCard.addEventListener('click', () => loadAll());
+// Build 180 — Erinnerungen/Verbindung merged into one card with two tabs
+// (js/reminders-tabs.js). The card click above only fires on the way IN
+// to the panel, defaulting to this tab; switching back to it FROM the
+// Verbindung tab (already open) needs its own trigger, same lazy-load-
+// on-shown convention as the card click.
+document.querySelector('.seg-btn[data-reminders-tab="notifications"]').addEventListener('click', () => loadAll());
 
 window.addEventListener('erdkeller:refresh', () => {
   if (!panelEl.classList.contains('hidden')) loadAll();

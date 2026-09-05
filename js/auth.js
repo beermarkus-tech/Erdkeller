@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=179';
+import { auth, db } from './firebase-init.js?v=180';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -324,6 +324,22 @@ onAuthStateChanged(auth, async (user) => {
     unsubscribeUserDoc = onSnapshot(ref, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data();
+      if (data.removed) {
+        // Build 180 (Settings → Personen "Entfernen"). firestore.rules'
+        // tightened isSignedIn() already denies this uid everything else
+        // in the database the instant removed:true lands server-side —
+        // without this branch, every other open screen would just start
+        // throwing permission-denied at once. Sign out cleanly instead,
+        // with an explanation, same shape as the explicit sign-out
+        // buttons below (explicitSignOut must win here for the same
+        // reason it does there: this is a genuine, deliberate end to the
+        // session, not the "offline, trust the cache" case).
+        explicitSignOut = true;
+        clearCachedIdentity();
+        authError.textContent = 'Dein Zugriff wurde entfernt. Bitte wende dich an einen Admin.';
+        signOut(auth);
+        return;
+      }
       renderSignedIn({
         name: data.name || user.displayName || '',
         photoURL: data.photoURL || user.photoURL || '',

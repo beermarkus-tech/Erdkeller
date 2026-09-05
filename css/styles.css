@@ -498,10 +498,11 @@ nav.bottomnav button .icon {
   line-height: 1.6;
 }
 
-/* PDF export's section-picker rows (Build 122) — checkbox + label, not a
-   click-to-open row like most .stock-product-row consumers, so the
-   pointer cursor from that base rule would be misleading here. */
-#settings-panel-pdf .stock-product-row {
+/* PDF export's section-picker rows (Build 122; moved into Sicherung as a
+   third tab in Build 180) — checkbox + label, not a click-to-open row
+   like most .stock-product-row consumers, so the pointer cursor from
+   that base rule would be misleading here. */
+.backup-tab[data-backup-tab-panel="pdf"] .stock-product-row {
   cursor: default;
 }
 
@@ -514,7 +515,7 @@ nav.bottomnav button .icon {
   cursor: pointer;
 }
 
-#settings-panel-pdf label.export-row-text {
+.backup-tab[data-backup-tab-panel="pdf"] label.export-row-text {
   cursor: pointer;
 }
 
@@ -1076,6 +1077,38 @@ nav.bottomnav button .icon {
   color: var(--paper);
 }
 
+/* Build 180 — the Checklisten/Einträge choice inside the Wartung editor
+   sits one level below the Wartung/Krise .segmented toggle above it (that
+   one switches the whole screen's content; this one only picks which
+   half of the already-open editor shows), so it deliberately reads as a
+   lighter sub-choice rather than a second identical pill control: plain
+   underlined text tabs instead of a filled segmented bar. */
+.sub-segmented {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--stone-dark);
+  margin-bottom: 16px;
+}
+
+.sub-seg-btn {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 8px 4px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font-weight: 600;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  color: #6b6a5f;
+  cursor: pointer;
+}
+
+.sub-seg-btn.active {
+  color: var(--cellar);
+  border-bottom-color: var(--cellar);
+}
+
 .data-tab.hidden {
   display: none;
 }
@@ -1400,6 +1433,27 @@ nav.bottomnav button .icon {
   font-weight: 600;
 }
 
+/* Build 180 — Entfernen (remove). A plain icon button, not .danger-btn:
+   this is a routine admin action reached after its own confirm() dialog,
+   not the "type a phrase to confirm" tier reserved for the full-database
+   restore flow. */
+.people-remove-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  font-size: 16px;
+  padding: 4px;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+/* A removed person's row stays in the list (Wiederherstellen needs
+   something to click) but reads as inactive at a glance — same muted
+   treatment as a zero-stock product row (.stock-product-row.no-stock). */
+.people-row-removed {
+  opacity: 0.6;
+}
+
 /* Step 17 — recipient-slug picker, sits between the name and the role
    toggle/self-label on every row (not just non-self ones, since an admin
    maps their own account to a recipient slug just as often as anyone
@@ -1713,6 +1767,34 @@ nav.bottomnav button .icon {
     right: 32px;
     bottom: 36px;
   }
+}
+
+/* Build 180 — Checklisten's admin edit-mode toggle moved from an inline
+   header button to a floating one, same .fab look as every "+" button in
+   the app, but it can't sit in the same bottom-right spot: whenever edit
+   mode is open, this button (to leave it) and the editor's own "+" FAB (to
+   add a list/item/crisis type) are both on screen at once. Mirrored to
+   the opposite corner instead of stacking two circles on top of each
+   other. */
+.fab-secondary {
+  left: 28px;
+  right: auto;
+}
+
+@media (min-width: 900px) {
+  .fab-secondary {
+    left: 32px;
+    right: auto;
+  }
+}
+
+/* Editing state (checkmark instead of pencil) reuses .fab's own shape —
+   just a lighter fill so it doesn't read identically to the "+" FAB it
+   sits opposite. */
+.fab.editing {
+  background: var(--paper);
+  color: var(--cellar);
+  border: 2px solid var(--cellar);
 }
 
 /* View/edit screens (Build 103) — full-screen on mobile instead of the
@@ -3502,32 +3584,6 @@ nav.bottomnav button .icon {
 
 #checklists-status {
   margin: 0 0 16px;
-}
-
-.checklists-edit-toggle {
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid var(--stone-dark);
-  background: white;
-  font-size: 15px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.checklists-edit-toggle.editing {
-  width: auto;
-  padding: 0 14px;
-  border-radius: 20px;
-  border-color: var(--cellar);
-  background: var(--cellar);
-  color: var(--paper);
-  font-size: 13px;
-  font-weight: 700;
-  font-family: 'Inter', sans-serif;
 }
 
 #maintenance-filter-toggle {

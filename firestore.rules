@@ -2,8 +2,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
+    function hasAuth() {
       return request.auth != null;
+    }
+
+    // "Signed in" means more than a valid Firebase session — it means an
+    // ACTIVE, non-removed household member (Build 180). This gates nearly
+    // every rule below, so tightening it here closes two things at once:
+    // (1) it used to mean nothing more than "authenticated with any Google
+    // account" — there was no real gate stopping any Google account from
+    // self-provisioning as a member and reading the whole household's
+    // data; (2) it's what makes Settings → Personen's "Entfernen" action
+    // an actual, immediately server-enforced revocation rather than a
+    // cosmetic removal from a list — see the tombstone comment on
+    // /users/{userId} below for why a removed doc is kept, not deleted.
+    function isSignedIn() {
+      return hasAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.removed != true;
     }
 
     function isAdmin() {
@@ -17,14 +33,27 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // Step 2: any of the three family members can read the user list
-    // (needed later for reminder-recipient pickers, Settings → People).
+    // Step 2: any active member can read the full roster (needed for
+    // reminder-recipient pickers, Settings → People). Reading your OWN
+    // doc is allowed unconditionally (hasAuth() only, not the tightened
+    // isSignedIn() above) for two cases that both matter before a "real"
+    // isSignedIn() could ever be true for you: a brand-new member's very
+    // first read (js/auth.js's ensureUserDoc) is of their own NOT-YET-
+    // EXISTING doc, and a REMOVED member must still be able to read their
+    // own doc to see removed:true and get a clean, explained sign-out
+    // (js/auth.js's profile listener) instead of permission-denied errors
+    // scattered across every screen.
+    //
     // Self-provisioning on first sign-in always starts as "member" — you
     // cannot create or edit your own doc into "admin"; only an existing
     // admin can promote someone (Settings → People, built in Step 14).
+    // Removal (Build 180, Settings → Personen) sets removed:true rather
+    // than deleting the doc — deleting it would let this same create rule
+    // silently let a removed person re-join as a fresh member the next
+    // time they open the app.
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.uid == userId
+      allow read: if (hasAuth() && request.auth.uid == userId) || isSignedIn();
+      allow create: if hasAuth() && request.auth.uid == userId
         && request.resource.data.role == 'member';
       allow update: if isSignedIn() && (
         (request.auth.uid == userId && request.resource.data.role == resource.data.role)

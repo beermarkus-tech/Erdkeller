@@ -61,7 +61,7 @@
 // or triggers a render — never a manual optimistic flip in the same tick,
 // which would be a second writer to the same state and risk a visible
 // flicker if a slightly-lagged snapshot event arrived after it.
-import { db } from './firebase-init.js?v=179';
+import { db } from './firebase-init.js?v=180';
 import {
   collection, doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -1040,7 +1040,7 @@ function applyEditMode() {
   crisisViewEl.classList.toggle('hidden', editMode);
   crisisEditViewEl.classList.toggle('hidden', !editMode);
   checklistsEditToggleBtn.classList.toggle('editing', editMode);
-  checklistsEditToggleBtn.textContent = editMode ? '✓ Fertig' : '✏️';
+  checklistsEditToggleBtn.textContent = editMode ? '✓' : '✏️';
 }
 
 // No more sortMaintenanceInPlace()/save-on-leave here — array order was
@@ -1071,7 +1071,7 @@ applyEditMode();
 // segmented/.hidden pattern as the Wartung/Krise tabs above and Info's own
 // Kontakte/Notizen/Rezepte (js/info-nav.js) — its own tiny switcher per
 // house convention, not a shared module.
-const maintenanceEditTabBtns = maintenanceEditViewEl.querySelectorAll('.seg-btn[data-maintenance-edit-tab]');
+const maintenanceEditTabBtns = maintenanceEditViewEl.querySelectorAll('.sub-seg-btn[data-maintenance-edit-tab]');
 const maintenanceEditTabPanels = maintenanceEditViewEl.querySelectorAll('.maintenance-edit-tab[data-maintenance-edit-tab-panel]');
 maintenanceEditTabBtns.forEach((btn) => {
   btn.addEventListener('click', () => {
