@@ -19,7 +19,15 @@ service cloud.firestore {
     function isSignedIn() {
       return hasAuth()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.removed != true;
+        // .get('removed', false), not .data.removed — every account that
+        // existed before Build 180 has no removed field at all, and
+        // Firestore Security Rules THROWS on accessing a map key that
+        // doesn't exist (unlike JS, where it's just undefined). That
+        // throw denies the whole rule, which is exactly the bug that
+        // locked every pre-existing account (including admin) out of the
+        // entire app within minutes of this shipping — .get() with a
+        // default avoids it.
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('removed', false) != true;
     }
 
     function isAdmin() {

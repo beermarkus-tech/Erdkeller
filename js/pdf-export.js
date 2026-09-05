@@ -10,7 +10,7 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=180';
+import { db } from './firebase-init.js?v=181';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
