@@ -61,7 +61,7 @@
 // or triggers a render — never a manual optimistic flip in the same tick,
 // which would be a second writer to the same state and risk a visible
 // flicker if a slightly-lagged snapshot event arrived after it.
-import { db } from './firebase-init.js?v=186';
+import { db } from './firebase-init.js?v=187';
 import {
   collection, doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -1123,11 +1123,31 @@ function applyDeepLinkFromHash() {
   renderDismissPeriodButton();
 }
 
+// Build 187 — Übersicht's open-checklist-items warning (js/dashboard.js)
+// jumps here, same shape as the deep link above: switch to Checklisten →
+// Wartung, live view (not the editor), Fällig filter. Explicit rather than
+// relying on maintenanceFilter's current value or the live list/frequency
+// chips being empty — either could have been left in a narrower state from
+// an earlier session, which would make the live view show fewer items than
+// the badge's own (global, unfiltered) count just promised.
+export function openMaintenanceDue() {
+  document.querySelector('.nav-btn[data-tab="checklists"]').click();
+  document.querySelector('.seg-btn[data-checklists-tab="maintenance"]').click();
+  if (editMode) leaveEditMode();
+  maintenanceFilter = 'due';
+  maintenanceFilterButtons.forEach((b) => b.classList.toggle('active', b.dataset.filter === 'due'));
+  selectedLiveListFilters = new Set();
+  selectedLiveFreqFilters = new Set();
+  renderMaintenanceLiveFilters();
+  renderMaintenanceLiveFreqFilters();
+  renderMaintenanceList();
+  renderDismissPeriodButton();
+}
+
 window.addEventListener('erdkeller:signedin', async () => {
   subscribeChecklists();
   await loadRest();
-  applyDeepLinkFromHash();
-});
+  applyDeepLinkFromHash();});
 window.addEventListener('erdkeller:refresh', () => loadRest());
 window.addEventListener('hashchange', applyDeepLinkFromHash);
 

@@ -22,17 +22,20 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=186';
+import { db } from './firebase-init.js?v=187';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=186';
-import { openAtSubcategory } from './stock-checkin.js?v=186';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=187';
+import { openAtSubcategory } from './stock-checkin.js?v=187';
+import { openMaintenanceDue } from './checklists.js?v=187';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
 
 const unitToggleButtons = document.querySelectorAll('#dash-unit-toggle .select-mode-btn');
+const checklistWarningBtn = document.getElementById('dash-checklist-warning');
+const checklistWarningCountEl = document.getElementById('dash-checklist-warning-count');
 const heroEl = document.getElementById('dash-hero');
 const heroWaterEl = document.getElementById('dash-hero-water');
 const categoryListEl = document.getElementById('dash-category-list');
@@ -55,6 +58,13 @@ let allBatches = [];
 let displayUnit = 'kg';
 let loadOk = false;
 let isAdmin = false;
+
+// Open-checklist-items warning (Build 187) — its own small state, kept
+// separate from loadOk above: a failed checklist read shouldn't hide the
+// whole stock dashboard, so this defaults to "nothing to warn about"
+// rather than blocking render() the way loadOk does for the stock figures.
+let checklistItems = [];
+let notificationsChecklistsCfg = null;
 
 const openCategoryIds = new Set();
 
@@ -96,8 +106,119 @@ async function loadAll() {
     loadOk = false;
     console.error(err);
   }
+
+  // Own try/catch, deliberately separate from the block above: a failed
+  // checklist read shouldn't hide the whole stock dashboard behind loadOk's
+  // "nothing rendered" fallback — worst case here is just no warning badge.
+  try {
+    const [itemsSnap, notificationsSnap] = await Promise.all([
+      getDocs(collection(db, 'checklistItems')),
+      getDoc(doc(db, 'config', 'notifications')),
+    ]);
+    checklistItems = itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    notificationsChecklistsCfg = notificationsSnap.exists() ? notificationsSnap.data().checklists : null;
+  } catch (err) {
+    checklistItems = [];
+    notificationsChecklistsCfg = null;
+    console.error(err);
+  }
+
   render();
 }
+
+// --- Open-checklist-items warning (Build 187) ------------------------------
+//
+// Same reset-boundary "done for the current period" math as js/checklists.js
+// (its own file header explains the model — not a rolling nextDue, a derived
+// comparison against the most recent scheduled occurrence per Settings →
+// Erinnerungen). Duplicated byte-for-byte rather than imported: this app's
+// established convention for small-to-medium client-side helpers (see this
+// file's own header comment re: js/targets.js's target math). Getting this
+// wrong would make the Dashboard badge's count disagree with what
+// Checklisten's own Fällig view shows for the exact same items — the one
+// thing that must never happen, since the badge's whole job is to promise
+// "this many are waiting for you over there."
+
+function defaultNotificationsChecklists() {
+  return {
+    weekly: { weekday: 1 },
+    monthly: { weekOfMonth: 1, weekday: 1 },
+    quarterly: { anchorMonth: 1, weekOfMonth: 1, weekday: 1 },
+    halfYearly: { anchorMonth: 1, weekOfMonth: 1, weekday: 1 },
+    yearly: { month: 1, weekOfMonth: 1, weekday: 1 },
+    hour: 9,
+  };
+}
+
+function nthWeekdayOfMonth(year, month1based, weekOfMonth, weekday1to7) {
+  const first = new Date(year, month1based - 1, 1);
+  const firstWeekdayIso = first.getDay() === 0 ? 7 : first.getDay();
+  let offset = weekday1to7 - firstWeekdayIso;
+  if (offset < 0) offset += 7;
+  const day = 1 + offset + (weekOfMonth - 1) * 7;
+  return new Date(year, month1based - 1, day);
+}
+
+function mostRecentWeeklyOccurrence(cfg, now) {
+  const nowIso = now.getDay() === 0 ? 7 : now.getDay();
+  let diff = nowIso - cfg.weekday;
+  if (diff < 0) diff += 7;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff);
+}
+
+function mostRecentMonthlyOccurrence(cfg, now) {
+  const thisMonth = nthWeekdayOfMonth(now.getFullYear(), now.getMonth() + 1, cfg.weekOfMonth, cfg.weekday);
+  if (thisMonth <= now) return thisMonth;
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return nthWeekdayOfMonth(prev.getFullYear(), prev.getMonth() + 1, cfg.weekOfMonth, cfg.weekday);
+}
+
+function mostRecentCyclicOccurrence(cfg, now, intervalMonths) {
+  const nowIdx = now.getFullYear() * 12 + now.getMonth();
+  const anchor0based = cfg.anchorMonth - 1;
+  let best = null;
+  for (let idx = nowIdx; idx >= nowIdx - intervalMonths * 2; idx--) {
+    const month0based = ((idx % 12) + 12) % 12;
+    if ((((month0based - anchor0based) % intervalMonths) + intervalMonths) % intervalMonths !== 0) continue;
+    const year = Math.floor(idx / 12);
+    const occ = nthWeekdayOfMonth(year, month0based + 1, cfg.weekOfMonth, cfg.weekday);
+    if (occ <= now && (!best || occ > best)) best = occ;
+  }
+  return best;
+}
+
+function mostRecentYearlyOccurrence(cfg, now) {
+  const thisYear = nthWeekdayOfMonth(now.getFullYear(), cfg.month, cfg.weekOfMonth, cfg.weekday);
+  if (thisYear <= now) return thisYear;
+  return nthWeekdayOfMonth(now.getFullYear() - 1, cfg.month, cfg.weekOfMonth, cfg.weekday);
+}
+
+function mostRecentOccurrence(frequency, now) {
+  const c = notificationsChecklistsCfg || defaultNotificationsChecklists();
+  if (frequency === 'weekly') return mostRecentWeeklyOccurrence(c.weekly, now);
+  if (frequency === 'monthly') return mostRecentMonthlyOccurrence(c.monthly, now);
+  if (frequency === 'quarterly') return mostRecentCyclicOccurrence(c.quarterly, now, 3);
+  if (frequency === 'halfYearly') return mostRecentCyclicOccurrence(c.halfYearly, now, 6);
+  return mostRecentYearlyOccurrence(c.yearly, now);
+}
+
+function isDoneThisPeriod(item) {
+  if (!item.lastCompletedAt) return false;
+  return new Date(item.lastCompletedAt) >= mostRecentOccurrence(item.frequency, new Date());
+}
+
+function openChecklistItemsCount() {
+  return checklistItems.filter((it) => !isDoneThisPeriod(it)).length;
+}
+
+function renderChecklistWarning() {
+  const count = openChecklistItemsCount();
+  checklistWarningBtn.classList.toggle('hidden', count === 0);
+  checklistWarningCountEl.textContent = String(count);
+  checklistWarningBtn.title = `${count} offene Checklisten-Einträge`;
+}
+
+checklistWarningBtn.addEventListener('click', openMaintenanceDue);
 
 // --- Same target math as js/targets.js (see file header) ----------------
 
@@ -805,6 +926,7 @@ function renderShoppingList(items) {
 function render() {
   macroGroupIds = computeMacroGroups();
   syncUnitToggle();
+  renderChecklistWarning();
   const subStock = loadOk ? computeSubcategoryStock() : new Map();
   const rows = loadOk ? buildCategoryRows(subStock) : [];
   renderHero(rows);

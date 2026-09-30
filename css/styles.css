@@ -2716,6 +2716,25 @@ nav.bottomnav button .icon {
   border-color: var(--cellar);
 }
 
+/* Übersicht's open-checklist-items warning — sits right-bound in the same
+   row as the unit-toggle buttons, same "N offen" red badge convention as
+   .checklist-group-badge. Tapping it jumps to Checklisten (js/dashboard.js). */
+.dash-checklist-warning {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
 /* Bestandsliste opened via a subcategory tap from Übersicht (Step 10) —
    shows what it's filtered to and lets you clear back to the full list. */
 .subcat-filter-banner {
