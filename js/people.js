@@ -1,14 +1,15 @@
-import { auth, db } from './firebase-init.js?v=191';
+import { auth, db } from './firebase-init.js?v=192';
 import {
   collection, getDocs, doc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t, getLocale } from './i18n.js?v=192';
 
 const peopleCard = document.querySelector('.settings-card[data-target="people"]');
 const peopleListEl = document.getElementById('people-list');
 const peoplePanel = document.getElementById('settings-panel-people');
 
 function roleLabel(role) {
-  return role === 'admin' ? 'Admin' : 'Mitglied';
+  return role === 'admin' ? t('people.admin') : t('people.mitglied');
 }
 
 // Removal (Build 180) — tombstone, not delete. Deleting the /users/{uid}
@@ -28,7 +29,7 @@ function roleLabel(role) {
 // anywhere between a real signed-in account and "who gets notified about
 // the Autos checklist." This is the one place that mapping gets made.
 const RECIPIENT_SLUG_OPTIONS = [
-  { value: '', label: '— kein Empfänger —' },
+  { value: '', label: t('people.kein_empfaenger') },
   { value: 'markus', label: 'Markus' },
   { value: 'julia', label: 'Julia' },
   { value: 'sophia', label: 'Sophia' },
@@ -55,17 +56,17 @@ function makePersonRow(id, data) {
 
   const nameEl = document.createElement('span');
   nameEl.className = 'pname';
-  nameEl.textContent = data.name || '(ohne Namen)';
+  nameEl.textContent = data.name || t('people.ohne_namen');
   textWrap.appendChild(nameEl);
 
   const metaEl = document.createElement('span');
   metaEl.className = 'pmeta';
-  const since = data.createdAt ? new Date(data.createdAt).toLocaleDateString('de-DE') : '';
+  const since = data.createdAt ? new Date(data.createdAt).toLocaleDateString(getLocale()) : '';
   if (data.removed) {
-    const removedSince = data.removedAt ? new Date(data.removedAt).toLocaleDateString('de-DE') : '';
-    metaEl.textContent = removedSince ? `Entfernt am ${removedSince}` : 'Entfernt';
+    const removedSince = data.removedAt ? new Date(data.removedAt).toLocaleDateString(getLocale()) : '';
+    metaEl.textContent = removedSince ? t('people.entfernt_am', { removedSince }) : t('people.entfernt');
   } else {
-    metaEl.textContent = since ? `Mitglied seit ${since}` : '';
+    metaEl.textContent = since ? t('people.mitglied_seit', { since }) : '';
   }
   textWrap.appendChild(metaEl);
 
@@ -80,7 +81,7 @@ function makePersonRow(id, data) {
     const restoreBtn = document.createElement('button');
     restoreBtn.type = 'button';
     restoreBtn.className = 'select-mode-btn';
-    restoreBtn.textContent = 'Wiederherstellen';
+    restoreBtn.textContent = t('people.wiederherstellen');
     restoreBtn.addEventListener('click', () => setRemoved(id, data, false));
     row.appendChild(restoreBtn);
     return row;
@@ -88,7 +89,7 @@ function makePersonRow(id, data) {
 
   const recipientSelect = document.createElement('select');
   recipientSelect.className = 'people-recipient-select';
-  recipientSelect.title = 'Empfänger für Checklisten-Erinnerungen';
+  recipientSelect.title = t('people.empfaenger_fuer_checklisten_erinnerungen');
   RECIPIENT_SLUG_OPTIONS.forEach((opt) => {
     const optionEl = document.createElement('option');
     optionEl.value = opt.value;
@@ -106,7 +107,7 @@ function makePersonRow(id, data) {
     // for the identical reason, so there's no remove button on this row.
     const selfLabel = document.createElement('span');
     selfLabel.className = 'pmeta people-self-label';
-    selfLabel.textContent = `${roleLabel(data.role)} (Du)`;
+    selfLabel.textContent = t('people.du', { roleLabel: roleLabel(data.role) });
     row.appendChild(selfLabel);
   } else {
     const toggle = document.createElement('div');
@@ -124,7 +125,7 @@ function makePersonRow(id, data) {
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'people-remove-btn';
-    removeBtn.title = 'Entfernen';
+    removeBtn.title = t('people.entfernen');
     removeBtn.textContent = '🗑️';
     removeBtn.addEventListener('click', () => setRemoved(id, data, true));
     row.appendChild(removeBtn);
@@ -135,18 +136,18 @@ function makePersonRow(id, data) {
 
 async function setRole(id, data, newRole) {
   if (newRole === data.role) return;
-  if (newRole === 'admin' && !confirm(`${data.name || 'Diese Person'} zum Admin machen? Admins haben vollen Zugriff auf alle Daten und Einstellungen.`)) return;
+  if (newRole === 'admin' && !confirm(t('people.zum_admin_machen_admins_haben', { value: data.name || t('people.diese_person') }))) return;
   try {
     await updateDoc(doc(db, 'users', id), { role: newRole });
     await loadPeople();
   } catch (err) {
     console.error(err);
-    alert('Rolle konnte nicht geändert werden: ' + err.message);
+    alert(t('people.rolle_konnte_nicht_geaendert_werden') + err.message);
   }
 }
 
 async function setRemoved(id, data, removed) {
-  if (removed && !confirm(`${data.name || 'Diese Person'} entfernen? Diese Person verliert sofort den Zugriff auf die App und alle Daten.`)) return;
+  if (removed && !confirm(t('people.entfernen_diese_person_verliert_sofort', { value: data.name || t('people.diese_person') }))) return;
   try {
     await updateDoc(doc(db, 'users', id), removed
       ? { removed: true, removedAt: new Date().toISOString(), recipientSlug: null }
@@ -154,7 +155,7 @@ async function setRemoved(id, data, removed) {
     await loadPeople();
   } catch (err) {
     console.error(err);
-    alert((removed ? 'Entfernen fehlgeschlagen: ' : 'Wiederherstellen fehlgeschlagen: ') + err.message);
+    alert((removed ? t('people.entfernen_fehlgeschlagen') : t('people.wiederherstellen_fehlgeschlagen')) + err.message);
   }
 }
 
@@ -163,7 +164,7 @@ async function setRecipientSlug(id, slug) {
     await updateDoc(doc(db, 'users', id), { recipientSlug: slug || null });
   } catch (err) {
     console.error(err);
-    alert('Empfänger konnte nicht geändert werden: ' + err.message);
+    alert(t('people.empfaenger_konnte_nicht_geaendert_werden') + err.message);
     await loadPeople();
   }
 }
@@ -180,7 +181,7 @@ async function loadPeople() {
     console.error(err);
     const p = document.createElement('p');
     p.className = 'taxonomy-status';
-    p.textContent = 'Fehler beim Laden: ' + err.message;
+    p.textContent = t('people.fehler_beim_laden') + err.message;
     peopleListEl.appendChild(p);
   }
 }

@@ -1,4 +1,4 @@
-import { t } from './i18n.js?v=191';
+import { t } from './i18n.js?v=192';
 const TAB_LABELS = {
   dashboard: t('nav.uebersicht'),
   stock: t('nav.bestand'),
