@@ -75,7 +75,7 @@ async function runTour(dir, lang, only, fake, afterStep) {
       // Speech recognition: start() yields one final result; stop() ends the
       // session (the app then submits the transcript to parseDictation).
       class FakeRecognition {
-        start() { setTimeout(() => this.onresult && this.onresult({ results: [Object.assign([{ transcript: 'zwei Dosen Thunfisch und eine Packung Bulgur, eine Tafel Schokolade raus' }], { isFinal: true })] }), 20); }
+        start() { window.__lastRecognizerLang = this.lang; setTimeout(() => this.onresult && this.onresult({ results: [Object.assign([{ transcript: 'zwei Dosen Thunfisch und eine Packung Bulgur, eine Tafel Schokolade raus' }], { isFinal: true })] }), 20); }
         stop() { setTimeout(() => this.onend && this.onend(), 20); }
         abort() { this.stop(); }
       }
@@ -217,6 +217,18 @@ function firstDiff(a, b) {
     });
     console.log(`\n${r.length - bad}/${r.length} steps pass`);
     process.exitCode = bad ? 1 : 0;
+    return;
+  }
+  if (args[0] === '--calls') {
+    // Server calls the client made during the tour, and the language saved
+    // on the signed-in user's doc (Phase 5).
+    const r = await runTour(path.resolve(args[1]), lang, only, false, async (page) => page.evaluate(async () => {
+      const fb = await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');
+      const snap = await fb.getDoc(fb.doc({}, 'users', 'u-admin'));
+      return { calls: (window.__CALLS__ || []).map((c) => ({ name: c.name, lang: c.payload && c.payload.lang })), userLang: snap.data().lang, recognizerLang: window.__lastRecognizerLang };
+    }));
+    const last = r[r.length - 1].extra;
+    console.log(JSON.stringify(last, null, 1));
     return;
   }
   if (args[0] === '--dump') {

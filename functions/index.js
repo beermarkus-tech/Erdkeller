@@ -60,11 +60,50 @@ function buildBatchLines(batches, productIndex) {
   });
 }
 
-// Hardcoded for now — there's no app-wide language setting anywhere in this
-// codebase yet (recognizer.lang, every .localeCompare(..., 'de') call, and
-// all UI text are all hardcoded German the same way). If a language setting
-// is ever added, this should read from it instead.
+// The language the household's DATA (product catalog, taxonomy) is kept in —
+// new product names proposed by dictation/photo must match it, whatever
+// language the UI or the spoken dictation is in (I18N.md 8.1/8.2). The data
+// is German today; if an English dataset is ever built, this is the switch.
 const APP_LANGUAGE = 'Deutsch';
+
+// --- UI language for server-written text (I18N.md Phase 5) -----------------
+//
+// The client sends its current UI language as `lang` on every callable, and
+// stores it on /users/{uid}.lang for the scheduled reminders. Anything
+// missing or unknown means German — so an old client, a user who never
+// opened a Phase-5 client, or a user doc without the field all keep getting
+// exactly the German text they got before.
+const SERVER_LANGS = ['de', 'en'];
+const normLang = (v) => (SERVER_LANGS.includes(v) ? v : 'de');
+
+const SERVER_TEXT = {
+  de: {
+    signIn: 'Bitte anmelden.',
+    textOrPhoto: 'Entweder Text oder Foto übergeben, nicht beides oder keins.',
+    badImageType: 'Ungültiges Bildformat.',
+    photoTooLarge: 'Foto zu groß.',
+    aiFailed: 'KI-Anfrage fehlgeschlagen.',
+    noAnswer: 'Keine Antwort erhalten.',
+    unreadableAnswer: 'Antwort konnte nicht gelesen werden.',
+    adminsOnly: 'Nur für Admins.',
+    noDevice: 'Kein Gerät für diesen Account registriert.',
+    testBody: 'Testbenachrichtigung — wenn du das siehst, funktioniert es.',
+  },
+  en: {
+    signIn: 'Please sign in.',
+    textOrPhoto: 'Send either text or a photo — not both, and not neither.',
+    badImageType: 'Unsupported image format.',
+    photoTooLarge: 'Photo too large.',
+    aiFailed: 'AI request failed.',
+    noAnswer: 'No answer received.',
+    unreadableAnswer: 'Couldn\'t read the answer.',
+    adminsOnly: 'Admins only.',
+    noDevice: 'No device registered for this account.',
+    testBody: 'Test notification — if you can see this, it works.',
+  },
+};
+const st = (lang, key) => SERVER_TEXT[normLang(lang)][key];
+const callerLang = (request) => normLang(request.data && request.data.lang);
 
 function buildPhotoPrompt(taxonomy, products) {
   const taxonomyLines = buildTaxonomyLines(taxonomy);
@@ -101,14 +140,23 @@ Regeln:
 - Antworte NUR mit einem JSON-Array, keine Erklärung, kein Markdown.`;
 }
 
-function buildPrompt(transcript, taxonomy, products, batches, productIndex) {
+// Phase 5 (I18N.md 8.2): with the app in English, speech recognition runs in
+// English, so the transcript is English while the catalog stays German.
+function spokenLanguageNote(lang) {
+  if (lang !== 'en') return '';
+  return `
+Achtung: Der Nutzer hat ENGLISCH diktiert, der Produktkatalog, die Bestandsliste und die Kategorien sind aber auf ${APP_LANGUAGE}. Ordne englische Produktnamen den passenden Einträgen zu (z.B. "canned tuna" → "Thunfisch", "pasta" → "Nudeln"/"Spaghetti"), verstehe englische Mengen-, Datums- und Richtungsangaben (z.B. "two cans", "best before June 2027", "stored"/"added"/"bought" = "in", "took out"/"used"/"removed" = "out"), und nenne neue Produkte ("newProductName") trotzdem auf ${APP_LANGUAGE}. "productNameHeard" und "attemptedName" dürfen das gehörte englische Wort sein.
+`;
+}
+
+function buildPrompt(transcript, taxonomy, products, batches, productIndex, spokenLang) {
   const taxonomyLines = buildTaxonomyLines(taxonomy);
   const productLines = buildProductLines(products);
   const batchLines = buildBatchLines(batches, productIndex);
-  return `Du hilfst beim Einlagern UND Entnehmen von Vorräten in einer Haushalts-Vorratsverwaltung. Ein Nutzer hat eine oder mehrere Chargen diktiert; hier die Transkription (Deutsch, kann Erkennungsfehler enthalten):
+  return `Du hilfst beim Einlagern UND Entnehmen von Vorräten in einer Haushalts-Vorratsverwaltung. Ein Nutzer hat eine oder mehrere Chargen diktiert; hier die Transkription (${spokenLang === 'en' ? 'Englisch' : 'Deutsch'}, kann Erkennungsfehler enthalten):
 
 "${transcript}"
-
+${spokenLanguageNote(spokenLang)}
 Zerlege die Aussage in eine JSON-Liste von Chargen (batch lines). Eine Aussage kann mehrere Chargen enthalten — z.B. "10 Tomatensugo, 5x800g, 5x400g" ergibt ZWEI Zeilen desselben Produkts mit unterschiedlichem Inhalt. Zwei verschiedene genannte Produkte ergeben ebenfalls getrennte Zeilen. Eine Aussage kann auch Einlagern UND Entnehmen gleichzeitig enthalten.
 
 Jede Zeile braucht zuerst ein Feld "direction": "in" (eingelagert/gekauft/neu dazu) oder "out" (entnommen/verbraucht/aufgebraucht/rausgenommen/weggenommen/weniger geworden) — aus der Wortwahl erkennbar. Das ist die wichtigste Entscheidung pro Zeile — lies sie sorgfältig aus dem jeweiligen Satzteil, nicht aus dem Rest der Aussage. Beispiel: "10 Gläser Sugo eingelagert, dafür 2 Dosen Bohnen entnommen" → ZWEI Zeilen, eine mit "direction":"in" (Sugo), eine mit "direction":"out" (Bohnen) — niemals beide als "in", nur weil ein Teil des Satzes ein Einlagern beschreibt.
@@ -157,8 +205,9 @@ function extractJsonArray(text) {
 const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 120 }, async (request) => {
+  const lang = callerLang(request);
   if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Bitte anmelden.');
+    throw new HttpsError('unauthenticated', st(lang, 'signIn'));
   }
   const data = request.data || {};
   const transcript = typeof data.transcript === 'string' ? data.transcript.trim() : '';
@@ -166,17 +215,17 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
   const hasTranscript = !!transcript;
   const hasImage = !!imageBase64;
   if (hasTranscript === hasImage) { // both or neither provided
-    throw new HttpsError('invalid-argument', 'Entweder Text oder Foto übergeben, nicht beides oder keins.');
+    throw new HttpsError('invalid-argument', st(lang, 'textOrPhoto'));
   }
   if (hasImage) {
     if (!ALLOWED_IMAGE_MIME.has(data.mimeType)) {
-      throw new HttpsError('invalid-argument', 'Ungültiges Bildformat.');
+      throw new HttpsError('invalid-argument', st(lang, 'badImageType'));
     }
     // Defense in depth — base64 chars ≈ bytes * 4/3, so this is ~6MB of raw
     // image, comfortably under Anthropic's per-image cap already enforced
     // more tightly client-side; this is just a server-side backstop.
     if (imageBase64.length > 8_000_000) {
-      throw new HttpsError('invalid-argument', 'Foto zu groß.');
+      throw new HttpsError('invalid-argument', st(lang, 'photoTooLarge'));
     }
   }
 
@@ -208,7 +257,7 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
         storage: b.storage || '',
       };
     });
-    content = buildPrompt(transcript, taxonomy, products, batches, productIndex);
+    content = buildPrompt(transcript, taxonomy, products, batches, productIndex, lang);
   } else {
     const prompt = buildPhotoPrompt(taxonomy, products);
     content = [
@@ -235,19 +284,19 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
     });
   } catch (err) {
     console.error('Anthropic request failed', err);
-    throw new HttpsError('unavailable', 'KI-Anfrage fehlgeschlagen.');
+    throw new HttpsError('unavailable', st(lang, 'aiFailed'));
   }
 
   if (!response.ok) {
     const errText = await response.text();
     console.error('Anthropic API error', response.status, errText);
-    throw new HttpsError('internal', 'KI-Anfrage fehlgeschlagen.');
+    throw new HttpsError('internal', st(lang, 'aiFailed'));
   }
 
   const responseJson = await response.json();
   const textBlock = (responseJson.content || []).find((b) => b.type === 'text');
   if (!textBlock) {
-    throw new HttpsError('internal', 'Keine Antwort erhalten.');
+    throw new HttpsError('internal', st(lang, 'noAnswer'));
   }
 
   let items;
@@ -255,7 +304,7 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
     items = JSON.parse(extractJsonArray(textBlock.text));
   } catch (err) {
     console.error('Failed to parse model output as JSON', err, textBlock.text);
-    throw new HttpsError('internal', 'Antwort konnte nicht gelesen werden.');
+    throw new HttpsError('internal', st(lang, 'unreadableAnswer'));
   }
 
   // A silent "not understood" on the client (zero resolvable lines) is
@@ -535,9 +584,23 @@ function recipientBreakdown(perList, slug) {
   return { total, checklists: relevant.map(({ list, dueCount }) => ({ name: list.name, count: dueCount })) };
 }
 
-function buildNotificationText(frequency, breakdown) {
-  const title = `Erdkeller — ${FREQ_LABELS_ADJ[frequency] || FREQ_LABELS[frequency] || frequency} Wartung`;
+// English titles per frequency (I18N.md Phase 5) — matching the app's
+// glossary ("Every 6 months" in the UI reads as "Six-monthly" in a title).
+const FREQ_TITLES_EN = {
+  weekly: 'Weekly maintenance', monthly: 'Monthly maintenance', quarterly: 'Quarterly maintenance', halfYearly: 'Six-monthly maintenance', yearly: 'Yearly maintenance',
+};
+
+// `lang` is the recipient's UI language (/users/{uid}.lang); German unless
+// it's 'en'. The German strings are unchanged from before Phase 5.
+// Checklist names are the household's own data and stay as entered.
+function buildNotificationText(frequency, breakdown, lang = 'de') {
   const parts = breakdown.checklists.map((c) => `${c.name} (${c.count})`);
+  if (normLang(lang) === 'en') {
+    const title = `Erdkeller — ${FREQ_TITLES_EN[frequency] || 'Maintenance'}`;
+    const body = `${breakdown.total} task${breakdown.total === 1 ? '' : 's'} due: ${parts.join(', ')}`;
+    return { title, body };
+  }
+  const title = `Erdkeller — ${FREQ_LABELS_ADJ[frequency] || FREQ_LABELS[frequency] || frequency} Wartung`;
   const body = `${breakdown.total} Aufgabe${breakdown.total === 1 ? '' : 'n'} fällig: ${parts.join(', ')}`;
   return { title, body };
 }
@@ -555,12 +618,20 @@ async function resolveRecipientTokens(slug) {
   const entries = [];
   for (const userDoc of usersSnap.docs) {
     const devicesSnap = await db.collection('users').doc(userDoc.id).collection('devices').get();
+    const lang = normLang(userDoc.data().lang);
     devicesSnap.docs.forEach((deviceDoc) => {
       const token = deviceDoc.data().token;
-      if (token) entries.push({ token, ref: deviceDoc.ref });
+      if (token) entries.push({ token, ref: deviceDoc.ref, lang });
     });
   }
   return entries;
+}
+
+// The language a recipient slug's reminders are written in, for the admin
+// preview: the first linked account's language (normally there is one).
+async function slugLang(slug) {
+  const usersSnap = await db.collection('users').where('recipientSlug', '==', slug).limit(1).get();
+  return usersSnap.empty ? 'de' : normLang(usersSnap.docs[0].data().lang);
 }
 
 // Deletes device docs FCM reports as dead, so a phone that was reset or had
@@ -652,8 +723,13 @@ exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: CHECKL
       if (!breakdown.total) continue;
       const tokens = await resolveRecipientTokens(slug);
       if (!tokens.length) continue;
-      const { title, body } = buildNotificationText(frequency, breakdown);
-      await sendToTokens(tokens, title, body, { freq: frequency });
+      // One send per language, in case a slug's linked accounts differ.
+      for (const lang of SERVER_LANGS) {
+        const langTokens = tokens.filter((tk) => tk.lang === lang);
+        if (!langTokens.length) continue;
+        const { title, body } = buildNotificationText(frequency, breakdown, lang);
+        await sendToTokens(langTokens, title, body, { freq: frequency });
+      }
       sentAny = true;
     }
     if (sentAny) {
@@ -673,11 +749,14 @@ exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: CHECKL
 // live Fällig view, and the only practical way to test something that
 // otherwise fires once a week/month at a fixed hour.
 exports.previewReminders = onCall(async (request) => {
-  if (!request.auth) throw new HttpsError('unauthenticated', 'Bitte anmelden.');
+  const lang = callerLang(request);
+  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
   const callerSnap = await db.doc(`users/${request.auth.uid}`).get();
   if (!callerSnap.exists || callerSnap.data().role !== 'admin') {
-    throw new HttpsError('permission-denied', 'Nur für Admins.');
+    throw new HttpsError('permission-denied', st(lang, 'adminsOnly'));
   }
+  // Each recipient's preview text in the language they'd actually get it in.
+  const slugLangs = Object.fromEntries(await Promise.all(RECIPIENT_SLUGS.map(async (slug) => [slug, await slugLang(slug)])));
 
   const [notifSnap, stateSnap, maintenance] = await Promise.all([
     db.doc('config/notifications').get(),
@@ -711,7 +790,7 @@ exports.previewReminders = onCall(async (request) => {
       wouldSendNow,
       recipients: RECIPIENT_SLUGS.map((slug) => {
         const breakdown = recipientBreakdown(perList, slug);
-        return { slug, ...breakdown, ...(breakdown.total ? buildNotificationText(frequency, breakdown) : {}) };
+        return { slug, ...breakdown, ...(breakdown.total ? buildNotificationText(frequency, breakdown, slugLangs[slug]) : {}) };
       }),
     };
   }
@@ -724,15 +803,16 @@ exports.previewReminders = onCall(async (request) => {
 // actually work on this device", independent of whether anything is
 // actually due right now.
 exports.sendTestNotification = onCall(async (request) => {
-  if (!request.auth) throw new HttpsError('unauthenticated', 'Bitte anmelden.');
+  const lang = callerLang(request);
+  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
   const devicesSnap = await db.collection(`users/${request.auth.uid}/devices`).get();
   const tokens = devicesSnap.docs
     .map((d) => ({ token: d.data().token, label: d.data().label || null, ref: d.ref }))
     .filter((t) => t.token);
   if (!tokens.length) {
-    throw new HttpsError('failed-precondition', 'Kein Gerät für diesen Account registriert.');
+    throw new HttpsError('failed-precondition', st(lang, 'noDevice'));
   }
-  const results = await sendToTokens(tokens, 'Erdkeller', 'Testbenachrichtigung — wenn du das siehst, funktioniert es.', { freq: 'test' });
+  const results = await sendToTokens(tokens, 'Erdkeller', st(lang, 'testBody'), { freq: 'test' });
   const succeeded = results.filter((r) => r.success).length;
   const failed = results.filter((r) => !r.success).map((r) => ({ label: r.label, error: r.errorCode }));
   return { total: results.length, succeeded, failed };
