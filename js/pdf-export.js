@@ -10,10 +10,11 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=198';
+import { db } from './firebase-init.js?v=199';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t, getLocale } from './i18n.js?v=199';
 
 const sectionChecks = document.querySelectorAll('.pdf-section-check');
 const selectAllBtn = document.getElementById('pdf-select-all-btn');
@@ -688,14 +689,14 @@ function computeShoppingList(subStock, rows, targetsDoc, productIndex, allBatche
     const current = productCurrentAmount(product, allBatches);
     if (current < targetAmount) {
       items.push({
-        name: product.name, group: 'Produktziele', need: targetAmount - current, unit: target.unit,
+        name: product.name, group: t('pdf.produktziele'), need: targetAmount - current, unit: target.unit,
       });
     }
   });
   const waterTarget = waterGlobalLiters(household, planning);
   const waterCurrent = waterCurrentLiters(taxonomy, subStock);
   if (waterTarget != null && waterCurrent < waterTarget) {
-    items.push({ name: 'Wasser', group: 'Produktziele', need: waterTarget - waterCurrent, unit: 'L' });
+    items.push({ name: t('pdf.wasser'), group: t('pdf.produktziele'), need: waterTarget - waterCurrent, unit: 'L' });
   }
   return items;
 }
@@ -704,14 +705,14 @@ function formatShoppingNeed(item) {
   if (item.unit === 'kg') return `${round2(item.need)} kg`;
   if (item.unit === 'l') return `${round2(item.need)} l`;
   if (item.unit === 'L') return `${round2(item.need)} L`;
-  if (item.unit === 'stueck') return `${Math.ceil(item.need)} Stk`;
+  if (item.unit === 'stueck') return t('pdf.stk', { value: Math.ceil(item.need) });
   return `${Math.ceil(item.need)} ${item.unit}`;
 }
 
 function unitLabelFor(unit) {
   if (unit === 'kg') return 'kg';
   if (unit === 'l') return 'l';
-  if (unit === 'stueck') return 'Stk';
+  if (unit === 'stueck') return t('pdf.stk_2');
   return unit || '';
 }
 
@@ -812,7 +813,7 @@ function categoryGraphRow(pdf, y, sym, name, current, target, isCategory) {
 
 async function buildDashboardSection(pdf) {
   let y = MARGIN;
-  y = heading(pdf, y, 'Übersicht — Stand: ' + new Date().toLocaleDateString('de-DE'));
+  y = heading(pdf, y, t('pdf.uebersicht_stand') + new Date().toLocaleDateString(getLocale()));
 
   const {
     taxonomy, targetsDoc, household, planning, productIndex, allBatches,
@@ -827,32 +828,32 @@ async function buildDashboardSection(pdf) {
   const days = autonomyDaysVal(planning);
   const weeksTarget = days > 0 ? days / 7 : null;
 
-  y = subheading(pdf, y, 'Lebensmittel gesamt');
+  y = subheading(pdf, y, t('pdf.lebensmittel_gesamt'));
   y = drawTotalBar(pdf, y, currentKgAll, targetKgAll);
   if (weeks != null && weeksTarget != null) {
-    y = bodyText(pdf, y, `Reicht ca. ${round2(Math.min(weeks, 999))} von ${round2(weeksTarget)} Wochen.`);
+    y = bodyText(pdf, y, t('pdf.reicht_ca_von_wochen', { weeks: round2(Math.min(weeks, 999)), total: round2(weeksTarget) }));
   }
 
   if (hasWaterType(taxonomy)) {
     const waterCurrent = waterCurrentLiters(taxonomy, subStock);
     const waterTarget = waterGlobalLiters(household, planning);
     y = spacer(y);
-    y = subheading(pdf, y, 'Wasser gesamt');
+    y = subheading(pdf, y, t('pdf.wasser_gesamt'));
     if (waterTarget != null) {
       const wWeeks = weeksOfCoverage(waterCurrent, waterTarget, planning);
       y = drawTotalBar(pdf, y, waterCurrent, waterTarget);
       if (wWeeks != null && weeksTarget != null) {
-        y = bodyText(pdf, y, `Reicht ca. ${round2(Math.min(wWeeks, 999))} von ${round2(weeksTarget)} Wochen.`);
+        y = bodyText(pdf, y, t('pdf.reicht_ca_von_wochen', { weeks: round2(Math.min(wWeeks, 999)), total: round2(weeksTarget) }));
       }
     } else {
-      y = bodyText(pdf, y, 'Kein Wasserziel konfiguriert.');
+      y = bodyText(pdf, y, t('pdf.kein_wasserziel_konfiguriert'));
     }
   }
 
   y = spacer(y);
-  y = subheading(pdf, y, 'Kategorien');
+  y = subheading(pdf, y, t('pdf.kategorien'));
   if (rows.length === 0) {
-    y = bodyText(pdf, y, 'Keine Lebensmittel-Ziele gesetzt.');
+    y = bodyText(pdf, y, t('pdf.keine_lebensmittel_ziele_gesetzt'));
   }
   rows.forEach((row) => {
     y = categoryGraphRow(pdf, y, row.cat.sym, row.cat.name, row.currentKg, row.targetKg, true);
@@ -866,12 +867,12 @@ async function buildDashboardSection(pdf) {
   // read as their own report, not a continuation of the Kategorien graphs.
   pdf.addPage();
   y = MARGIN;
-  y = subheading(pdf, y, 'MHD-Alarme');
+  y = subheading(pdf, y, t('pdf.mhd_alarme'));
   const nowIdx = nowMonthIndex();
   const bands = [
-    { label: 'Bereits erreicht', min: -Infinity, max: nowIdx, bg: [245, 228, 223], fg: [156, 59, 46] },
-    { label: 'Nächste 6 Monate', min: nowIdx + 1, max: nowIdx + 6, bg: [247, 233, 218], fg: [184, 99, 47] },
-    { label: 'Monate 7–12', min: nowIdx + 7, max: nowIdx + 12, bg: [228, 225, 214], fg: [46, 64, 52] },
+    { label: t('pdf.bereits_erreicht'), min: -Infinity, max: nowIdx, bg: [245, 228, 223], fg: [156, 59, 46] },
+    { label: t('pdf.naechste_6_monate'), min: nowIdx + 1, max: nowIdx + 6, bg: [247, 233, 218], fg: [184, 99, 47] },
+    { label: t('pdf.monate_7_12'), min: nowIdx + 7, max: nowIdx + 12, bg: [228, 225, 214], fg: [46, 64, 52] },
   ];
   let anyAlert = false;
   bands.forEach((band) => {
@@ -903,14 +904,14 @@ async function buildDashboardSection(pdf) {
     );
     y += SECTION_GAP;
   });
-  if (!anyAlert) y = bodyText(pdf, y, 'Nichts läuft in den nächsten 12 Monaten ab.');
+  if (!anyAlert) y = bodyText(pdf, y, t('pdf.nichts_laeuft_in_den_naechsten'));
 
   pdf.addPage();
   y = MARGIN;
-  y = subheading(pdf, y, 'Einkaufsliste');
+  y = subheading(pdf, y, t('pdf.einkaufsliste'));
   const shopping = computeShoppingList(subStock, rows, targetsDoc, productIndex, allBatches, taxonomy, household, planning);
   if (shopping.length === 0) {
-    y = bodyText(pdf, y, 'Nichts fehlt gerade.');
+    y = bodyText(pdf, y, t('pdf.nichts_fehlt_gerade'));
   } else {
     const groups = new Map();
     shopping.forEach((item) => {
@@ -971,17 +972,17 @@ async function buildDashboardSection(pdf) {
 // CONTENT_W now that the breadcrumb is conveyed by the group heading
 // above the table instead of a column of its own.
 const STOCK_COLUMNS = [
-  { header: 'Produkt', width: 45, get: (r) => r.product },
-  { header: 'Details', width: 35, get: (r) => r.details },
-  { header: 'Menge', width: 15, align: 'right', get: (r) => r.quantity },
-  { header: 'Inhalt', width: 25, get: (r) => r.content },
-  { header: 'MHD', width: 20, get: (r) => r.bestBefore },
-  { header: 'Lagerort', width: 40, get: (r) => r.storage },
+  { get header() { return t('pdf.produkt'); }, width: 45, get: (r) => r.product },
+  { get header() { return t('pdf.details'); }, width: 35, get: (r) => r.details },
+  { get header() { return t('pdf.menge'); }, width: 15, align: 'right', get: (r) => r.quantity },
+  { get header() { return t('pdf.inhalt'); }, width: 25, get: (r) => r.content },
+  { get header() { return t('pdf.mhd'); }, width: 20, get: (r) => r.bestBefore },
+  { get header() { return t('pdf.lagerort'); }, width: 40, get: (r) => r.storage },
 ];
 
 async function buildStockSection(pdf) {
   let y = MARGIN;
-  y = heading(pdf, y, 'Bestand');
+  y = heading(pdf, y, t('pdf.bestand'));
 
   const [batchesSnap, productsSnap, taxSnap] = await Promise.all([
     getDocs(collection(db, 'stockItems')),
@@ -1027,7 +1028,7 @@ async function buildStockSection(pdf) {
       const key = [b.type, b.category, b.subcategory].join('|');
       if (!fallbackGroups.has(key)) {
         fallbackGroups.set(key, {
-          label: [b.category, b.subcategory].filter(Boolean).join(' › ') || b.type || 'Unbekannt', rows: [],
+          label: [b.category, b.subcategory].filter(Boolean).join(' › ') || b.type || t('pdf.unbekannt'), rows: [],
         });
       }
       fallbackGroups.get(key).rows.push(row);
@@ -1059,15 +1060,15 @@ async function buildStockSection(pdf) {
     y = table(pdf, y, STOCK_COLUMNS, group.rows);
   });
 
-  if (!any) bodyText(pdf, y, 'Kein Bestand vorhanden.');
+  if (!any) bodyText(pdf, y, t('pdf.kein_bestand_vorhanden'));
 }
 
 async function buildMaintenanceSection(pdf) {
   let y = MARGIN;
-  y = heading(pdf, y, 'Checkliste – Wartung');
+  y = heading(pdf, y, t('pdf.checkliste_wartung'));
 
   const FREQ_LABELS = {
-    weekly: 'Wöchentlich', monthly: 'Monatlich', quarterly: 'Vierteljährlich', halfYearly: 'Halbjährlich', yearly: 'Jährlich',
+    weekly: t('pdf.woechentlich'), monthly: t('pdf.monatlich'), quarterly: t('pdf.vierteljaehrlich'), halfYearly: t('pdf.halbjaehrlich'), yearly: t('pdf.jaehrlich'),
   };
   // Reads the split /checklists + /checklistItems collections (dev plan
   // Step 16.3, step 6 cutover) — js/checklists.js stopped writing the
@@ -1078,7 +1079,7 @@ async function buildMaintenanceSection(pdf) {
     getDocs(collection(db, 'checklistItems')),
   ]);
   if (listsSnap.empty) {
-    bodyText(pdf, y, 'Keine Checklisten vorhanden.');
+    bodyText(pdf, y, t('pdf.keine_checklisten_vorhanden'));
     return;
   }
   const itemsByListId = new Map();
@@ -1110,12 +1111,12 @@ async function buildMaintenanceSection(pdf) {
 
 async function buildCrisisSection(pdf) {
   let y = MARGIN;
-  y = heading(pdf, y, 'Checkliste – Krise');
+  y = heading(pdf, y, t('pdf.checkliste_krise'));
 
   const snap = await getDoc(doc(db, 'config', 'crisisTypes'));
   const types = snap.exists() && Array.isArray(snap.data().types) ? snap.data().types : [];
   if (types.length === 0) {
-    bodyText(pdf, y, 'Keine Krisentypen vorhanden.');
+    bodyText(pdf, y, t('pdf.keine_krisentypen_vorhanden'));
     return;
   }
   types.forEach((type, i) => {
@@ -1132,7 +1133,7 @@ async function buildCrisisSection(pdf) {
 
 async function buildContactsSection(pdf) {
   let y = MARGIN;
-  y = heading(pdf, y, 'Kontakte');
+  y = heading(pdf, y, t('pdf.kontakte'));
 
   const snap = await getDocs(collection(db, 'contacts'));
   const all = snap.docs.map((d) => d.data());
@@ -1141,10 +1142,10 @@ async function buildContactsSection(pdf) {
 
   function renderContactBlock(c) {
     y = subheading(pdf, y, c.name || '');
-    if (c.role) y = bodyText(pdf, y, `Rolle: ${c.role}`, { size: 9 });
-    if (c.phone) y = bodyText(pdf, y, `Telefon: ${c.phone}`, { size: 9 });
-    if (c.address) y = bodyText(pdf, y, `Adresse: ${c.address}`, { size: 9 });
-    if (c.notes) y = bodyText(pdf, y, `Notizen: ${c.notes}`, { size: 9 });
+    if (c.role) y = bodyText(pdf, y, t('pdf.rolle', { role: c.role }), { size: 9 });
+    if (c.phone) y = bodyText(pdf, y, t('pdf.telefon', { phone: c.phone }), { size: 9 });
+    if (c.address) y = bodyText(pdf, y, t('pdf.adresse', { address: c.address }), { size: 9 });
+    if (c.notes) y = bodyText(pdf, y, t('pdf.notizen', { notes: c.notes }), { size: 9 });
     y = spacer(y, 0.6);
     y = ensure(pdf, y, 3);
     pdf.setDrawColor(190);
@@ -1156,29 +1157,29 @@ async function buildContactsSection(pdf) {
   }
 
   if (emergency.length > 0) {
-    y = bodyText(pdf, y, 'NOTRUF', { bold: true });
+    y = bodyText(pdf, y, t('pdf.notruf'), { bold: true });
     emergency.forEach(renderContactBlock);
     y = spacer(y);
   }
   if (general.length > 0) {
-    if (emergency.length > 0) y = bodyText(pdf, y, 'WEITERE KONTAKTE', { bold: true });
+    if (emergency.length > 0) y = bodyText(pdf, y, t('pdf.weitere_kontakte'), { bold: true });
     general.forEach(renderContactBlock);
   }
-  if (all.length === 0) bodyText(pdf, y, 'Keine Kontakte vorhanden.');
+  if (all.length === 0) bodyText(pdf, y, t('pdf.keine_kontakte_vorhanden'));
 }
 
 async function buildNotesSection(pdf) {
   let y = MARGIN;
-  y = heading(pdf, y, 'Notizen');
+  y = heading(pdf, y, t('pdf.notizen_2'));
 
   const snap = await getDocs(collection(db, 'notes'));
   const notes = snap.docs.map((d) => d.data());
   if (notes.length === 0) {
-    bodyText(pdf, y, 'Keine Notizen vorhanden.');
+    bodyText(pdf, y, t('pdf.keine_notizen_vorhanden'));
     return;
   }
   notes.forEach((note) => {
-    y = subheading(pdf, y, note.title || '(ohne Titel)');
+    y = subheading(pdf, y, note.title || t('pdf.ohne_titel'));
     if (note.photos && note.photos[0]) y = image(pdf, y, note.photos[0]);
     const text = bodyPlainText(note.body);
     if (text) y = bodyText(pdf, y, text);
@@ -1188,12 +1189,12 @@ async function buildNotesSection(pdf) {
 
 async function buildRecipesSection(pdf) {
   let y = MARGIN;
-  y = heading(pdf, y, 'Rezepte');
+  y = heading(pdf, y, t('pdf.rezepte'));
 
   const snap = await getDocs(collection(db, 'recipes'));
   const recipes = snap.docs.map((d) => d.data());
   if (recipes.length === 0) {
-    bodyText(pdf, y, 'Keine Rezepte vorhanden.');
+    bodyText(pdf, y, t('pdf.keine_rezepte_vorhanden'));
     return;
   }
   recipes.forEach((recipe, i) => {
@@ -1201,9 +1202,9 @@ async function buildRecipesSection(pdf) {
       pdf.addPage();
       y = MARGIN;
     }
-    y = subheading(pdf, y, recipe.title || '(ohne Titel)');
+    y = subheading(pdf, y, recipe.title || t('pdf.ohne_titel'));
     if (recipe.tags && recipe.tags.length) {
-      y = bodyText(pdf, y, `Tags: ${recipe.tags.join(', ')}`, { size: 9 });
+      y = bodyText(pdf, y, t('pdf.tags', { value: recipe.tags.join(', ') }), { size: 9 });
     }
     (recipe.ingredients || []).forEach((line) => {
       y = bullet(pdf, y, line);
@@ -1217,7 +1218,7 @@ async function buildRecipesSection(pdf) {
 
 async function buildTargetsSection(pdf) {
   let y = MARGIN;
-  y = heading(pdf, y, 'Ziele');
+  y = heading(pdf, y, t('pdf.ziele'));
 
   const {
     taxonomy, targetsDoc, household, planning, productIndex,
@@ -1226,7 +1227,7 @@ async function buildTargetsSection(pdf) {
 
   const ZIELE_COLS = (nameHeader) => [
     { header: nameHeader, width: 130, icon: (r) => r.sym, get: (r) => r.name },
-    { header: 'Ziel', width: 50, align: 'right', get: (r) => r.target },
+    { header: t('pdf.ziel'), width: 50, align: 'right', get: (r) => r.target },
   ];
 
   const catRows = [];
@@ -1238,11 +1239,11 @@ async function buildTargetsSection(pdf) {
       catRows.push({ name: cat.name, sym: cat.sym, target: targetKg != null ? `${round2(targetKg)} kg` : '–' });
     });
   });
-  y = subheadingTight(pdf, y, 'Kategorien');
+  y = subheadingTight(pdf, y, t('pdf.kategorien'));
   if (catRows.length === 0) {
-    y = bodyText(pdf, y, 'Keine Kategorien vorhanden.');
+    y = bodyText(pdf, y, t('pdf.keine_kategorien_vorhanden'));
   } else {
-    y = table(pdf, y, ZIELE_COLS('Kategorie'), catRows);
+    y = table(pdf, y, ZIELE_COLS(t('pdf.kategorie')), catRows);
   }
 
   y += GROUP_GAP;
@@ -1260,11 +1261,11 @@ async function buildTargetsSection(pdf) {
       });
     });
   });
-  y = subheadingTight(pdf, y, 'Unterkategorien');
+  y = subheadingTight(pdf, y, t('pdf.unterkategorien'));
   if (subRows.length === 0) {
-    y = bodyText(pdf, y, 'Keine Unterkategorien vorhanden.');
+    y = bodyText(pdf, y, t('pdf.keine_unterkategorien_vorhanden'));
   } else {
-    y = table(pdf, y, ZIELE_COLS('Unterkategorie'), subRows);
+    y = table(pdf, y, ZIELE_COLS(t('pdf.unterkategorie')), subRows);
   }
 
   y += GROUP_GAP;
@@ -1276,11 +1277,11 @@ async function buildTargetsSection(pdf) {
     const target = targetsDoc.products[id];
     prodRows.push({ name: product.name, target: `${round2(computeAmount(target))} ${unitLabelFor(target.unit)}` });
   });
-  y = subheadingTight(pdf, y, 'Produktziele');
+  y = subheadingTight(pdf, y, t('pdf.produktziele'));
   if (prodRows.length === 0) {
-    y = bodyText(pdf, y, 'Keine Produktziele vorhanden.');
+    y = bodyText(pdf, y, t('pdf.keine_produktziele_vorhanden'));
   } else {
-    table(pdf, y, ZIELE_COLS('Produkt'), prodRows);
+    table(pdf, y, ZIELE_COLS(t('pdf.produkt')), prodRows);
   }
 }
 
@@ -1301,11 +1302,11 @@ const SECTION_BUILDERS = {
 createBtn.addEventListener('click', async () => {
   const active = SECTION_ORDER.filter((id) => document.getElementById(`pdf-section-${id}`)?.checked);
   if (active.length === 0) {
-    statusEl.textContent = 'Bitte mindestens einen Abschnitt auswählen.';
+    statusEl.textContent = t('pdf.bitte_mindestens_einen_abschnitt_auswaehlen');
     return;
   }
   createBtn.disabled = true;
-  statusEl.textContent = 'Erstelle PDF…';
+  statusEl.textContent = t('pdf.erstelle_pdf');
   try {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -1318,7 +1319,7 @@ createBtn.addEventListener('click', async () => {
     pdf.save(`erdkeller-pdf-${todayStamp()}.pdf`);
     statusEl.textContent = '';
   } catch (err) {
-    statusEl.textContent = 'PDF-Erstellung fehlgeschlagen: ' + err.message;
+    statusEl.textContent = t('pdf.pdf_erstellung_fehlgeschlagen') + err.message;
     console.error(err);
   } finally {
     createBtn.disabled = false;

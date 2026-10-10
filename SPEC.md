@@ -27,7 +27,7 @@
 ## 2. General Requirements
 
 - Intuitive, simple UI — usable by all family members without training
-- UI language: **German**
+- UI language: **German and English (US)**, switchable at any time with the DE/EN button next to the avatar (Builds 188–199; see Section 15, Languages, and `I18N.md`). German is the reference language; the household's own data (categories, products, checklists, notes, recipes, contacts) is never translated
 - Responsive: full-screen layout on tablet, fully mobile-friendly on phone
 - Target devices: **Android only** (phone + tablet)
 - Track stock in/out with minimal manual input, maximum automation
@@ -576,6 +576,18 @@ Tablet: same guided-flow pattern, just with more tiles per row / more breathing 
 ### PDF export
 **Status: built** (Settings → **Sicherung → PDF-Export** tab as of Build 180, previously its own top-level card; `js/pdf-export.js`, jsPDF via CDN). A checklist of **8 sections** (all pre-checked by default), each starting a new PDF page, combined into one file on "PDF erstellen": **Übersicht** (a point-in-time stock/target/MHD-alerts/Einkaufsliste snapshot, timestamped — the one section that isn't purely admin-authored reference content), **Bestand** (the full unfiltered stock table), **Checkliste – Wartung** (every checklist/item, blank checkboxes — a fillable paper form, not today's checked-state), **Checkliste – Krise** (every crisis type's numbered steps, larger print), **Kontakte**, **Notizen**, **Rezepte**, **Ziele** (the three configured-target groups). "Alle auswählen"/"Alle abwählen" buttons toggle the whole checklist at once. Every section always renders **fully expanded/unfiltered** regardless of any live collapse/filter state on screen (Übersicht's category cards, Ziele's collapsible sections, Bestandsliste's chip filters, Checklisten's Fällig/chip filters) — each section builder re-queries Firestore and unconditionally iterates the complete dataset, so there's no "currently collapsed" state to accidentally omit. **Taxonomy symbols render as embedded images, not text** — jsPDF's built-in fonts have no emoji glyphs (WinAnsi encoding), so each symbol is rasterized once to an offscreen canvas and cached as a PNG, the same technique used for the printed shopping list's category-header symbols (product-target rows print symbol-free by design). Generates and downloads the PDF file directly (`doc.save(...)`) — never via the browser's print dialog.
 - Supports the "print and keep a paper copy" fallback described in Section 2, refreshed periodically as part of the quarterly checklist.
+- **Language (Build 199):** headings, labels and empty-state lines follow the current UI language; the data itself (names, notes, recipes) prints as entered.
+
+### Languages (Builds 188–199)
+Full plan, decisions, glossary and per-build notes: **`I18N.md`**. Summary:
+- **Mechanism:** `js/i18n.js` + `js/locales/de.js` / `en.js` (plain ES modules, precached by the service worker — works fully offline, no library, no build step). `t(key, params)` with `{placeholder}`s and `{ one, other }` plurals; static markup in `index.html` uses `data-i18n` / `data-i18n-attr` / `data-i18n-html`. A key missing in English falls back to German.
+- **Choosing the language:** the DE/EN button sits next to the avatar (tablet sidebar bottom-left, phone topbar) and on the sign-in screen. Default is the device language (German devices → German, anything else → English); a manual choice is remembered per device (`localStorage['erdkeller-lang']`) and mirrored to `/users/{uid}.lang`.
+- **Switching is instant, no reload:** static markup is re-applied, then `erdkeller:langchange` + `erdkeller:refresh` make every screen re-render (Build 195). Labels computed at module load are getters; the header is owned by `app-shell.js`'s `setHeader(fn)`.
+- **Formatting:** numbers/dates go through `getLocale()` (`de-DE` / `en-US`); units stay metric and MM/YYYY in both languages (imperial units deliberately deferred — `I18N.md` 8.3). Sorting of data stays German collation.
+- **Server (`functions/index.js`, Build 198):** reminder pushes are written in each recipient's `/users/{uid}.lang`; test push and error messages follow the caller's `lang`; dictation in English is told to match English speech to the German catalog and keep new product names German. Missing/unknown `lang` means German.
+- **Dictation:** speech recognition listens in `de-DE` or `en-US` to match the UI.
+- **Regression harness (`tools/i18n-test/`):** renders the signed-in app with a mocked Firebase and sample data and walks a ~90-step tour; used on every i18n build to prove German stays byte-identical, that switching leaves nothing behind (`--live`), and that no UI text bypasses the dictionary (`--leftovers`). See its README.
+- **Adding UI text from now on:** never hardcode German in markup or JS — add a key to **both** `de.js` and `en.js` and use `t()` / `data-i18n`, then run `node tools/i18n-test/check-keys.mjs`.
 
 ---
 

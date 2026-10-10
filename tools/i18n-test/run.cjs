@@ -5,6 +5,7 @@
 //   node tools/i18n-test/run.cjs <oldDir> <newDir> [--lang de|en] [--only name]
 //   node tools/i18n-test/run.cjs --dump <dir> [--lang en]   (print visible text per step)
 //   SHOTS=<outdir> before any mode also saves a screenshot per step
+//   JSPDF=<jspdf.umd.min.js> PDF_OUT=<dir> also saves the PDF the last tour step creates
 //   node tools/i18n-test/run.cjs --live <dir>
 //       German tour; after every step where the language button is reachable,
 //       switch to (fake) English in place, list text that stayed German,
@@ -57,7 +58,12 @@ async function runTour(dir, lang, only, fake, afterStep) {
     const ctx = await browser.newContext({ viewport, locale: lang === 'en' ? 'en-US' : 'de-DE', serviceWorkers: 'block' });
     await ctx.route(/gstatic\.com\/firebasejs\//, (r) => r.fulfill({ contentType: 'text/javascript', body: MOCK }));
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.fulfill({ contentType: 'text/css', body: '' }));
-    await ctx.route(/cdnjs\.cloudflare\.com/, (r) => r.fulfill({ contentType: 'text/javascript', body: '' }));
+    // JSPDF=<path to jspdf.umd.min.js 2.5.1> serves the real library so the
+    // tour's "create PDF" step produces a file; PDF_OUT=<dir> saves it.
+    await ctx.route(/cdnjs\.cloudflare\.com/, (r) => r.fulfill({
+      contentType: 'text/javascript',
+      body: process.env.JSPDF && /jspdf/.test(r.request().url()) ? fs.readFileSync(process.env.JSPDF) : '',
+    }));
     if (fake) {
       const de = new Function(fs.readFileSync(path.join(dir, 'js/locales/de.js'), 'utf8').replace('export default', 'return'))();
       const markStr = (x) => (/</.test(x) ? x.replace(/(^|>)([^<]+)/g, '$1§$2') : '§' + x); // markup values: mark every text run
@@ -101,6 +107,11 @@ async function runTour(dir, lang, only, fake, afterStep) {
       localStorage.setItem('erdkeller-lang', lang);
     }, { fixtures: FIXTURES, lang });
     const page = await ctx.newPage();
+    page.on('download', async (d) => {
+      if (!process.env.PDF_OUT) return;
+      fs.mkdirSync(process.env.PDF_OUT, { recursive: true });
+      await d.saveAs(path.join(process.env.PDF_OUT, `${path.basename(dir)}-${lang}.pdf`));
+    });
     await page.clock.install({ time: new Date('2026-10-10T12:00:00') });
     const dialogs = [];
     const errors = [];
@@ -193,7 +204,9 @@ function firstDiff(a, b) {
       const btn = page.locator('.sidebar .lang-btn');
       try { await btn.click({ timeout: 500, trial: true }); } catch { return false; }
       await btn.click();
-      await page.clock.runFor(2000);
+      // Short: the step's own 1.5s plus two switches must stay under the
+      // 5s after which undo toasts hide themselves.
+      await page.clock.runFor(700);
       await page.waitForTimeout(150);
       return true;
     };
