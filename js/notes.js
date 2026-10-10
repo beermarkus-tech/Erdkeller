@@ -22,11 +22,11 @@
 // note with more than one photo just shows photos[0] as its hero until
 // next edited, same as everywhere else in this app that reads a narrowed
 // field defensively instead of needing a migration.
-import { db } from './firebase-init.js?v=194';
+import { db } from './firebase-init.js?v=195';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=194';
+import { t } from './i18n.js?v=195';
 
 const MAX_PHOTO_DIMENSION = 1000;
 const JPEG_QUALITY = 0.6;
@@ -86,7 +86,7 @@ let viewMode = 'cards';
 // meaningful keys.
 const SORT_COLUMNS = [
   { key: 'title', label: 'A–Z' },
-  { key: 'created', label: t('notes.erstellt') },
+  { key: 'created', get label() { return t('notes.erstellt'); } },
 ];
 let sortColumn = 'title';
 let sortDir = 'asc';
@@ -669,3 +669,5 @@ window.addEventListener('erdkeller:signedin', (e) => {
   loadNotes();
 });
 window.addEventListener('erdkeller:refresh', () => loadNotes());
+// Language switch (I18N.md): the sort bar is built once, not by loadNotes().
+window.addEventListener('erdkeller:langchange', () => renderSortBar());

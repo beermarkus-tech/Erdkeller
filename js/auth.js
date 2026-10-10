@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=194';
+import { auth, db } from './firebase-init.js?v=195';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -11,7 +11,7 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=194';
+import { t } from './i18n.js?v=195';
 
 const provider = new GoogleAuthProvider();
 
@@ -232,6 +232,7 @@ let renderedRole = null;
 
 function renderSignedOut() {
   renderedRole = null;
+  paintedIdentity = null;
   authGate.classList.remove('hidden');
   appShell.classList.add('hidden');
   window.dispatchEvent(new CustomEvent('erdkeller:signedout'));
@@ -247,7 +248,10 @@ function renderSignedOut() {
 // event would have its Firestore reads rejected with permission-denied —
 // exactly the hazard js/taxonomy.js:555-558 documents. Showing the shell
 // early is safe; asking the app to fetch data early is not.
+let paintedIdentity = null;
+
 function paintSignedIn(identity) {
+  paintedIdentity = identity;
   authGate.classList.add('hidden');
   appShell.classList.remove('hidden');
 
@@ -257,6 +261,15 @@ function paintSignedIn(identity) {
     el.textContent = identity.role === 'admin' ? t('auth.admin') : t('auth.mitglied');
   });
 }
+
+// Language switch (I18N.md): the role label in the account popover is only
+// painted on sign-in, so repaint it in the new language.
+window.addEventListener('erdkeller:langchange', () => {
+  if (!paintedIdentity) return;
+  roleEls.forEach((el) => {
+    el.textContent = paintedIdentity.role === 'admin' ? t('auth.admin') : t('auth.mitglied');
+  });
+});
 
 function renderSignedIn(identity) {
   paintSignedIn(identity);

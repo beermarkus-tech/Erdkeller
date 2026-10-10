@@ -1,8 +1,8 @@
-import { auth, db } from './firebase-init.js?v=194';
+import { auth, db } from './firebase-init.js?v=195';
 import {
   collection, getDocs, doc, updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=194';
+import { t, getLocale } from './i18n.js?v=195';
 
 const peopleCard = document.querySelector('.settings-card[data-target="people"]');
 const peopleListEl = document.getElementById('people-list');
@@ -29,7 +29,7 @@ function roleLabel(role) {
 // anywhere between a real signed-in account and "who gets notified about
 // the Autos checklist." This is the one place that mapping gets made.
 const RECIPIENT_SLUG_OPTIONS = [
-  { value: '', label: t('people.kein_empfaenger') },
+  { value: '', get label() { return t('people.kein_empfaenger'); } },
   { value: 'markus', label: 'Markus' },
   { value: 'julia', label: 'Julia' },
   { value: 'sophia', label: 'Sophia' },
