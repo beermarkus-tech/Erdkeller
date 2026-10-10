@@ -1,4 +1,4 @@
-import { t } from './i18n.js?v=192';
+import { t } from './i18n.js?v=193';
 const settingsMain = document.getElementById('settings-main');
 const panels = document.querySelectorAll('.settings-panel');
 const topbarSubtitle = document.getElementById('topbar-subtitle');

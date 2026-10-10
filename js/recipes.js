@@ -19,10 +19,11 @@
 //   on purpose (a "nice to have" signal, not a checklist that nags), and
 //   no summary badge on the card either (Markus's call) — the dot only
 //   ever shows up once a recipe is actually opened.
-import { db } from './firebase-init.js?v=192';
+import { db } from './firebase-init.js?v=193';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=193';
 
 const MAX_PHOTO_DIMENSION = 1000;
 const JPEG_QUALITY = 0.6;
@@ -148,7 +149,7 @@ async function loadRecipes() {
     loadOk = true;
   } catch (err) {
     loadOk = false;
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message;
+    statusEl.textContent = t('recipes.fehler_beim_laden') + err.message;
     console.error(err);
     return;
   }
@@ -180,10 +181,10 @@ function compressImage(file) {
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
         resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
       };
-      img.onerror = () => reject(new Error('Bild konnte nicht gelesen werden.'));
+      img.onerror = () => reject(new Error(t('recipes.bild_konnte_nicht_gelesen_werden')));
       img.src = reader.result;
     };
-    reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.'));
+    reader.onerror = () => reject(new Error(t('recipes.datei_konnte_nicht_gelesen_werden')));
     reader.readAsDataURL(file);
   });
 }
@@ -203,14 +204,14 @@ photoInput.addEventListener('change', async () => {
   try {
     const dataUri = await compressImage(file);
     if (dataUri.length > MAX_TOTAL_PHOTO_CHARS) {
-      alert('Das Foto ist zu groß. Bitte ein anderes wählen.');
+      alert(t('recipes.das_foto_ist_zu_gross'));
       return;
     }
     pendingPhotos = [dataUri];
     updatePhotoRemoveBadge();
     scheduleSave();
   } catch (err) {
-    alert('Foto konnte nicht verarbeitet werden: ' + err.message);
+    alert(t('recipes.foto_konnte_nicht_verarbeitet_werden') + err.message);
     console.error(err);
   }
 });
@@ -349,7 +350,7 @@ function makeRecipeCard(recipe) {
 
   const titleEl = document.createElement('div');
   titleEl.className = 'recipe-card-title';
-  titleEl.textContent = recipe.title || '(ohne Titel)';
+  titleEl.textContent = recipe.title || t('recipes.ohne_titel');
   body.appendChild(titleEl);
 
   const tags = recipe.tags || [];
@@ -375,7 +376,7 @@ function makeRecipeCard(recipe) {
     editIcon.type = 'button';
     editIcon.className = 'recipe-card-icon-btn';
     editIcon.textContent = '✏️';
-    editIcon.title = 'Bearbeiten';
+    editIcon.title = t('recipes.bearbeiten');
     editIcon.addEventListener('click', (e) => {
       e.stopPropagation();
       openEditScreen(recipe);
@@ -386,7 +387,7 @@ function makeRecipeCard(recipe) {
     duplicateIcon.type = 'button';
     duplicateIcon.className = 'recipe-card-icon-btn';
     duplicateIcon.textContent = '📋';
-    duplicateIcon.title = 'Duplizieren';
+    duplicateIcon.title = t('recipes.duplizieren');
     duplicateIcon.addEventListener('click', (e) => {
       e.stopPropagation();
       duplicateRecipe(recipe);
@@ -397,7 +398,7 @@ function makeRecipeCard(recipe) {
     deleteIcon.type = 'button';
     deleteIcon.className = 'recipe-card-icon-btn';
     deleteIcon.textContent = '🗑️';
-    deleteIcon.title = 'Löschen';
+    deleteIcon.title = t('recipes.loeschen');
     deleteIcon.addEventListener('click', (e) => {
       e.stopPropagation();
       deleteRecipe(recipe);
@@ -412,7 +413,7 @@ function makeRecipeCard(recipe) {
 }
 
 async function deleteRecipe(recipe) {
-  if (!confirm(`"${recipe.title || 'Rezept'}" wirklich löschen?`)) return;
+  if (!confirm(t('recipes.wirklich_loeschen', { value: recipe.title || t('recipes.rezept') }))) return;
   try {
     await deleteDoc(doc(db, 'recipes', recipe.id));
     recipes = recipes.filter((r) => r.id !== recipe.id);
@@ -420,7 +421,7 @@ async function deleteRecipe(recipe) {
     renderRecipes();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Löschen fehlgeschlagen: ' + err.message);
+    alert(t('recipes.loeschen_fehlgeschlagen') + err.message);
     console.error(err);
   }
 }
@@ -428,7 +429,7 @@ async function deleteRecipe(recipe) {
 async function duplicateRecipe(recipe) {
   const nowIso = new Date().toISOString();
   const data = {
-    title: recipe.title ? `${recipe.title} (Kopie)` : '',
+    title: recipe.title ? t('recipes.kopie', { title: recipe.title }) : '',
     tags: recipe.tags || [],
     ingredients: recipe.ingredients || [],
     body: recipe.body || '',
@@ -441,7 +442,7 @@ async function duplicateRecipe(recipe) {
     renderRecipes();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Duplizieren fehlgeschlagen: ' + err.message);
+    alert(t('recipes.duplizieren_fehlgeschlagen') + err.message);
     console.error(err);
   }
 }
@@ -469,7 +470,7 @@ function renderRecipes() {
   if (sorted.length === 0) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = recipes.length === 0 ? 'Noch keine Rezepte.' : 'Keine Treffer.';
+    p.textContent = recipes.length === 0 ? t('recipes.noch_keine_rezepte') : t('recipes.keine_treffer');
     recipesListEl.appendChild(p);
   } else {
     sorted.forEach((r) => recipesListEl.appendChild(makeRecipeCard(r)));
@@ -485,7 +486,7 @@ searchInput.addEventListener('input', () => {
 
 function openViewScreen(recipe) {
   viewingRecipe = recipe;
-  viewTitleEl.textContent = recipe.title || '(ohne Titel)';
+  viewTitleEl.textContent = recipe.title || t('recipes.ohne_titel');
 
   const photo = (recipe.photos || [])[0];
   if (photo) {
@@ -518,7 +519,7 @@ function openViewScreen(recipe) {
       if (ingredientAvailable(line)) {
         const dot = document.createElement('span');
         dot.className = 'recipe-ingredient-dot';
-        dot.title = 'Vorrätig';
+        dot.title = t('recipes.vorraetig');
         li.appendChild(dot);
       }
       const text = document.createElement('span');
@@ -583,7 +584,7 @@ function renderIngredientEditor() {
 
     const input = document.createElement('input');
     input.className = 'tax-name-input';
-    input.placeholder = 'z.B. 500 g Mehl';
+    input.placeholder = t('recipes.z_b_500_g_mehl');
     input.value = line;
     input.addEventListener('input', () => {
       editIngredients[index] = input.value;
@@ -606,7 +607,7 @@ function renderIngredientEditor() {
     const del = document.createElement('button');
     del.type = 'button';
     del.className = 'tax-del';
-    del.title = 'Zutat entfernen';
+    del.title = t('recipes.zutat_entfernen');
     del.textContent = '✕';
     del.addEventListener('click', () => {
       editIngredients.splice(index, 1);
@@ -633,7 +634,7 @@ function updateViewportHeight() {
 
 function openEditScreen(recipe) {
   if (!recipe && !loadOk) {
-    statusEl.textContent = 'Hinzufügen blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
+    statusEl.textContent = t('recipes.hinzufuegen_blockiert_die_daten_wurden');
     return;
   }
   editingRecipeId = recipe ? recipe.id : null;
@@ -645,7 +646,7 @@ function openEditScreen(recipe) {
   editBodyInput.innerHTML = recipe ? bodyToHtml(recipe.body || '') : '';
   pendingPhotos = recipe ? (recipe.photos || []).slice(0, 1) : [];
   updatePhotoRemoveBadge();
-  setEditStatus('Gespeichert');
+  setEditStatus(t('recipes.gespeichert'));
   updateViewportHeight();
   editModal.classList.add('show');
   if (!recipe) editTitleInput.focus();
@@ -675,7 +676,7 @@ editBodyInput.addEventListener('input', scheduleSave);
 
 function scheduleSave() {
   dirty = true;
-  setEditStatus('Nicht gespeichert');
+  setEditStatus(t('recipes.nicht_gespeichert'));
   clearTimeout(saveTimer);
   saveTimer = setTimeout(persistNow, SAVE_DEBOUNCE_MS);
 }
@@ -684,7 +685,7 @@ async function persistNow() {
   clearTimeout(saveTimer);
   if (!dirty || !loadOk) return false;
   dirty = false;
-  setEditStatus('Speichert…');
+  setEditStatus(t('recipes.speichert'));
   const data = {
     title: editTitleInput.value.trim(),
     tags: parseTagsInput(editTagsInput.value),
@@ -697,14 +698,14 @@ async function persistNow() {
   try {
     if (!hasContent) {
       if (!editingRecipeId) {
-        setEditStatus('Gespeichert');
+        setEditStatus(t('recipes.gespeichert'));
         return false;
       }
       await deleteDoc(doc(db, 'recipes', editingRecipeId));
       recipes = recipes.filter((r) => r.id !== editingRecipeId);
       editingRecipeId = null;
       renderRecipes();
-      setEditStatus('Gespeichert');
+      setEditStatus(t('recipes.gespeichert'));
       return true;
     }
     if (!editingRecipeId) {
@@ -716,12 +717,12 @@ async function persistNow() {
       const idx = recipes.findIndex((r) => r.id === editingRecipeId);
       if (idx >= 0) recipes[idx] = { ...recipes[idx], ...data, updatedAt: nowIso };
     }
-    setEditStatus('Gespeichert');
+    setEditStatus(t('recipes.gespeichert'));
     renderRecipes();
     return true;
   } catch (err) {
     console.error(err);
-    setEditStatus('Speichern fehlgeschlagen: ' + err.message, true);
+    setEditStatus(t('recipes.speichern_fehlgeschlagen') + err.message, true);
     dirty = true;
     return false;
   }
