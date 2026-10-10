@@ -171,6 +171,36 @@ header.topbar .subtitle {
   to { transform: rotate(360deg); }
 }
 
+/* Language switch (I18N.md) — same round 32px chrome button as
+   .refresh-btn, labelled with the active language code. Sits next to the
+   avatar: in the tablet sidebar's bottom-left account row, in the phone
+   topbar, and (light variant) on the sign-in screen. */
+.lang-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(244, 242, 234, 0.12);
+  color: var(--paper);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.lang-btn.lang-btn-light {
+  margin-top: 8px;
+  background: white;
+  border: 1px solid var(--stone-dark);
+  color: var(--charcoal);
+}
+
 .account-menu-wrap {
   position: relative;
 }
@@ -3135,6 +3165,13 @@ nav.bottomnav button .icon {
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+
+  /* Hug the avatar on the left; the refresh button keeps the right edge
+     (auto margin wins over space-between). */
+  .sidebar-account .lang-btn {
+    margin-left: 10px;
+    margin-right: auto;
   }
 
   nav.bottomnav {
