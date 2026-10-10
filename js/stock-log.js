@@ -1,14 +1,15 @@
-import { db } from './firebase-init.js?v=190';
+import { db } from './firebase-init.js?v=191';
 import {
   collection, getDocs, query, orderBy, limit, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=191';
 
 function formatLogRow(entry) {
   const icon = entry.action === 'in' ? '⬇' : '⬆';
   const extra = [];
   if (entry.details) extra.push(entry.details);
   if (entry.content) extra.push(entry.content);
-  if (entry.bestBefore) extra.push(`MHD ${entry.bestBefore}`);
+  if (entry.bestBefore) extra.push(t('stockLog.mhd', { bestBefore: entry.bestBefore }));
   const text = `${entry.quantity}× ${entry.productName}` + (extra.length ? ' · ' + extra.join(' · ') : '');
   return { icon, text };
 }
@@ -23,7 +24,7 @@ export async function renderRecentLog(container, count = 15) {
     if (snap.empty) {
       const empty = document.createElement('p');
       empty.className = 'screen-placeholder';
-      empty.textContent = 'Noch keine Änderungen.';
+      empty.textContent = t('stockLog.noch_keine_aenderungen');
       container.appendChild(empty);
       return;
     }

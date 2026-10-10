@@ -1,9 +1,10 @@
+import { t } from './i18n.js?v=191';
 const TAB_LABELS = {
-  dashboard: 'Übersicht',
-  stock: 'Bestand',
-  checklists: 'Checklisten',
-  info: 'Info',
-  settings: 'Admin',
+  dashboard: t('nav.uebersicht'),
+  stock: t('nav.bestand'),
+  checklists: t('nav.checklisten'),
+  info: t('nav.info'),
+  settings: t('nav.admin'),
 };
 
 const navButtons = document.querySelectorAll('.nav-btn[data-tab]');

@@ -1,5 +1,6 @@
-import { db } from './firebase-init.js?v=190';
+import { db } from './firebase-init.js?v=191';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=191';
 
 const listEl = document.getElementById('storage-list');
 const addBtn = document.getElementById('add-storage-btn');
@@ -18,7 +19,7 @@ async function loadStorage() {
     locations = snap.exists() && Array.isArray(snap.data().locations) ? snap.data().locations : [];
     loadOk = true;
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message + ' — Bearbeiten deaktiviert, bis der Ladevorgang erfolgreich war.';
+    statusEl.textContent = t('storageLocations.fehler_beim_laden') + err.message + t('storageLocations.bearbeiten_deaktiviert_bis_der_ladevorgang');
     console.error(err);
     if (!loadOk) locations = [];
     loadOk = false;
@@ -29,10 +30,10 @@ async function loadStorage() {
 
 async function saveStorage() {
   if (!loadOk) {
-    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden, bevor du änderst.';
+    statusEl.textContent = t('storageLocations.speichern_blockiert_die_daten_wurden');
     return;
   }
-  statusEl.textContent = 'Speichere…';
+  statusEl.textContent = t('storageLocations.speichere');
   try {
     await setDoc(ref, { locations, updatedAt: new Date().toISOString() });
     statusEl.textContent = '';
@@ -41,7 +42,7 @@ async function saveStorage() {
     // saveTaxonomy fix.
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    statusEl.textContent = t('storageLocations.fehler_beim_speichern') + err.message;
     console.error(err);
   }
 }
@@ -71,15 +72,15 @@ function render() {
     row.className = 'storage-row';
     row.dataset.index = index;
     row.innerHTML = `
-      <input class="tax-name-input" value="${escapeAttr(name)}" placeholder="Lagerort">
-      <button class="tax-del" title="Lagerort löschen">✕</button>
+      <input class="tax-name-input" value="${escapeAttr(name)}" placeholder="${escapeAttr(t('storageLocations.lagerort'))}">
+      <button class="tax-del" title="${escapeAttr(t('storageLocations.lagerort_loeschen_title'))}">✕</button>
     `;
     row.querySelector('.tax-name-input').addEventListener('change', (e) => {
       locations[index] = e.target.value.trim();
       saveStorage();
     });
     row.querySelector('.tax-del').addEventListener('click', () => {
-      if (!confirm(`Lagerort "${name}" löschen?`)) return;
+      if (!confirm(t('storageLocations.lagerort_loeschen', { name }))) return;
       locations.splice(index, 1);
       saveStorage();
       render();
@@ -97,7 +98,7 @@ function render() {
 }
 
 addBtn.addEventListener('click', () => {
-  locations.push('Neuer Lagerort');
+  locations.push(t('storageLocations.neuer_lagerort'));
   saveStorage();
   render();
   // requestAnimationFrame (Build 116) — focusing synchronously right after

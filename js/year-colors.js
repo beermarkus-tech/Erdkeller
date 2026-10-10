@@ -1,5 +1,6 @@
-import { db } from './firebase-init.js?v=190';
+import { db } from './firebase-init.js?v=191';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=191';
 
 const listEl = document.getElementById('year-color-list');
 const addBtn = document.getElementById('add-year-btn');
@@ -10,14 +11,14 @@ const ref = doc(db, 'config', 'yearColorMap');
 // (SPEC.md Section 5) — a small fixed palette rather than a free color
 // picker, since the point is a handful of easily-told-apart marker colors.
 export const PALETTE = [
-  { name: 'green', hex: '#3C9142', label: 'Grün' },
-  { name: 'blue', hex: '#2F6FED', label: 'Blau' },
-  { name: 'pink', hex: '#E85D9C', label: 'Pink' },
-  { name: 'yellow', hex: '#F2C94C', label: 'Gelb' },
-  { name: 'red', hex: '#E23D3D', label: 'Rot' },
-  { name: 'orange', hex: '#F2994A', label: 'Orange' },
-  { name: 'black', hex: '#1A1A1A', label: 'Schwarz' },
-  { name: 'white', hex: '#FFFFFF', label: 'Weiß' },
+  { name: 'green', hex: '#3C9142', label: t('yearColors.gruen') },
+  { name: 'blue', hex: '#2F6FED', label: t('yearColors.blau') },
+  { name: 'pink', hex: '#E85D9C', label: t('yearColors.pink') },
+  { name: 'yellow', hex: '#F2C94C', label: t('yearColors.gelb') },
+  { name: 'red', hex: '#E23D3D', label: t('yearColors.rot') },
+  { name: 'orange', hex: '#F2994A', label: t('yearColors.orange') },
+  { name: 'black', hex: '#1A1A1A', label: t('yearColors.schwarz') },
+  { name: 'white', hex: '#FFFFFF', label: t('yearColors.weiss') },
 ];
 
 let yearColorMap = {};
@@ -35,7 +36,7 @@ async function loadYearColors() {
     if (!('none' in yearColorMap)) yearColorMap.none = 'white';
     loadOk = true;
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message + ' — Bearbeiten deaktiviert, bis der Ladevorgang erfolgreich war.';
+    statusEl.textContent = t('yearColors.fehler_beim_laden') + err.message + t('yearColors.bearbeiten_deaktiviert_bis_der_ladevorgang');
     console.error(err);
     if (!loadOk) yearColorMap = defaultMap();
     loadOk = false;
@@ -46,10 +47,10 @@ async function loadYearColors() {
 
 async function saveYearColors() {
   if (!loadOk) {
-    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden, bevor du änderst.';
+    statusEl.textContent = t('yearColors.speichern_blockiert_die_daten_wurden');
     return;
   }
-  statusEl.textContent = 'Speichere…';
+  statusEl.textContent = t('yearColors.speichere');
   try {
     yearColorMap.updatedAt = new Date().toISOString();
     await setDoc(ref, yearColorMap);
@@ -59,7 +60,7 @@ async function saveYearColors() {
     // saveTaxonomy fix.
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    statusEl.textContent = t('yearColors.fehler_beim_speichern') + err.message;
     console.error(err);
   }
 }
@@ -83,7 +84,7 @@ function renderRow(key) {
   if (isNone) {
     const label = document.createElement('span');
     label.className = 'year-label';
-    label.textContent = 'Kein Datum';
+    label.textContent = t('yearColors.kein_datum');
     row.appendChild(label);
   } else {
     const input = document.createElement('input');
@@ -111,7 +112,7 @@ function renderRow(key) {
   const isNoneSelected = !yearColorMap[key] || yearColorMap[key] === 'none';
   noneBtn.className = 'swatch-btn none-swatch' + (isNoneSelected ? ' selected' : '');
   noneBtn.textContent = '–';
-  noneBtn.title = 'Keine Farbe';
+  noneBtn.title = t('yearColors.keine_farbe');
   noneBtn.addEventListener('click', () => {
     yearColorMap[key] = 'none';
     saveYearColors();
@@ -123,10 +124,10 @@ function renderRow(key) {
   if (!isNone) {
     const del = document.createElement('button');
     del.className = 'tax-del';
-    del.title = 'Jahr löschen';
+    del.title = t('yearColors.jahr_loeschen');
     del.textContent = '✕';
     del.addEventListener('click', () => {
-      if (!confirm(`Jahr "${key}" löschen?`)) return;
+      if (!confirm(t('yearColors.jahr_loeschen_2', { key }))) return;
       delete yearColorMap[key];
       saveYearColors();
       render();
@@ -170,7 +171,7 @@ function renameYear(oldKey, newKey) {
     return;
   }
   if (yearColorMap[newKey] !== undefined) {
-    alert(`Jahr "${newKey}" existiert bereits.`);
+    alert(t('yearColors.jahr_existiert_bereits', { newKey }));
     render();
     return;
   }

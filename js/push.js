@@ -4,12 +4,13 @@
 // and calls into the functions exported here, same split as e.g. the
 // checklist boundary math (js/checklists.js) living apart from the screen
 // that configures its inputs (js/notifications.js) already does.
-import { app, auth, db, functions } from './firebase-init.js?v=190';
+import { app, auth, db, functions } from './firebase-init.js?v=191';
 import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging.js";
 import {
   collection, doc, getDocs, setDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
+import { t } from './i18n.js?v=191';
 
 // Generated once in the Firebase console (Project Settings → Cloud
 // Messaging → Web Push certificates — see SPEC.md Section 18). Public by
@@ -73,20 +74,20 @@ export function permissionState() {
 // "refresh this device's token" path — requesting permission when it's
 // already 'granted' resolves immediately with no new prompt.
 export async function enableOnThisDevice() {
-  if (!auth.currentUser) throw new Error('Nicht angemeldet.');
+  if (!auth.currentUser) throw new Error(t('push.nicht_angemeldet'));
   const messagingInstance = await ensureMessaging();
-  if (!messagingInstance) throw new Error('Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.');
+  if (!messagingInstance) throw new Error(t('push.push_benachrichtigungen_werden_von_diesem'));
 
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
     throw new Error(permission === 'denied'
-      ? 'Erlaubnis verweigert — lässt sich nur in den Website-Einstellungen des Browsers manuell zurücksetzen.'
-      : 'Erlaubnis nicht erteilt.');
+      ? t('push.erlaubnis_verweigert_laesst_sich_nur')
+      : t('push.erlaubnis_nicht_erteilt'));
   }
 
   const reg = await navigator.serviceWorker.ready;
   const token = await getToken(messagingInstance, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-  if (!token) throw new Error('Kein Token erhalten.');
+  if (!token) throw new Error(t('push.kein_token_erhalten'));
 
   const ref = doc(db, 'users', auth.currentUser.uid, 'devices', deviceId());
   await setDoc(ref, {

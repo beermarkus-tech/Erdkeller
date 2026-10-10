@@ -1,3 +1,4 @@
+import { t } from './i18n.js?v=191';
 const settingsMain = document.getElementById('settings-main');
 const panels = document.querySelectorAll('.settings-panel');
 const topbarSubtitle = document.getElementById('topbar-subtitle');
@@ -8,7 +9,7 @@ const tabletHeader = document.getElementById('tablet-header');
 // open. Build 115: while inside a sub-panel, show that panel's own name
 // instead — read straight off its card's sc-title so it can't drift out of
 // sync with the card list — and restore "Admin" on the way back out.
-const ADMIN_LABEL = 'Admin';
+const ADMIN_LABEL = t('settingsNav.admin');
 
 function setHeader(text) {
   topbarSubtitle.textContent = text;
