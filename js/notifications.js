@@ -12,12 +12,12 @@
 // whether an item is done-for-the-current-period; functions/index.js's
 // sendReminders is what actually reads the send-time half and dispatches
 // the push.
-import { db } from './firebase-init.js?v=196';
+import { db } from './firebase-init.js?v=197';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   permissionState, enableOnThisDevice, refreshIfAlreadyEnabled, listMyDevices, sendTestNotification, previewReminders,
-} from './push.js?v=196';
-import { t, getLocale } from './i18n.js?v=196';
+} from './push.js?v=197';
+import { t, getLocale } from './i18n.js?v=197';
 
 const notificationsCard = document.querySelector('.settings-card[data-target="notifications"]');
 const panelEl = document.getElementById('settings-panel-notifications');
@@ -253,7 +253,7 @@ testBtn.addEventListener('click', async () => {
     testBtn.textContent = t('notifications.gesendet', { succeeded: result.succeeded, total: result.total });
     if (result.failed && result.failed.length) {
       const lines = result.failed.map((f) => `${f.label || t('notifications.unbekanntes_geraet')}: ${f.error}`).join('\n');
-      alert(t('notifications.von_geraeten_haben_die_benachrichtigung', { length: result.failed.length, total: result.total, lines }));
+      alert(t('notifications.von_geraeten_haben_die_benachrichtigung', { length: result.failed.length, count: result.total, lines }));
     }
   } catch (err) {
     testBtn.textContent = t('notifications.fehlgeschlagen');

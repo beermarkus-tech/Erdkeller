@@ -1,11 +1,11 @@
-import { db } from './firebase-init.js?v=196';
-import { PALETTE } from './year-colors.js?v=196';
-import { openAddFlow } from './stock-checkin.js?v=196';
-import { switchTabWithoutReset } from './app-shell.js?v=196';
+import { db } from './firebase-init.js?v=197';
+import { PALETTE } from './year-colors.js?v=197';
+import { openAddFlow } from './stock-checkin.js?v=197';
+import { switchTabWithoutReset } from './app-shell.js?v=197';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=196';
+import { t } from './i18n.js?v=197';
 
 const stocktableCard = document.querySelector('.settings-card[data-target="stocktable"]');
 const settingsPanelStocktable = document.getElementById('settings-panel-stocktable');
@@ -654,7 +654,7 @@ bulkCancelBtn.addEventListener('click', () => {
 
 bulkDeleteBtn.addEventListener('click', async () => {
   if (selectedIds.size === 0) return;
-  if (!confirm(t('stockTable.bestandseintraege_loeschen', { size: selectedIds.size }))) return;
+  if (!confirm(t('stockTable.bestandseintraege_loeschen', { count: selectedIds.size }))) return;
   const ids = Array.from(selectedIds);
   bulkDeleteBtn.disabled = true;
   try {
