@@ -1,4 +1,5 @@
-import { renderRecentLog, deleteAllLogs } from './stock-log.js?v=190';
+import { renderRecentLog, deleteAllLogs } from './stock-log.js?v=191';
+import { t } from './i18n.js?v=191';
 
 const logCard = document.querySelector('.settings-card[data-target="log"]');
 const logListEl = document.getElementById('admin-log-list');
@@ -14,7 +15,7 @@ window.addEventListener('erdkeller:refresh', () => {
 });
 
 logClearBtn.addEventListener('click', async () => {
-  if (!confirm('Gesamten Verlauf unwiderruflich löschen?')) return;
+  if (!confirm(t('adminLog.gesamten_verlauf_unwiderruflich_loeschen'))) return;
   logClearBtn.disabled = true;
   try {
     await deleteAllLogs();

@@ -1,10 +1,11 @@
-import { db } from './firebase-init.js?v=190';
-import { renderRecentLog } from './stock-log.js?v=190';
-import { renderResultLines } from './format-batch.js?v=190';
-import { switchTabWithoutReset } from './app-shell.js?v=190';
+import { db } from './firebase-init.js?v=191';
+import { renderRecentLog } from './stock-log.js?v=191';
+import { renderResultLines } from './format-batch.js?v=191';
+import { switchTabWithoutReset } from './app-shell.js?v=191';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=191';
 
 const stockHomeEl = document.getElementById('stock-home');
 const stockFlowEl = document.getElementById('stock-flow');
@@ -355,7 +356,7 @@ function renderProductList(filterText) {
 
   const addRow = document.createElement('div');
   addRow.className = 'stock-product-row add-new';
-  addRow.textContent = '+ Neues Produkt';
+  addRow.textContent = t('checkin.neues_produkt');
   addRow.addEventListener('click', () => {
     selection.product = null;
     selection.isNewProduct = true;
@@ -389,7 +390,7 @@ function renderGlobalSearchResults(text) {
   if (matches.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
-    empty.textContent = 'Keine Produkte gefunden.';
+    empty.textContent = t('checkin.keine_produkte_gefunden');
     globalSearchResults.appendChild(empty);
     return;
   }
@@ -444,7 +445,7 @@ function updateContentFieldForUnit() {
   // The kg/ml toggle otherwise treats weight and volume as interchangeable
   // for this household's tracking purposes (1l ≈ 1kg), so its content
   // field's hint reflects both, matching the toggle's own "kg/ml" label.
-  contentFieldLabel.textContent = currentUnitType() === 'l' ? 'Inhalt (z.B. 800ml)' : 'Inhalt (z.B. 500g / 800ml)';
+  contentFieldLabel.textContent = currentUnitType() === 'l' ? t('checkin.inhalt_z_b_800ml') : t('checkin.inhalt_z_b_500g_800ml');
 }
 
 function setUnitToggle(unit) {
@@ -654,8 +655,8 @@ checkinConfirmBtn.addEventListener('click', async () => {
     const dupe = findDuplicateProductName(name);
     if (dupe) {
       const ctx = subcategoryIndex.get(dupe.subcategoryId);
-      const path = ctx ? `${ctx.type.name} › ${ctx.category.name} › ${ctx.subcategory.name}` : 'einer anderen Kategorie';
-      alert(`„${name}" gibt es bereits (unter ${path}) — bitte über die Produktsuche auswählen statt neu anzulegen, sonst entstehen zwei getrennte Chargenlisten für denselben Namen.`);
+      const path = ctx ? `${ctx.type.name} › ${ctx.category.name} › ${ctx.subcategory.name}` : t('checkin.einer_anderen_kategorie');
+      alert(t('checkin.gibt_es_bereits_unter_bitte', { name, path }));
       detailNewNameInput.focus();
       return;
     }
@@ -735,23 +736,23 @@ checkinConfirmBtn.addEventListener('click', async () => {
     // selection.product itself) — the name is captured beforehand so the
     // toast text isn't reading it back out after it's already gone.
     const confirmedProductName = selection.product.name;
-    checkinConfirmBtn.textContent = '✓ Eingelagert';
+    checkinConfirmBtn.textContent = t('checkin.eingelagert');
     await new Promise((resolve) => setTimeout(resolve, 600));
-    checkinConfirmBtn.textContent = 'Einlagern bestätigen';
+    checkinConfirmBtn.textContent = t('checkin.einlagern_bestaetigen');
 
     if (launchedFromStocktable || launchedFromShoppingList) {
       returnHome();
     } else {
       goToStep('type');
     }
-    showUndoToast(`Eingelagert: ${confirmedProductName}`);
+    showUndoToast(t('checkin.eingelagert_2', { confirmedProductName }));
     renderRecentLog(recentLogEl);
     // Bestandsliste (stock-table.js) and Entnehmen (stock-checkout.js) each
     // keep their own read cache of stockItems/products — without this they
     // wouldn't see this batch until a manual refresh or full reload.
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Fehler beim Einlagern: ' + err.message);
+    alert(t('checkin.fehler_beim_einlagern') + err.message);
     console.error(err);
   } finally {
     checkinConfirmBtn.disabled = false;
@@ -791,7 +792,7 @@ undoBtn.addEventListener('click', async () => {
     if (logIdToDelete) await deleteDoc(doc(db, 'stockLog', logIdToDelete));
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Rückgängig fehlgeschlagen: ' + err.message);
+    alert(t('checkin.rueckgaengig_fehlgeschlagen') + err.message);
     console.error(err);
   }
   returnHome();
@@ -812,7 +813,7 @@ function returnHome() {
   hideUndoToast();
   stockFlowEl.classList.add('hidden');
   stockHomeEl.classList.remove('hidden');
-  setHeader('Bestand');
+  setHeader(t('checkin.bestand'));
   if (launchedFromStocktable) {
     launchedFromStocktable = false;
     document.querySelector('.nav-btn[data-tab="settings"]').click();
@@ -840,7 +841,7 @@ startCheckinBtn.addEventListener('click', () => {
   };
   stockHomeEl.classList.add('hidden');
   stockFlowEl.classList.remove('hidden');
-  setHeader('Einlagern');
+  setHeader(t('checkin.einlagern'));
   goToStep('type');
 });
 
@@ -880,7 +881,7 @@ export function openAtSubcategory(subcategoryId) {
   };
   stockHomeEl.classList.add('hidden');
   stockFlowEl.classList.remove('hidden');
-  setHeader('Einlagern');
+  setHeader(t('checkin.einlagern'));
   goToStep(ctx ? 'product' : 'type');
 }
 

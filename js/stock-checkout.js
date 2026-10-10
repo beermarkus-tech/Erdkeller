@@ -1,10 +1,11 @@
-import { db } from './firebase-init.js?v=190';
-import { PALETTE } from './year-colors.js?v=190';
-import { renderRecentLog } from './stock-log.js?v=190';
-import { renderResultLines } from './format-batch.js?v=190';
+import { db } from './firebase-init.js?v=191';
+import { PALETTE } from './year-colors.js?v=191';
+import { renderRecentLog } from './stock-log.js?v=191';
+import { renderResultLines } from './format-batch.js?v=191';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=191';
 
 const stockHomeEl = document.getElementById('stock-home');
 const stockFlowEl = document.getElementById('stock-flow-checkout');
@@ -117,14 +118,14 @@ function buildSubcategoryIndex() {
 
 function productName(productId) {
   const p = productIndex.get(productId);
-  return p ? p.name : '(unbekanntes Produkt)';
+  return p ? p.name : t('checkout.unbekanntes_produkt');
 }
 
 function batchMetaLine(batch) {
   const parts = [`${batch.quantity}×`];
   if (batch.details) parts.push(batch.details);
   if (batch.content) parts.push(batch.content);
-  if (batch.bestBefore) parts.push(`MHD ${batch.bestBefore}`);
+  if (batch.bestBefore) parts.push(t('checkout.mhd', { bestBefore: batch.bestBefore }));
   if (batch.storage) parts.push(batch.storage);
   return parts.join(' · ');
 }
@@ -366,7 +367,7 @@ function renderBatchList(filterText) {
   if (batches.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
-    empty.textContent = 'Kein Bestand in dieser Unterkategorie.';
+    empty.textContent = t('checkout.kein_bestand_in_dieser_unterkategorie');
     batchListEl.appendChild(empty);
     return;
   }
@@ -398,7 +399,7 @@ function renderGlobalSearchResults(text) {
   if (matches.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
-    empty.textContent = 'Kein Bestand gefunden.';
+    empty.textContent = t('checkout.kein_bestand_gefunden');
     globalSearchResults.appendChild(empty);
     return;
   }
@@ -548,19 +549,19 @@ confirmBtn.addEventListener('click', async () => {
     // (checkmark + "Entnommen") for a beat, then the toast carries the
     // lingering confirmation/undo while the flow drops straight back to
     // its own first step instead of a separate success screen.
-    confirmBtn.textContent = '✓ Entnommen';
+    confirmBtn.textContent = t('checkout.entnommen');
     await new Promise((resolve) => setTimeout(resolve, 600));
-    confirmBtn.textContent = 'Entnehmen bestätigen';
+    confirmBtn.textContent = t('checkout.entnehmen_bestaetigen');
 
     goToStep('type');
-    showUndoToast(`Entnommen: ${productName(batch.productId)}`);
+    showUndoToast(t('checkout.entnommen_2', { productName: productName(batch.productId) }));
     renderRecentLog(recentLogEl);
     // Bestandsliste (stock-table.js) and Einlagern (stock-checkin.js) each
     // keep their own read cache of stockItems — without this they wouldn't
     // see this change until a manual refresh or full reload.
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Fehler beim Entnehmen: ' + err.message);
+    alert(t('checkout.fehler_beim_entnehmen') + err.message);
     console.error(err);
   } finally {
     confirmBtn.disabled = false;
@@ -615,7 +616,7 @@ undoBtn.addEventListener('click', async () => {
     if (logIdToDelete) await deleteDoc(doc(db, 'stockLog', logIdToDelete));
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Rückgängig fehlgeschlagen: ' + err.message);
+    alert(t('checkout.rueckgaengig_fehlgeschlagen') + err.message);
     console.error(err);
   }
   returnHome();
@@ -625,7 +626,7 @@ function returnHome() {
   hideUndoToast();
   stockFlowEl.classList.add('hidden');
   stockHomeEl.classList.remove('hidden');
-  setHeader('Bestand');
+  setHeader(t('checkout.bestand'));
 }
 
 backHomeBtn.addEventListener('click', returnHome);
@@ -636,7 +637,7 @@ startCheckoutBtn.addEventListener('click', () => {
   selection = { type: null, category: null, subcategory: null, batch: null, removeQty: 1 };
   stockHomeEl.classList.add('hidden');
   stockFlowEl.classList.remove('hidden');
-  setHeader('Entnehmen');
+  setHeader(t('checkout.entnehmen'));
   goToStep('type');
 });
 

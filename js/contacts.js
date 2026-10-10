@@ -4,10 +4,11 @@
 // submenu — this is content you'd add while browsing, unlike structural
 // config). Same loadOk guard + erdkeller:refresh dispatch convention as
 // every other admin-editable module.
-import { db } from './firebase-init.js?v=190';
+import { db } from './firebase-init.js?v=191';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=191';
 
 const addContactBtn = document.getElementById('add-contact-btn');
 const emergencySectionEl = document.getElementById('contacts-emergency-section');
@@ -56,7 +57,7 @@ async function loadContacts() {
     loadOk = true;
   } catch (err) {
     loadOk = false;
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message;
+    statusEl.textContent = t('contacts.fehler_beim_laden') + err.message;
     console.error(err);
     return;
   }
@@ -77,7 +78,7 @@ function makeContactRow(contact) {
 
   const nameEl = document.createElement('span');
   nameEl.className = 'pname';
-  nameEl.textContent = contact.name || '(ohne Namen)';
+  nameEl.textContent = contact.name || t('contacts.ohne_namen');
   textWrap.appendChild(nameEl);
 
   if (contact.role) {
@@ -94,7 +95,7 @@ function makeContactRow(contact) {
     callLink.className = 'contact-call-btn';
     callLink.href = 'tel:' + contact.phone.replace(/\s+/g, '');
     callLink.textContent = '📞';
-    callLink.title = 'Anrufen';
+    callLink.title = t('contacts.anrufen');
     callLink.addEventListener('click', (e) => e.stopPropagation());
     row.appendChild(callLink);
   }
@@ -104,7 +105,7 @@ function makeContactRow(contact) {
     editIcon.type = 'button';
     editIcon.className = 'contact-edit-icon';
     editIcon.textContent = '✏️';
-    editIcon.title = 'Bearbeiten';
+    editIcon.title = t('contacts.bearbeiten');
     editIcon.addEventListener('click', (e) => {
       e.stopPropagation();
       openContact(contact, { edit: true });
@@ -129,7 +130,7 @@ function renderContacts() {
   if (general.length === 0 && emergency.length === 0) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = 'Noch keine Kontakte.';
+    p.textContent = t('contacts.noch_keine_kontakte');
     generalListEl.appendChild(p);
   } else {
     general.forEach((c) => generalListEl.appendChild(makeContactRow(c)));
@@ -148,7 +149,7 @@ function setDetailRow(rowEl, valueEl, value) {
 }
 
 function populateDetailView(contact) {
-  detailTitleEl.textContent = contact.name || '(ohne Namen)';
+  detailTitleEl.textContent = contact.name || t('contacts.ohne_namen');
   setDetailRow(roleRowEl, roleValEl, contact.role);
   if (contact.phone) {
     phoneValEl.textContent = contact.phone;
@@ -188,7 +189,7 @@ function showEditMode() {
 function openContact(contact, { edit = false } = {}) {
   editingContact = contact;
   isNewContact = false;
-  detailTitleEl.textContent = contact.name || '(ohne Namen)';
+  detailTitleEl.textContent = contact.name || t('contacts.ohne_namen');
   if (edit) {
     populateEditForm(contact);
     showEditMode();
@@ -201,12 +202,12 @@ function openContact(contact, { edit = false } = {}) {
 
 addContactBtn.addEventListener('click', () => {
   if (!loadOk) {
-    statusEl.textContent = 'Hinzufügen blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
+    statusEl.textContent = t('contacts.hinzufuegen_blockiert_die_daten_wurden');
     return;
   }
   editingContact = null;
   isNewContact = true;
-  detailTitleEl.textContent = 'Neuer Kontakt';
+  detailTitleEl.textContent = t('contacts.neuer_kontakt');
   populateEditForm({});
   showEditMode();
   detailModal.classList.add('show');
@@ -223,12 +224,12 @@ detailModal.addEventListener('click', (e) => {
 
 saveBtn.addEventListener('click', async () => {
   if (!loadOk) {
-    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
+    statusEl.textContent = t('contacts.speichern_blockiert_die_daten_wurden');
     return;
   }
   const name = editNameInput.value.trim();
   if (!name) {
-    alert('Bitte einen Namen eingeben.');
+    alert(t('contacts.bitte_einen_namen_eingeben'));
     return;
   }
   const nowIso = new Date().toISOString();
@@ -256,7 +257,7 @@ saveBtn.addEventListener('click', async () => {
     renderContacts();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Speichern fehlgeschlagen: ' + err.message);
+    alert(t('contacts.speichern_fehlgeschlagen') + err.message);
     console.error(err);
   } finally {
     saveBtn.disabled = false;
@@ -265,7 +266,7 @@ saveBtn.addEventListener('click', async () => {
 
 deleteBtn.addEventListener('click', async () => {
   if (!editingContact) return;
-  if (!confirm(`"${editingContact.name || 'Kontakt'}" wirklich löschen?`)) return;
+  if (!confirm(t('contacts.wirklich_loeschen', { value: editingContact.name || t('contacts.kontakt') }))) return;
   try {
     await deleteDoc(doc(db, 'contacts', editingContact.id));
     contacts = contacts.filter((c) => c.id !== editingContact.id);
@@ -273,7 +274,7 @@ deleteBtn.addEventListener('click', async () => {
     renderContacts();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Löschen fehlgeschlagen: ' + err.message);
+    alert(t('contacts.loeschen_fehlgeschlagen') + err.message);
     console.error(err);
   }
 });

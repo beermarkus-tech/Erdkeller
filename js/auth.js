@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=190';
+import { auth, db } from './firebase-init.js?v=191';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -11,6 +11,7 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=191';
 
 const provider = new GoogleAuthProvider();
 
@@ -133,11 +134,11 @@ signinBtn.addEventListener('click', async () => {
     if (FALLBACK_TO_REDIRECT_CODES.includes(err.code)) {
       try { sessionStorage.setItem(PENDING_REDIRECT_KEY, '1'); } catch (e) { /* ignore */ }
       signInWithRedirect(auth, provider, browserPopupRedirectResolver).catch((err2) => {
-        authError.textContent = 'Anmeldung fehlgeschlagen: ' + err2.message;
+        authError.textContent = t('auth.anmeldung_fehlgeschlagen') + err2.message;
         console.error(err2);
       });
     } else if (!NO_MESSAGE_CODES.includes(err.code)) {
-      authError.textContent = 'Anmeldung fehlgeschlagen: ' + err.message;
+      authError.textContent = t('auth.anmeldung_fehlgeschlagen') + err.message;
       console.error(err);
     }
   }
@@ -184,7 +185,7 @@ try { hadPendingRedirect = sessionStorage.getItem(PENDING_REDIRECT_KEY) === '1';
 if (hadPendingRedirect) {
   try { sessionStorage.removeItem(PENDING_REDIRECT_KEY); } catch (e) { /* ignore */ }
   getRedirectResult(auth, browserPopupRedirectResolver).catch((err) => {
-    authError.textContent = 'Anmeldung fehlgeschlagen: ' + err.message;
+    authError.textContent = t('auth.anmeldung_fehlgeschlagen') + err.message;
     console.error(err);
   });
 }
@@ -253,7 +254,7 @@ function paintSignedIn(identity) {
   avatarEls.forEach((el) => { el.src = identity.photoURL || ''; });
   nameEls.forEach((el) => { el.textContent = identity.name || ''; });
   roleEls.forEach((el) => {
-    el.textContent = identity.role === 'admin' ? 'Admin' : 'Mitglied';
+    el.textContent = identity.role === 'admin' ? t('auth.admin') : t('auth.mitglied');
   });
 }
 
@@ -368,7 +369,7 @@ onAuthStateChanged(auth, async (user) => {
         // session, not the "offline, trust the cache" case).
         explicitSignOut = true;
         clearCachedIdentity();
-        authError.textContent = 'Dein Zugriff wurde entfernt. Bitte wende dich an einen Admin.';
+        authError.textContent = t('auth.dein_zugriff_wurde_entfernt_bitte');
         signOut(auth);
         return;
       }

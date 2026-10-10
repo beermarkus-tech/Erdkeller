@@ -23,10 +23,11 @@
 // same lazy-load-on-shown convention already used everywhere else in
 // Settings, not a live listener, since the two are tabs in one screen and
 // only one is ever visible at a time.
-import { db } from './firebase-init.js?v=190';
+import { db } from './firebase-init.js?v=191';
 import {
   doc, getDoc, updateDoc, disableNetwork, enableNetwork,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=191';
 
 const panelEl = document.getElementById('settings-panel-notifications');
 const verbindungTabEl = document.querySelector('.reminders-tab[data-reminders-tab-panel="verbindung"]');
@@ -138,7 +139,7 @@ remindersToggle.addEventListener('change', async () => {
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     remindersToggle.checked = !enabled;
-    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    statusEl.textContent = t('verbindung.fehler_beim_speichern') + err.message;
     console.error(err);
   }
 });
@@ -158,7 +159,7 @@ async function loadPanel() {
     lastKnownRemindersEnabled = !snap.exists() || snap.data().enabled !== false;
     applySuboptionsGreyedOut();
   } catch (err) {
-    statusEl.textContent = 'Status der Erinnerungen unbekannt: ' + err.message;
+    statusEl.textContent = t('verbindung.status_der_erinnerungen_unbekannt') + err.message;
     console.error(err);
   }
 }
