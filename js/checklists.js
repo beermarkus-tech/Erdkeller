@@ -61,10 +61,11 @@
 // or triggers a render — never a manual optimistic flip in the same tick,
 // which would be a second writer to the same state and risk a visible
 // flicker if a slightly-lagged snapshot event arrived after it.
-import { db } from './firebase-init.js?v=192';
+import { db } from './firebase-init.js?v=193';
 import {
   collection, doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=193';
 
 // --- DOM refs: main screen ------------------------------------------------
 //
@@ -121,7 +122,7 @@ const RECIPIENT_OPTIONS = [
 ];
 
 const FREQ_LABELS = {
-  weekly: 'Wöchentlich', monthly: 'Monatlich', quarterly: 'Vierteljährlich', halfYearly: 'Halbjährlich', yearly: 'Jährlich',
+  weekly: t('checklists.woechentlich'), monthly: t('checklists.monatlich'), quarterly: t('checklists.vierteljaehrlich'), halfYearly: t('checklists.halbjaehrlich'), yearly: t('checklists.jaehrlich'),
 };
 
 // Kept in sync with js/notifications.js's defaultChecklists() — same
@@ -253,7 +254,7 @@ function subscribeChecklists() {
     listsReady = true;
     maybeRender();
   }, (err) => {
-    statusEl.textContent = 'Fehler beim Laden der Checklisten: ' + err.message;
+    statusEl.textContent = t('checklists.fehler_beim_laden_der_checklisten') + err.message;
     console.error(err);
   });
   onSnapshot(collection(db, 'checklistItems'), (snap) => {
@@ -264,7 +265,7 @@ function subscribeChecklists() {
     itemsReady = true;
     maybeRender();
   }, (err) => {
-    statusEl.textContent = 'Fehler beim Laden der Einträge: ' + err.message;
+    statusEl.textContent = t('checklists.fehler_beim_laden_der_eintraege') + err.message;
     console.error(err);
   });
 }
@@ -284,7 +285,7 @@ async function saveList(list, patch) {
     await updateDoc(doc(db, 'checklists', list.id), { ...patch, updatedAt: new Date().toISOString() });
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    statusEl.textContent = t('checklists.fehler_beim_speichern') + err.message;
     console.error(err);
   }
 }
@@ -293,11 +294,11 @@ async function createList() {
   const nowIso = new Date().toISOString();
   try {
     await setDoc(doc(db, 'checklists', genId()), {
-      name: 'Neue Checkliste', recipients: ['markus'], createdAt: nowIso, updatedAt: nowIso,
+      name: t('checklists.neue_checkliste'), recipients: ['markus'], createdAt: nowIso, updatedAt: nowIso,
     });
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Anlegen: ' + err.message;
+    statusEl.textContent = t('checklists.fehler_beim_anlegen') + err.message;
     console.error(err);
   }
 }
@@ -310,7 +311,7 @@ async function deleteList(list) {
     await batch.commit();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Löschen: ' + err.message;
+    statusEl.textContent = t('checklists.fehler_beim_loeschen') + err.message;
     console.error(err);
   }
 }
@@ -320,7 +321,7 @@ async function saveItem(item, patch) {
     await updateDoc(doc(db, 'checklistItems', item.id), { ...patch, updatedAt: new Date().toISOString() });
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    statusEl.textContent = t('checklists.fehler_beim_speichern') + err.message;
     console.error(err);
   }
 }
@@ -330,12 +331,12 @@ async function createItem(list) {
   const id = genId();
   try {
     await setDoc(doc(db, 'checklistItems', id), {
-      listId: list.id, text: 'Neuer Eintrag', frequency: 'yearly', lastCompletedAt: null, createdAt: nowIso, updatedAt: nowIso,
+      listId: list.id, text: t('checklists.neuer_eintrag'), frequency: 'yearly', lastCompletedAt: null, createdAt: nowIso, updatedAt: nowIso,
     });
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
     return id;
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Anlegen: ' + err.message;
+    statusEl.textContent = t('checklists.fehler_beim_anlegen') + err.message;
     console.error(err);
     return null;
   }
@@ -346,7 +347,7 @@ async function deleteItem(item) {
     await deleteDoc(doc(db, 'checklistItems', item.id));
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Löschen: ' + err.message;
+    statusEl.textContent = t('checklists.fehler_beim_loeschen') + err.message;
     console.error(err);
   }
 }
@@ -360,7 +361,7 @@ async function moveItem(item, targetList) {
 
 async function saveCrisis() {
   if (!loadOk) {
-    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
+    statusEl.textContent = t('checklists.speichern_blockiert_die_daten_wurden');
     return;
   }
   try {
@@ -369,7 +370,7 @@ async function saveCrisis() {
     statusEl.textContent = '';
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    statusEl.textContent = t('checklists.fehler_beim_speichern') + err.message;
     console.error(err);
   }
 }
@@ -396,7 +397,7 @@ async function loadRest() {
     loadOk = true;
   } catch (err) {
     loadOk = false;
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message;
+    statusEl.textContent = t('checklists.fehler_beim_laden') + err.message;
     console.error(err);
   }
   render();
@@ -496,7 +497,7 @@ function occurrenceKeyFor(frequency) {
 
 function formatLastDone(iso) {
   const d = new Date(iso);
-  return `zuletzt: ${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  return t('checklists.zuletzt', { date: `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}` });
 }
 
 // No manual optimistic flip and no manual re-render call here — see the
@@ -574,7 +575,7 @@ function renderMaintenanceList() {
     header.className = 'checklist-group-header';
     header.innerHTML = `
       <div class="checklist-group-name">${list.name}</div>
-      ${dueItems.length > 0 ? `<div class="checklist-group-badge">${dueItems.length} offen</div>` : ''}
+      ${dueItems.length > 0 ? `<div class="checklist-group-badge">${t('checklists.offen', { count: dueItems.length })}</div>` : ''}
     `;
     group.appendChild(header);
 
@@ -603,8 +604,8 @@ function renderMaintenanceList() {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
     p.textContent = maintenanceFilter === 'due'
-      ? 'Nichts fällig — alles erledigt.'
-      : 'Noch keine Checklisten vorhanden — mit ✏️ oben rechts anlegen.';
+      ? t('checklists.nichts_faellig_alles_erledigt')
+      : t('checklists.noch_keine_checklisten_vorhanden_mit');
     maintenanceListEl.appendChild(p);
   }
 }
@@ -645,8 +646,8 @@ function renderDismissPeriodButton() {
   maintenanceDismissBtn.classList.toggle('dismissed', dismissed);
   maintenanceDismissBtn.disabled = dismissed || !occKey;
   maintenanceDismissBtn.textContent = dismissed
-    ? 'Erinnerung für diesen Zeitraum pausiert'
-    : `Für diesen Zeitraum (${FREQ_LABELS[freq]}) erledigt`;
+    ? t('checklists.erinnerung_fuer_diesen_zeitraum_pausiert')
+    : t('checklists.fuer_diesen_zeitraum_erledigt', { value: FREQ_LABELS[freq] });
 }
 
 async function dismissCurrentPeriod() {
@@ -667,7 +668,7 @@ async function dismissCurrentPeriod() {
     renderDismissPeriodButton();
   } catch (err) {
     console.error(err);
-    statusEl.textContent = 'Konnte nicht als erledigt markiert werden: ' + err.message;
+    statusEl.textContent = t('checklists.konnte_nicht_als_erledigt_markiert') + err.message;
     maintenanceDismissBtn.disabled = false;
   }
 }
@@ -682,7 +683,7 @@ function renderCrisisList() {
   if (crisis.types.length === 0) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = 'Noch keine Krisentypen angelegt — mit ✏️ oben rechts anlegen.';
+    p.textContent = t('checklists.noch_keine_krisentypen_angelegt_mit');
     crisisListEl.appendChild(p);
     return;
   }
@@ -753,14 +754,14 @@ function renderMaintenanceManageList() {
     const head = document.createElement('div');
     head.className = 'checklist-edit-head';
     head.innerHTML = `
-      <input class="tax-name-input" value="${escapeAttr(list.name)}" placeholder="Checklistenname">
-      <button class="tax-del" title="Checkliste löschen">✕</button>
+      <input class="tax-name-input" value="${escapeAttr(list.name)}" placeholder="${escapeAttr(t('checklists.checklistenname'))}">
+      <button class="tax-del" title="${escapeAttr(t('checklists.checkliste_loeschen'))}">✕</button>
     `;
     head.querySelector('.tax-name-input').addEventListener('change', (e) => {
       saveList(list, { name: e.target.value.trim() });
     });
     head.querySelector('.tax-del').addEventListener('click', () => {
-      if (!confirm(`Checkliste "${list.name}" inkl. aller Einträge löschen?`)) return;
+      if (!confirm(t('checklists.checkliste_inkl_aller_eintraege_loeschen', { name: list.name }))) return;
       deleteList(list);
     });
     group.appendChild(head);
@@ -814,7 +815,7 @@ function flattenMaintenanceItems() {
   // maintenance.lists itself, which is what keeps them out of the live
   // view and the list-management editor above.
   (maintenance.orphanItems || []).forEach((item) => {
-    flat.push({ item, list: { id: null, name: '(unbekannte Checkliste)' } });
+    flat.push({ item, list: { id: null, name: t('checklists.unbekannte_checkliste') } });
   });
   // Sorted by createdAt, not left in Map-iteration order — a plain
   // JS Map iterates in insertion order, which for itemsById is whatever
@@ -874,8 +875,8 @@ function renderMaintenanceFlatList() {
     const main = document.createElement('div');
     main.className = 'checklist-flat-row-main';
     main.innerHTML = `
-      <input class="tax-name-input" value="${escapeAttr(item.text)}" placeholder="Eintrag">
-      <button class="tax-del" title="Eintrag löschen">✕</button>
+      <input class="tax-name-input" value="${escapeAttr(item.text)}" placeholder="${escapeAttr(t('checklists.eintrag'))}">
+      <button class="tax-del" title="${escapeAttr(t('checklists.eintrag_loeschen'))}">✕</button>
     `;
     main.querySelector('.tax-name-input').addEventListener('change', (e) => {
       saveItem(item, { text: e.target.value.trim() });
@@ -911,7 +912,7 @@ function renderMaintenanceFlatList() {
   if (!rows.length) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = 'Keine Einträge für diese Auswahl.';
+    p.textContent = t('checklists.keine_eintraege_fuer_diese_auswahl');
     maintenanceFlatListEl.appendChild(p);
   }
 
@@ -932,7 +933,7 @@ maintenanceSearchInput.addEventListener('input', (e) => {
 
 addMaintenanceItemBtn.addEventListener('click', async () => {
   if (!maintenance.lists.length) {
-    statusEl.textContent = 'Zuerst eine Checkliste anlegen ("+ Neue Checkliste").';
+    statusEl.textContent = t('checklists.zuerst_eine_checkliste_anlegen_neue');
     return;
   }
   // Falls back to the most recently created checklist, not the first —
@@ -958,8 +959,8 @@ function renderCrisisEditor() {
     head.className = 'checklist-edit-head';
     head.innerHTML = `
       <input class="tax-sym-input" value="${escapeAttr(type.sym || '')}" placeholder="⚠️">
-      <input class="tax-name-input" value="${escapeAttr(type.name)}" placeholder="Krisentyp">
-      <button class="tax-del" title="Krisentyp löschen">✕</button>
+      <input class="tax-name-input" value="${escapeAttr(type.name)}" placeholder="${escapeAttr(t('checklists.krisentyp'))}">
+      <button class="tax-del" title="${escapeAttr(t('checklists.krisentyp_loeschen'))}">✕</button>
     `;
     head.querySelector('.tax-sym-input').addEventListener('change', (e) => {
       type.sym = e.target.value.trim();
@@ -972,7 +973,7 @@ function renderCrisisEditor() {
       renderCrisisList();
     });
     head.querySelector('.tax-del').addEventListener('click', () => {
-      if (!confirm(`Krisentyp "${type.name}" inkl. aller Schritte löschen?`)) return;
+      if (!confirm(t('checklists.krisentyp_inkl_aller_schritte_loeschen', { name: type.name }))) return;
       crisis.types = crisis.types.filter((t) => t.id !== type.id);
       saveCrisis();
       renderCrisisEditor();
@@ -985,8 +986,8 @@ function renderCrisisEditor() {
       row.className = 'checklist-edit-item-row';
       row.innerHTML = `
         <span class="checklist-step-number">${idx + 1}.</span>
-        <input class="tax-name-input" value="${escapeAttr(step.text)}" placeholder="Schritt">
-        <button class="tax-del" title="Schritt löschen">✕</button>
+        <input class="tax-name-input" value="${escapeAttr(step.text)}" placeholder="${escapeAttr(t('checklists.schritt'))}">
+        <button class="tax-del" title="${escapeAttr(t('checklists.schritt_loeschen'))}">✕</button>
       `;
       row.querySelector('.tax-name-input').addEventListener('change', (e) => {
         step.text = e.target.value.trim();
@@ -1003,7 +1004,7 @@ function renderCrisisEditor() {
     const addStepBtn = document.createElement('button');
     addStepBtn.type = 'button';
     addStepBtn.className = 'add-row-btn small';
-    addStepBtn.textContent = '+ Schritt hinzufügen';
+    addStepBtn.textContent = t('checklists.schritt_hinzufuegen');
     addStepBtn.addEventListener('click', () => {
       if (!type.steps) type.steps = [];
       type.steps.push({ id: genId(), text: '' });
@@ -1019,7 +1020,7 @@ function renderCrisisEditor() {
 
 addCrisisTypeBtn.addEventListener('click', () => {
   crisis.types.push({
-    id: genId(), name: 'Neuer Krisentyp', sym: '', steps: [],
+    id: genId(), name: t('checklists.neuer_krisentyp'), sym: '', steps: [],
   });
   saveCrisis();
   renderCrisisEditor();

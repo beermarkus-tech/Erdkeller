@@ -12,11 +12,12 @@
 // whether an item is done-for-the-current-period; functions/index.js's
 // sendReminders is what actually reads the send-time half and dispatches
 // the push.
-import { db } from './firebase-init.js?v=192';
+import { db } from './firebase-init.js?v=193';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   permissionState, enableOnThisDevice, refreshIfAlreadyEnabled, listMyDevices, sendTestNotification, previewReminders,
-} from './push.js?v=192';
+} from './push.js?v=193';
+import { t, getLocale } from './i18n.js?v=193';
 
 const notificationsCard = document.querySelector('.settings-card[data-target="notifications"]');
 const panelEl = document.getElementById('settings-panel-notifications');
@@ -96,7 +97,7 @@ async function loadAll() {
     loadOk = true;
   } catch (err) {
     loadOk = false;
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message;
+    statusEl.textContent = t('notifications.fehler_beim_laden') + err.message;
     console.error(err);
     return;
   }
@@ -106,7 +107,7 @@ async function loadAll() {
 
 async function save() {
   if (!loadOk) {
-    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
+    statusEl.textContent = t('notifications.speichern_blockiert_die_daten_wurden');
     return;
   }
   try {
@@ -115,7 +116,7 @@ async function save() {
     statusEl.textContent = '';
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    statusEl.textContent = t('notifications.fehler_beim_speichern') + err.message;
     console.error(err);
   }
 }
@@ -179,8 +180,8 @@ enabledToggleEl.addEventListener('change', () => {
 // --- Push section: permission, device registration, test send, preview --
 
 function formatDeviceLine(device) {
-  const seen = device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleDateString('de-DE') : '';
-  return `${device.label || 'Gerät'}${seen ? ' · zuletzt ' + seen : ''}`;
+  const seen = device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleDateString(getLocale()) : '';
+  return `${device.label || t('notifications.geraet')}${seen ? t('notifications.zuletzt') + seen : ''}`;
 }
 
 async function renderDeviceList() {
@@ -195,7 +196,7 @@ async function renderDeviceList() {
   if (!devices.length) {
     const p = document.createElement('p');
     p.className = 'taxonomy-status';
-    p.textContent = 'Kein Gerät für diesen Account registriert.';
+    p.textContent = t('notifications.kein_geraet_fuer_diesen_account');
     deviceListEl.appendChild(p);
     return;
   }
@@ -210,20 +211,20 @@ async function renderDeviceList() {
 async function loadPushSection() {
   const state = permissionState();
   if (state === 'unsupported') {
-    pushStatusEl.textContent = 'Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.';
+    pushStatusEl.textContent = t('notifications.push_benachrichtigungen_werden_von_diesem');
     enablePushBtn.classList.add('hidden');
   } else if (state === 'denied') {
-    pushStatusEl.textContent = 'Erlaubnis verweigert — lässt sich nur in den Website-Einstellungen des Browsers manuell zurücksetzen, nicht mehr hier.';
+    pushStatusEl.textContent = t('notifications.erlaubnis_verweigert_laesst_sich_nur');
     enablePushBtn.classList.add('hidden');
   } else if (state === 'granted') {
-    pushStatusEl.textContent = 'Aktiviert auf diesem Gerät.';
-    enablePushBtn.textContent = 'Erneut synchronisieren';
+    pushStatusEl.textContent = t('notifications.aktiviert_auf_diesem_geraet');
+    enablePushBtn.textContent = t('notifications.erneut_synchronisieren');
     enablePushBtn.classList.remove('hidden');
     enablePushBtn.classList.add('enabled');
     refreshIfAlreadyEnabled();
   } else {
-    pushStatusEl.textContent = 'Auf diesem Gerät noch nicht aktiviert.';
-    enablePushBtn.textContent = 'Auf diesem Gerät aktivieren';
+    pushStatusEl.textContent = t('notifications.auf_diesem_geraet_noch_nicht');
+    enablePushBtn.textContent = t('notifications.auf_diesem_geraet_aktivieren');
     enablePushBtn.classList.remove('hidden', 'enabled');
   }
   renderDeviceList();
@@ -231,7 +232,7 @@ async function loadPushSection() {
 
 enablePushBtn.addEventListener('click', async () => {
   enablePushBtn.disabled = true;
-  pushStatusEl.textContent = 'Aktiviere…';
+  pushStatusEl.textContent = t('notifications.aktiviere');
   try {
     await enableOnThisDevice();
     await loadPushSection();
@@ -246,34 +247,34 @@ enablePushBtn.addEventListener('click', async () => {
 testBtn.addEventListener('click', async () => {
   testBtn.disabled = true;
   const original = testBtn.textContent;
-  testBtn.textContent = 'Sende…';
+  testBtn.textContent = t('notifications.sende');
   try {
     const result = await sendTestNotification();
-    testBtn.textContent = `Gesendet (${result.succeeded}/${result.total})`;
+    testBtn.textContent = t('notifications.gesendet', { succeeded: result.succeeded, total: result.total });
     if (result.failed && result.failed.length) {
-      const lines = result.failed.map((f) => `${f.label || 'Unbekanntes Gerät'}: ${f.error}`).join('\n');
-      alert(`${result.failed.length} von ${result.total} Geräten haben die Benachrichtigung nicht angenommen:\n\n${lines}\n\nHinweis: "Erfolgreich" heißt nur, dass FCM die Nachricht angenommen hat — ob sie auf dem Gerät auch angezeigt wird, hängt zusätzlich von Berechtigung und Akku-Einstellungen ab.`);
+      const lines = result.failed.map((f) => `${f.label || t('notifications.unbekanntes_geraet')}: ${f.error}`).join('\n');
+      alert(t('notifications.von_geraeten_haben_die_benachrichtigung', { length: result.failed.length, total: result.total, lines }));
     }
   } catch (err) {
-    testBtn.textContent = 'Fehlgeschlagen';
+    testBtn.textContent = t('notifications.fehlgeschlagen');
     console.error(err);
-    alert('Testbenachrichtigung fehlgeschlagen: ' + err.message);
+    alert(t('notifications.testbenachrichtigung_fehlgeschlagen') + err.message);
   } finally {
     setTimeout(() => { testBtn.textContent = original; testBtn.disabled = false; }, 2000);
   }
 });
 
 const FREQ_LABELS = {
-  weekly: 'Wöchentlich', monthly: 'Monatlich', quarterly: 'Vierteljährlich', halfYearly: 'Halbjährlich', yearly: 'Jährlich',
+  weekly: t('notifications.woechentlich'), monthly: t('notifications.monatlich'), quarterly: t('notifications.vierteljaehrlich'), halfYearly: t('notifications.halbjaehrlich'), yearly: t('notifications.jaehrlich'),
 };
 
 function formatPreview(result) {
-  const lines = [`Aktuelle Uhrzeit (Europe/Paris): ${result.currentParisHour}:00 — konfiguriert: ${result.configuredHour}:00`];
+  const lines = [t('notifications.aktuelle_uhrzeit_europe_paris_00', { currentParisHour: result.currentParisHour, configuredHour: result.configuredHour })];
   Object.entries(result.frequencies).forEach(([freq, info]) => {
     const recipientsWithSomething = info.recipients.filter((r) => r.total > 0);
     if (!recipientsWithSomething.length) return;
     lines.push('');
-    lines.push(`${FREQ_LABELS[freq] || freq} (Zeitraum ${info.occurrenceKey || '—'}${info.dismissed ? ', als erledigt markiert' : ''}) — würde jetzt senden: ${info.wouldSendNow ? 'ja' : 'nein'}`);
+    lines.push(t('notifications.zeitraum_wuerde_jetzt_senden', { frequency: FREQ_LABELS[freq] || freq, occurrence: info.occurrenceKey || '—', dismissed: info.dismissed ? t('notifications.als_erledigt_markiert') : '', wouldSend: info.wouldSendNow ? t('notifications.ja') : t('notifications.nein') }));
     recipientsWithSomething.forEach((r) => {
       lines.push(`  ${r.slug}: ${r.title} — ${r.body}`);
     });
@@ -284,12 +285,12 @@ function formatPreview(result) {
 previewBtn.addEventListener('click', async () => {
   previewBtn.disabled = true;
   previewResultEl.classList.remove('hidden');
-  previewResultEl.textContent = 'Lädt…';
+  previewResultEl.textContent = t('notifications.laedt');
   try {
     const result = await previewReminders();
     previewResultEl.textContent = formatPreview(result);
   } catch (err) {
-    previewResultEl.textContent = 'Fehler: ' + err.message;
+    previewResultEl.textContent = t('notifications.fehler') + err.message;
     console.error(err);
   } finally {
     previewBtn.disabled = false;

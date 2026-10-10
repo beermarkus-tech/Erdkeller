@@ -19,10 +19,11 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=192';
+import { db } from './firebase-init.js?v=193';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t, getLocale } from './i18n.js?v=193';
 
 const targetsCard = document.querySelector('.settings-card[data-target="targets"]');
 const panelEl = document.getElementById('settings-panel-targets');
@@ -102,7 +103,7 @@ const computedNote = document.getElementById('target-computed-note');
 const saveBtn = document.getElementById('target-save-btn');
 const clearBtn = document.getElementById('target-clear-btn');
 
-const MACRO_LABELS = { kohlenhydrat: 'Kohlenhydrate', protein: 'Protein', fett: 'Fett' };
+const MACRO_LABELS = { kohlenhydrat: t('targets.kohlenhydrate'), protein: t('targets.protein'), fett: t('targets.fett') };
 
 let taxonomy = { types: [] };
 let allProducts = [];
@@ -166,7 +167,7 @@ async function loadAll() {
     loadOk = true;
   } catch (err) {
     loadOk = false;
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message;
+    statusEl.textContent = t('targets.fehler_beim_laden') + err.message;
     console.error(err);
   }
   render();
@@ -174,10 +175,10 @@ async function loadAll() {
 
 async function saveTargets() {
   if (!loadOk) {
-    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
+    statusEl.textContent = t('targets.speichern_blockiert_die_daten_wurden');
     return;
   }
-  statusEl.textContent = 'Speichere…';
+  statusEl.textContent = t('targets.speichere');
   try {
     targets.updatedAt = new Date().toISOString();
     await setDoc(doc(db, 'config', 'targets'), targets);
@@ -187,7 +188,7 @@ async function saveTargets() {
     // on this event — same bug class as js/taxonomy.js's saveTaxonomy fix.
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    statusEl.textContent = t('targets.fehler_beim_speichern') + err.message;
     console.error(err);
   }
 }
@@ -363,9 +364,9 @@ function formatComputedAmount(kg, cat) {
     return people > 0 && days > 0 ? `${Math.round((kg / people / days) * 1000)} g/P/T` : `${round1(kg)} kg`;
   }
   if (displayUnit === 'kcal' || displayUnit === 'kcalpd') {
-    if (!cat || cat.kcalPerKg == null) return 'nicht verfügbar';
+    if (!cat || cat.kcalPerKg == null) return t('targets.nicht_verfuegbar');
     const kcal = kg * cat.kcalPerKg;
-    if (displayUnit === 'kcal') return `${Math.round(kcal).toLocaleString('de-DE')} kcal`;
+    if (displayUnit === 'kcal') return `${Math.round(kcal).toLocaleString(getLocale())} kcal`;
     return people > 0 && days > 0 ? `${Math.round(kcal / people / days)} kcal/P/T` : `${round1(kg)} kg`;
   }
   return `${round1(kg)} kg`;
@@ -380,7 +381,7 @@ function formatComputedAmount(kg, cat) {
 function formatMacroHeaderTotal(macro, items) {
   const people = peopleCount();
   const days = autonomyDaysVal();
-  if (displayUnit === 'kcal') return `${Math.round(macroGlobalKcal(macro)).toLocaleString('de-DE')} kcal`;
+  if (displayUnit === 'kcal') return `${Math.round(macroGlobalKcal(macro)).toLocaleString(getLocale())} kcal`;
   if (displayUnit === 'kcalpd') {
     return people > 0 && days > 0 ? `${Math.round(macroGlobalKcal(macro) / people / days)} kcal/P/T` : `${round1(macroGlobalKcal(macro))} kcal`;
   }
@@ -407,12 +408,12 @@ function computeAmount(target) {
 // matching kg/l-vs-count branches this same distinction drives elsewhere.
 function unitLabel(unit) {
   if (unit === 'kg' || unit === 'l') return unit;
-  if (unit === 'stueck') return 'Stk';
+  if (unit === 'stueck') return t('targets.stk');
   return unit || 'kg';
 }
 
 function formatTargetLabel(target) {
-  if (!target) return 'Kein Ziel';
+  if (!target) return t('targets.kein_ziel');
   const amt = computeAmount(target);
   const u = unitLabel(target.unit);
   if (target.mode === 'flat') return `${amt} ${u}`;
@@ -503,7 +504,7 @@ function renderSubSplitGroup(cat, source) {
   const subIds = (cat.subcategories || []).map((s) => s.id);
   if (source.kg == null) {
     const items = cat.subcategories.map((sub) => ({
-      id: sub.id, name: sub.name, sym: sub.sym, formatted: '– Daten unvollständig',
+      id: sub.id, name: sub.name, sym: sub.sym, formatted: t('targets.daten_unvollstaendig'),
     }));
     return renderSplitGroup(items, {}, subIds, () => {}, false);
   }
@@ -537,7 +538,7 @@ function renderMacroSplitSections() {
         name: cat ? cat.name : '?',
         sym: cat ? cat.sym : '',
         kg: kg || 0,
-        formatted: kg != null ? formatComputedAmount(kg, cat) : '– Daten unvollständig',
+        formatted: kg != null ? formatComputedAmount(kg, cat) : t('targets.daten_unvollstaendig'),
       };
     });
     const header = document.createElement('div');
@@ -563,7 +564,7 @@ function renderDiversitySection() {
   const frag = document.createDocumentFragment();
   const header = document.createElement('div');
   header.className = 'targets-subgroup-label';
-  header.textContent = 'Diversität';
+  header.textContent = t('targets.diversitaet');
   frag.appendChild(header);
 
   const items = cats.map((cat) => {
@@ -571,7 +572,7 @@ function renderDiversitySection() {
       ? (cat.diversityFloorGramsPerPersonDay / 1000) * peopleCount() * autonomyDaysVal()
       : null;
     return {
-      id: cat.id, name: cat.name, sym: cat.sym, formatted: kg != null ? formatComputedAmount(kg, cat) : '– Diversitäts-Wert fehlt',
+      id: cat.id, name: cat.name, sym: cat.sym, formatted: kg != null ? formatComputedAmount(kg, cat) : t('targets.diversitaets_wert_fehlt'),
     };
   });
   frag.appendChild(renderSplitGroup(items, {}, cats.map((c) => c.id), () => {}, false));
@@ -596,13 +597,13 @@ function renderCategoriesSection() {
   } else {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = 'Haushalt und Autonomiedauer in Planung eingeben, um berechnete Ziele zu sehen.';
+    p.textContent = t('targets.haushalt_und_autonomiedauer_in_planung');
     categoriesListEl.appendChild(p);
   }
   if (!categoriesListEl.children.length) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
-    empty.textContent = 'Keine Kategorien vorhanden.';
+    empty.textContent = t('targets.keine_kategorien_vorhanden');
     categoriesListEl.appendChild(empty);
   }
 }
@@ -623,7 +624,7 @@ function renderSubcategoryGroupFor(type, cat) {
   header.className = 'targets-subgroup-label';
   // The parent category's own total, so the split below reads as "X kg
   // divided into these subcategories" rather than a bare name.
-  const totalText = source.kg != null ? formatComputedAmount(source.kg, cat) : 'Daten unvollständig';
+  const totalText = source.kg != null ? formatComputedAmount(source.kg, cat) : t('targets.daten_unvollstaendig_2');
   header.textContent = `${cat.name} — ${totalText}`;
   frag.appendChild(header);
   frag.appendChild(renderSubSplitGroup(cat, source));
@@ -649,7 +650,7 @@ function renderSubcategoriesSection(listEl) {
   if (!any) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
-    empty.textContent = 'Keine Unterkategorien vorhanden.';
+    empty.textContent = t('targets.keine_unterkategorien_vorhanden');
     listEl.appendChild(empty);
   }
 }
@@ -664,7 +665,7 @@ function renderSubcategoriesSection(listEl) {
 // fallback put it there) rather than being invisible until reported.
 function productContextLabel(product) {
   const ctx = findSubcategoryContext(product.subcategoryId);
-  if (!ctx) return '⚠️ Unterkategorie fehlt (verwaiste Daten)';
+  if (!ctx) return t('targets.unterkategorie_fehlt_verwaiste_daten');
   const { cat, sub } = ctx;
   const catPart = cat.sym ? `${cat.sym} ${cat.name}` : cat.name;
   // A Wasser subcategory's name mirrors its category (js/taxonomy.js's
@@ -679,7 +680,7 @@ function productContextLabel(product) {
 // identical: one flat list, no group headers, see renderProductTargets).
 function makeProductTargetRow(productId, { showContext = false } = {}) {
   const product = productIndex.get(productId);
-  const name = product ? product.name : '(unbekanntes Produkt)';
+  const name = product ? product.name : t('targets.unbekanntes_produkt');
   const unit = product ? product.unitType : 'kg';
   const row = document.createElement('div');
   row.className = 'stock-product-row';
@@ -696,7 +697,7 @@ function makeProductTargetRow(productId, { showContext = false } = {}) {
   if (showContext) {
     const metaEl = document.createElement('span');
     metaEl.className = 'pmeta';
-    metaEl.textContent = product ? productContextLabel(product) : '⚠️ Produkt nicht gefunden';
+    metaEl.textContent = product ? productContextLabel(product) : t('targets.produkt_nicht_gefunden');
     textWrap.appendChild(metaEl);
   }
 
@@ -715,7 +716,7 @@ function renderProductTargetList(listEl, ids) {
   if (ids.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
-    empty.textContent = 'Keine Produktziele.';
+    empty.textContent = t('targets.keine_produktziele');
     listEl.appendChild(empty);
     return;
   }
@@ -800,7 +801,7 @@ function renderPickerList(filterText) {
   // existing product first to find it.
   const addRow = document.createElement('div');
   addRow.className = 'stock-product-row add-new';
-  addRow.textContent = '+ Neues Produkt anlegen';
+  addRow.textContent = t('targets.neues_produkt_anlegen');
   addRow.addEventListener('click', () => {
     // Both classes close the picker and open their own small dedicated
     // modal — never expanded in place inside the (possibly 50-row) match
@@ -824,7 +825,7 @@ function renderPickerList(filterText) {
   if (matches.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
-    empty.textContent = 'Keine Produkte gefunden.';
+    empty.textContent = t('targets.keine_produkte_gefunden');
     pickerList.appendChild(empty);
   }
 
@@ -856,7 +857,7 @@ function renderPickerList(filterText) {
 
 function openPicker(foodClass) {
   pickerFoodClass = foodClass;
-  pickerModalTitle.textContent = foodClass === 'food' ? 'Produkt wählen (Lebensmittel)' : 'Produkt wählen (Sonstiges)';
+  pickerModalTitle.textContent = foodClass === 'food' ? t('targets.produkt_waehlen_lebensmittel') : t('targets.produkt_waehlen_sonstiges');
   pickerSearch.value = '';
   renderPickerList('');
   pickerModal.classList.add('show');
@@ -879,7 +880,7 @@ function openNewProductModal(filterText) {
   newProductUnit = 'kg';
   newProductUnitButtons.forEach((b) => b.classList.toggle('active', b.dataset.unit === 'kg'));
   newProductAmountInput.value = '';
-  newProductAmountLabel.textContent = `Ziel-Menge (${unitLabel(newProductUnit)})`;
+  newProductAmountLabel.textContent = t('targets.ziel_menge', { unitLabel: unitLabel(newProductUnit) });
   renderNewProductSubcategoryOptions();
   newProductModal.classList.add('show');
 }
@@ -952,19 +953,19 @@ nonfoodNewCreateBtn.addEventListener('click', async () => {
   const subcategoryId = nonfoodNewSubcategorySelect.value;
   const amount = Number(nonfoodNewAmountInput.value);
   if (!name) {
-    alert('Bitte einen Produktnamen eingeben.');
+    alert(t('targets.bitte_einen_produktnamen_eingeben'));
     return;
   }
   if (!subcategoryId) {
-    alert('Bitte eine Unterkategorie wählen.');
+    alert(t('targets.bitte_eine_unterkategorie_waehlen'));
     return;
   }
   if (nonfoodNewAmountInput.value === '' || Number.isNaN(amount)) {
-    alert('Bitte eine Ziel-Menge eingeben.');
+    alert(t('targets.bitte_eine_ziel_menge_eingeben'));
     return;
   }
   if (findDuplicateProductName(name)) {
-    alert(`„${name}" gibt es bereits — bitte das bestehende Produkt auswählen statt ein neues mit demselben Namen anzulegen, sonst entstehen zwei getrennte Chargenlisten.`);
+    alert(t('targets.gibt_es_bereits_bitte_das', { name }));
     return;
   }
   nonfoodNewCreateBtn.disabled = true;
@@ -984,7 +985,7 @@ nonfoodNewCreateBtn.addEventListener('click', async () => {
     // here beyond re-rendering this screen's own state.
     render();
   } catch (err) {
-    alert('Fehler beim Anlegen: ' + err.message);
+    alert(t('targets.fehler_beim_anlegen') + err.message);
     console.error(err);
   } finally {
     nonfoodNewCreateBtn.disabled = false;
@@ -995,7 +996,7 @@ newProductUnitButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
     newProductUnit = btn.dataset.unit;
     newProductUnitButtons.forEach((b) => b.classList.toggle('active', b === btn));
-    newProductAmountLabel.textContent = `Ziel-Menge (${unitLabel(newProductUnit)})`;
+    newProductAmountLabel.textContent = t('targets.ziel_menge', { unitLabel: unitLabel(newProductUnit) });
   });
 });
 
@@ -1004,19 +1005,19 @@ newProductCreateBtn.addEventListener('click', async () => {
   const subcategoryId = newProductSubcategorySelect.value;
   const amount = Number(newProductAmountInput.value);
   if (!name) {
-    alert('Bitte einen Produktnamen eingeben.');
+    alert(t('targets.bitte_einen_produktnamen_eingeben'));
     return;
   }
   if (!subcategoryId) {
-    alert('Bitte eine Unterkategorie wählen.');
+    alert(t('targets.bitte_eine_unterkategorie_waehlen'));
     return;
   }
   if (newProductAmountInput.value === '' || Number.isNaN(amount)) {
-    alert('Bitte eine Ziel-Menge eingeben.');
+    alert(t('targets.bitte_eine_ziel_menge_eingeben'));
     return;
   }
   if (findDuplicateProductName(name)) {
-    alert(`„${name}" gibt es bereits — bitte das bestehende Produkt auswählen statt ein neues mit demselben Namen anzulegen, sonst entstehen zwei getrennte Chargenlisten.`);
+    alert(t('targets.gibt_es_bereits_bitte_das', { name }));
     return;
   }
   newProductCreateBtn.disabled = true;
@@ -1039,7 +1040,7 @@ newProductCreateBtn.addEventListener('click', async () => {
     // beyond re-rendering this screen's own state.
     render();
   } catch (err) {
-    alert('Fehler beim Anlegen: ' + err.message);
+    alert(t('targets.fehler_beim_anlegen') + err.message);
     console.error(err);
   } finally {
     newProductCreateBtn.disabled = false;
@@ -1065,7 +1066,7 @@ function updateComputedNote() {
   const days = Number(daysInput.value) || 0;
   const amt = Math.round(rate * people * days * 100) / 100;
   const u = editingContext ? unitLabel(editingContext.unit) : 'kg';
-  computedNote.textContent = `= ${amt} ${u} gesamt`;
+  computedNote.textContent = t('targets.gesamt', { amt, u });
 }
 
 [rateInput, peopleInput, daysInput].forEach((el) => el.addEventListener('input', updateComputedNote));
@@ -1077,8 +1078,8 @@ function openEdit(level, id, label, unit) {
   editTitle.textContent = label;
 
   const u = unitLabel(unit);
-  flatLabel.textContent = `Menge (${u})`;
-  rateLabel.textContent = `Menge pro Person/Tag (${u})`;
+  flatLabel.textContent = t('targets.menge', { u });
+  rateLabel.textContent = t('targets.menge_pro_person_tag', { u });
 
   // Product targets are flat-only — a single product doesn't have its own
   // "Personen" to divide across, that's what the category/subcategory
@@ -1111,7 +1112,7 @@ saveBtn.addEventListener('click', async () => {
   if (pendingMode === 'flat') {
     const amount = Number(flatInput.value);
     if (flatInput.value === '' || isNaN(amount)) {
-      alert('Bitte eine Menge eingeben.');
+      alert(t('targets.bitte_eine_menge_eingeben'));
       return;
     }
     target = { mode: 'flat', amount, unit };
@@ -1120,7 +1121,7 @@ saveBtn.addEventListener('click', async () => {
     const people = Number(peopleInput.value);
     const days = Number(daysInput.value);
     if (rateInput.value === '' || peopleInput.value === '' || daysInput.value === '') {
-      alert('Bitte Menge/Person/Tag, Personen und Tage ausfüllen.');
+      alert(t('targets.bitte_menge_person_tag_personen'));
       return;
     }
     target = {
