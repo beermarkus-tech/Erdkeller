@@ -1,5 +1,5 @@
-import de from './locales/de.js?v=189';
-import en from './locales/en.js?v=189';
+import de from './locales/de.js?v=190';
+import en from './locales/en.js?v=190';
 
 // UI language (I18N.md). Plain dictionaries, no library: i18next & co. would
 // need a CDN fetch or a build step, and the app must boot fully offline —
@@ -34,7 +34,13 @@ function deviceLang() {
   return String(list[0] || '').toLowerCase().startsWith('de') ? 'de' : 'en';
 }
 
-const lang = readStoredLang() || deviceLang();
+let lang = readStoredLang() || deviceLang();
+
+// Build 190 — the switch will move from "save + reload" to switching in
+// place once every module re-renders on erdkeller:langchange (end of I18N.md
+// Phase 3). Until then a reload is the only way to get JS-rendered text into
+// the new language, so this stays false and setLang() reloads.
+const LIVE_SWITCH = false;
 
 export function getLang() {
   return lang;
@@ -44,10 +50,11 @@ export function getLocale() {
   return LOCALES[lang];
 }
 
-// Switching saves the choice and reloads rather than re-rendering in place:
-// ~30 modules each hold their own rendered state, and a reload is the one
-// way to guarantee nothing is left in the old language. Works offline (the
-// service worker serves the shell).
+// Switching saves the choice, then either reloads (LIVE_SWITCH false — works
+// offline, the service worker serves the shell) or switches in place:
+// static markup is re-applied here, and every module re-renders its own
+// JS-built text on erdkeller:langchange, dispatched after the static pass so
+// a module's render always wins over a stale static default.
 export function setLang(next) {
   if (!LANGUAGES.includes(next) || next === lang) return;
   try {
@@ -58,10 +65,19 @@ export function setLang(next) {
     console.error('Sprache konnte nicht gespeichert werden', err);
     return;
   }
-  location.reload();
+  if (!LIVE_SWITCH) {
+    location.reload();
+    return;
+  }
+  lang = next;
+  pluralRules = new Intl.PluralRules(LOCALES[lang]);
+  document.documentElement.lang = lang;
+  applyStatic();
+  updateLangButtons();
+  window.dispatchEvent(new CustomEvent('erdkeller:langchange', { detail: { lang } }));
 }
 
-const pluralRules = new Intl.PluralRules(LOCALES[lang]);
+let pluralRules = new Intl.PluralRules(LOCALES[lang]);
 
 function lookup(key) {
   if (Object.prototype.hasOwnProperty.call(DICTS[lang], key)) return DICTS[lang][key];
@@ -94,12 +110,34 @@ export function fmtDate(value, options) {
   return new Date(value).toLocaleDateString(LOCALES[lang], options);
 }
 
-// Static markup: data-i18n="key" sets textContent, data-i18n-attr=
-// "placeholder:key;title:key" sets attributes. Run once at startup below,
-// and callable on freshly inserted markup.
+// Static markup (index.html, Build 190):
+// - data-i18n="key" replaces the element's own text. Many elements mix an
+//   icon <span> with a text node (e.g. the nav buttons' "<span>🏠</span>
+//   Übersicht"), so only the one non-blank direct text node is replaced —
+//   child elements and the whitespace around the text are left untouched.
+// - data-i18n-html="key" sets innerHTML. Only for the few static sentences
+//   with inline markup (<strong>), whose values live in de.js/en.js — never
+//   use it for anything containing user data.
+// - data-i18n-attr="placeholder:key;title:key" sets attributes.
+// Run once at startup below, and callable on freshly inserted markup.
+function setOwnText(el, text) {
+  const node = [...el.childNodes].find((n) => n.nodeType === Node.TEXT_NODE && n.nodeValue.trim());
+  if (!node) {
+    // JS emptied it, or it never had text: only safe to fill if there are
+    // no child elements to clobber.
+    if (!el.children.length) el.textContent = text;
+    return;
+  }
+  const [, lead, , trail] = node.nodeValue.match(/^(\s*)([\s\S]*?)(\s*)$/);
+  node.nodeValue = lead + text + trail;
+}
+
 export function applyStatic(root = document) {
   root.querySelectorAll('[data-i18n]').forEach((el) => {
-    el.textContent = t(el.dataset.i18n);
+    setOwnText(el, t(el.dataset.i18n));
+  });
+  root.querySelectorAll('[data-i18n-html]').forEach((el) => {
+    el.innerHTML = t(el.dataset.i18nHtml);
   });
   root.querySelectorAll('[data-i18n-attr]').forEach((el) => {
     el.dataset.i18nAttr.split(';').forEach((pair) => {
@@ -125,16 +163,22 @@ function flowInProgress() {
   });
 }
 
-function initLangButtons() {
-  const next = LANGUAGES[(LANGUAGES.indexOf(lang) + 1) % LANGUAGES.length];
+function updateLangButtons() {
   document.querySelectorAll('.lang-btn').forEach((btn) => {
     btn.textContent = lang.toUpperCase();
+  });
+}
+
+function initLangButtons() {
+  document.querySelectorAll('.lang-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (flowInProgress() && !confirm(t('lang.confirmLeaveFlow'))) return;
-      setLang(next);
+      // A reload throws away an open flow; switching in place doesn't.
+      if (!LIVE_SWITCH && flowInProgress() && !confirm(t('lang.confirmLeaveFlow'))) return;
+      setLang(LANGUAGES[(LANGUAGES.indexOf(lang) + 1) % LANGUAGES.length]);
     });
   });
+  updateLangButtons();
 }
 
 document.documentElement.lang = lang;

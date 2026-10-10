@@ -5,22 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2E4034">
 <title>Erdkeller</title>
-<link rel="manifest" href="manifest.json?v=189">
-<link rel="icon" href="icons/icon-192.png?v=189">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=189">
+<link rel="manifest" href="manifest.json?v=190">
+<link rel="icon" href="icons/icon-192.png?v=190">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=190">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=189">
+<link rel="stylesheet" href="css/styles.css?v=190">
 </head>
 <body>
-<div id="build-tag" class="build-tag">Build 189</div>
+<div id="build-tag" class="build-tag">Build 190</div>
 
 <!-- Signed-out screen -->
 <div id="auth-gate" class="auth-gate">
   <div class="mark">🏔</div>
   <h1 class="display">Erdkeller</h1>
-  <p>Vorratsverwaltung &amp; Krisenvorsorge</p>
-  <button id="google-signin-btn" class="google-btn">Mit Google anmelden</button>
+  <p data-i18n="auth.vorratsverwaltung_krisenvorsorge">Vorratsverwaltung &amp; Krisenvorsorge</p>
+  <button id="google-signin-btn" class="google-btn" data-i18n="auth.mit_google_anmelden">Mit Google anmelden</button>
   <button type="button" class="lang-btn lang-btn-light" data-i18n-attr="title:lang.button.title;aria-label:lang.button.title"></button>
   <p id="auth-error" class="auth-error"></p>
 </div>
@@ -29,61 +29,61 @@
 <div id="app" class="shell hidden">
 
   <div class="sidebar">
-    <div class="brand">🏔 Erdkeller</div>
-    <button class="nav-btn active" data-tab="dashboard"><span>🏠</span> Übersicht</button>
-    <button class="nav-btn" data-tab="stock"><span>📦</span> Bestand</button>
-    <button class="nav-btn" data-tab="checklists"><span>✅</span> Checklisten</button>
-    <button class="nav-btn" data-tab="info"><span>📚</span> Info</button>
-    <button class="nav-btn admin-only hidden" data-tab="settings"><span>⚙️</span> Admin</button>
+    <div class="brand" data-i18n="nav.erdkeller">🏔 Erdkeller</div>
+    <button class="nav-btn active" data-tab="dashboard" data-i18n="nav.uebersicht"><span>🏠</span> Übersicht</button>
+    <button class="nav-btn" data-tab="stock" data-i18n="nav.bestand"><span>📦</span> Bestand</button>
+    <button class="nav-btn" data-tab="checklists" data-i18n="nav.checklisten"><span>✅</span> Checklisten</button>
+    <button class="nav-btn" data-tab="info" data-i18n="nav.info"><span>📚</span> Info</button>
+    <button class="nav-btn admin-only hidden" data-tab="settings" data-i18n="nav.admin"><span>⚙️</span> Admin</button>
     <div class="sidebar-account">
       <div class="account-menu-wrap">
         <button class="avatar-btn" id="account-toggle-sidebar"><img id="user-avatar-sidebar" class="user-avatar" alt=""></button>
         <div class="account-popover popover-up hidden" id="account-popover-sidebar">
           <div id="user-name-sidebar" class="popover-name"></div>
           <div id="user-role-sidebar" class="popover-role"></div>
-          <button id="signout-btn-sidebar" class="popover-signout">Abmelden</button>
+          <button id="signout-btn-sidebar" class="popover-signout" data-i18n="nav.abmelden">Abmelden</button>
         </div>
       </div>
       <button type="button" class="lang-btn" data-i18n-attr="title:lang.button.title;aria-label:lang.button.title"></button>
-      <button class="refresh-btn" id="refresh-btn-tablet" title="Aktualisieren"><span class="refresh-icon">↻</span></button>
+      <button class="refresh-btn" id="refresh-btn-tablet" title="Aktualisieren" data-i18n-attr="title:nav.aktualisieren"><span class="refresh-icon">↻</span></button>
     </div>
   </div>
 
   <header class="topbar">
     <div>
       <div class="title">Erdkeller</div>
-      <div class="subtitle" id="topbar-subtitle">Übersicht</div>
+      <div class="subtitle" id="topbar-subtitle" data-i18n="nav.uebersicht">Übersicht</div>
     </div>
     <div class="topbar-account">
-      <button class="refresh-btn" id="refresh-btn-topbar" title="Aktualisieren"><span class="refresh-icon">↻</span></button>
+      <button class="refresh-btn" id="refresh-btn-topbar" title="Aktualisieren" data-i18n-attr="title:nav.aktualisieren"><span class="refresh-icon">↻</span></button>
       <button type="button" class="lang-btn" data-i18n-attr="title:lang.button.title;aria-label:lang.button.title"></button>
       <div class="account-menu-wrap">
         <button class="avatar-btn" id="account-toggle-topbar"><img id="user-avatar-topbar" class="user-avatar" alt=""></button>
         <div class="account-popover popover-down hidden" id="account-popover-topbar">
           <div id="user-name-topbar" class="popover-name"></div>
           <div id="user-role-topbar" class="popover-role"></div>
-          <button id="signout-btn-topbar" class="popover-signout">Abmelden</button>
+          <button id="signout-btn-topbar" class="popover-signout" data-i18n="nav.abmelden">Abmelden</button>
         </div>
       </div>
     </div>
   </header>
 
   <main>
-    <h1 class="tablet-header" id="tablet-header">Übersicht</h1>
+    <h1 class="tablet-header" id="tablet-header" data-i18n="shell.uebersicht">Übersicht</h1>
 
     <div class="screen active" data-screen="dashboard">
       <div class="segmented">
-        <button class="seg-btn active" data-dash-tab="stock" type="button">Bestand</button>
-        <button class="seg-btn" data-dash-tab="mhd" type="button">MHD</button>
-        <button class="seg-btn" data-dash-tab="shopping" type="button">Einkaufsliste</button>
+        <button class="seg-btn active" data-dash-tab="stock" type="button" data-i18n="dashboard.bestand">Bestand</button>
+        <button class="seg-btn" data-dash-tab="mhd" type="button" data-i18n="dashboard.mhd">MHD</button>
+        <button class="seg-btn" data-dash-tab="shopping" type="button" data-i18n="dashboard.einkaufsliste">Einkaufsliste</button>
       </div>
 
       <div class="dash-tab" data-dash-tab-panel="stock">
         <div class="tax-expand-row" id="dash-unit-toggle">
           <button class="select-mode-btn active" data-unit="kg" type="button">kg</button>
-          <button class="select-mode-btn" data-unit="kgpd" type="button">g/P/T</button>
+          <button class="select-mode-btn" data-unit="kgpd" type="button" data-i18n="dashboard.g_p_t">g/P/T</button>
           <button class="select-mode-btn" data-unit="kcal" type="button">kcal</button>
-          <button class="select-mode-btn" data-unit="kcalpd" type="button">kcal/P/T</button>
+          <button class="select-mode-btn" data-unit="kcalpd" type="button" data-i18n="dashboard.kcal_p_t">kcal/P/T</button>
           <button type="button" class="dash-checklist-warning hidden" id="dash-checklist-warning">⚠️ <span id="dash-checklist-warning-count">0</span></button>
         </div>
 
@@ -92,7 +92,7 @@
           <div id="dash-hero-water" class="hidden"></div>
         </div>
 
-        <div class="section-label">Kategorien</div>
+        <div class="section-label" data-i18n="dashboard.kategorien">Kategorien</div>
         <div id="dash-category-list"></div>
 
         <div class="dash-legend hidden" id="dash-legend">
@@ -104,10 +104,10 @@
 
       <div class="dash-tab hidden" data-dash-tab-panel="mhd">
         <div class="tax-expand-row" id="alerts-horizon-toggle">
-          <button type="button" class="select-mode-btn" data-horizon="reached">MHD erreicht</button>
-          <button type="button" class="select-mode-btn active" data-horizon="1">1 Monat</button>
-          <button type="button" class="select-mode-btn" data-horizon="6">6 Monate</button>
-          <button type="button" class="select-mode-btn" data-horizon="12">12 Monate</button>
+          <button type="button" class="select-mode-btn" data-horizon="reached" data-i18n="dashboard.mhd_erreicht">MHD erreicht</button>
+          <button type="button" class="select-mode-btn active" data-horizon="1" data-i18n="dashboard.1_monat">1 Monat</button>
+          <button type="button" class="select-mode-btn" data-horizon="6" data-i18n="dashboard.6_monate">6 Monate</button>
+          <button type="button" class="select-mode-btn" data-horizon="12" data-i18n="dashboard.12_monate">12 Monate</button>
         </div>
         <div class="dash-alert-list" id="alerts-full-list"></div>
       </div>
@@ -120,93 +120,93 @@
     <div class="screen" data-screen="stock">
       <div id="stock-home">
         <div class="home-buttons">
-          <button class="big-btn in" id="start-checkin-btn"><span class="icon">⬇</span> Einlagern</button>
-          <button class="big-btn out" id="start-checkout-btn"><span class="icon">⬆</span> Entnehmen</button>
-          <button class="big-btn dictate" id="start-dictate-btn" type="button"><span class="icon">🎙️</span> Diktieren</button>
+          <button class="big-btn in" id="start-checkin-btn" data-i18n="stock.einlagern"><span class="icon">⬇</span> Einlagern</button>
+          <button class="big-btn out" id="start-checkout-btn" data-i18n="stock.entnehmen"><span class="icon">⬆</span> Entnehmen</button>
+          <button class="big-btn dictate" id="start-dictate-btn" type="button" data-i18n="stock.diktieren"><span class="icon">🎙️</span> Diktieren</button>
         </div>
-        <button type="button" class="stock-home-table-btn admin-only hidden" id="stock-open-table-btn">📋 Bestandsliste</button>
+        <button type="button" class="stock-home-table-btn admin-only hidden" id="stock-open-table-btn" data-i18n="stock.bestandsliste">📋 Bestandsliste</button>
       </div>
 
       <div id="stock-flow" class="hidden">
         <div class="flow-topbar">
-          <button class="flow-back-btn" id="checkin-back-btn" type="button">‹ Zurück</button>
+          <button class="flow-back-btn" id="checkin-back-btn" type="button" data-i18n="stock.zurueck">‹ Zurück</button>
         </div>
         <div class="stock-breadcrumb" id="stock-breadcrumb"></div>
 
         <div class="flow-step active" data-flow-step="type">
-          <div class="search-bar"><span>🔍</span><input placeholder="Produkt direkt suchen…" id="global-product-search"></div>
+          <div class="search-bar"><span>🔍</span><input placeholder="Produkt direkt suchen…" id="global-product-search" data-i18n-attr="placeholder:stock.produkt_direkt_suchen"></div>
           <div class="product-list hidden" id="global-search-results"></div>
-          <div class="section-label" id="type-grid-label">Typ wählen</div>
+          <div class="section-label" id="type-grid-label" data-i18n="stock.typ_waehlen">Typ wählen</div>
           <div class="tile-grid" id="type-grid"></div>
         </div>
 
         <div class="flow-step" data-flow-step="category">
-          <div class="section-label">Kategorie wählen</div>
+          <div class="section-label" data-i18n="stock.kategorie_waehlen">Kategorie wählen</div>
           <div class="tile-grid" id="category-grid"></div>
         </div>
 
         <div class="flow-step" data-flow-step="subcategory">
-          <div class="section-label">Unterkategorie wählen</div>
+          <div class="section-label" data-i18n="stock.unterkategorie_waehlen">Unterkategorie wählen</div>
           <div class="tile-grid" id="subcategory-grid"></div>
         </div>
 
         <div class="flow-step" data-flow-step="product">
-          <div class="search-bar"><span>🔍</span><input placeholder="Produkt suchen…" id="product-search"></div>
-          <div class="section-label">Produkt wählen</div>
+          <div class="search-bar"><span>🔍</span><input placeholder="Produkt suchen…" id="product-search" data-i18n-attr="placeholder:stock.produkt_suchen"></div>
+          <div class="section-label" data-i18n="stock.produkt_waehlen">Produkt wählen</div>
           <div class="product-list" id="product-list"></div>
         </div>
 
         <div class="flow-step" data-flow-step="detail">
           <div class="section-label" id="detail-product-name"></div>
           <div class="form-group hidden" id="detail-new-name-group">
-            <label>Produktname</label>
-            <input type="text" id="detail-new-name-input" placeholder="z.B. Bohnen weiß">
+            <label data-i18n="stock.produktname">Produktname</label>
+            <input type="text" id="detail-new-name-input" placeholder="z.B. Bohnen weiß" data-i18n-attr="placeholder:stock.z_b_bohnen_weiss">
           </div>
           <div class="form-group hidden" id="detail-new-unit-group">
-            <label>Einheit</label>
+            <label data-i18n="stock.einheit">Einheit</label>
             <div class="unit-toggle" id="new-product-unit-toggle">
-              <button class="unit-btn active" data-unit="kg" type="button">Gramm / Milliliter</button>
-              <button class="unit-btn" data-unit="stueck" type="button">Stück</button>
+              <button class="unit-btn active" data-unit="kg" type="button" data-i18n="stock.gramm_milliliter">Gramm / Milliliter</button>
+              <button class="unit-btn" data-unit="stueck" type="button" data-i18n="stock.stueck">Stück</button>
             </div>
-            <p class="settings-note hidden" id="new-product-water-note">Einheit: Liter — Wasser-Produkte zählen zum globalen Wasserziel und werden immer in Litern erfasst.</p>
+            <p class="settings-note hidden" id="new-product-water-note" data-i18n="stock.einheit_liter_wasser_produkte_zaehlen">Einheit: Liter — Wasser-Produkte zählen zum globalen Wasserziel und werden immer in Litern erfasst.</p>
           </div>
           <div class="form-group">
-            <label>Menge</label>
+            <label data-i18n="stock.menge">Menge</label>
             <div class="qty-stepper">
               <button id="qty-minus" type="button">−</button>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" class="qty-num" id="qty-num" value="1" aria-label="Menge">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" class="qty-num" id="qty-num" value="1" aria-label="Menge" data-i18n-attr="aria-label:stock.menge">
               <button id="qty-plus" type="button">+</button>
             </div>
           </div>
           <div class="form-group">
-            <label>Details (optional)</label>
-            <input type="text" id="details-input" placeholder="z.B. Dose, Glas">
+            <label data-i18n="stock.details_optional">Details (optional)</label>
+            <input type="text" id="details-input" placeholder="z.B. Dose, Glas" data-i18n-attr="placeholder:stock.z_b_dose_glas">
           </div>
           <div class="form-group" id="content-field-group">
-            <label id="content-field-label">Inhalt (z.B. 500g / 800ml)</label>
+            <label id="content-field-label" data-i18n="stock.inhalt_z_b_500g_800ml">Inhalt (z.B. 500g / 800ml)</label>
             <input type="text" id="content-input" placeholder="500g">
           </div>
           <div class="form-group">
-            <label>Mindesthaltbarkeit (MM/JJJJ)</label>
+            <label data-i18n="stock.mindesthaltbarkeit_mm_jjjj">Mindesthaltbarkeit (MM/JJJJ)</label>
             <div class="date-display" id="bestbefore-display">
-              <input type="text" id="bestbefore-input" placeholder="MM/JJJJ" readonly style="pointer-events:none;">
+              <input type="text" id="bestbefore-input" placeholder="MM/JJJJ" readonly style="pointer-events:none;" data-i18n-attr="placeholder:stock.mm_jjjj">
             </div>
           </div>
           <div class="form-group">
-            <label>Lagerort</label>
+            <label data-i18n="stock.lagerort">Lagerort</label>
             <select id="storage-select"></select>
           </div>
-          <button class="confirm-btn" id="checkin-confirm-btn">Einlagern bestätigen</button>
+          <button class="confirm-btn" id="checkin-confirm-btn" data-i18n="stock.einlagern_bestaetigen">Einlagern bestätigen</button>
         </div>
 
         <div class="flow-step" data-flow-step="success">
           <div class="success-screen">
             <div class="check">✓</div>
-            <h2 class="display">Eingelagert</h2>
+            <h2 class="display" data-i18n="stock.eingelagert">Eingelagert</h2>
             <div id="success-detail" class="result-lines"></div>
-            <button class="back-home-btn" id="back-home-btn">Zurück zur Übersicht</button>
+            <button class="back-home-btn" id="back-home-btn" data-i18n="stock.zurueck_zur_uebersicht">Zurück zur Übersicht</button>
             <div class="recent-log">
-              <div class="section-label">Letzte Änderungen</div>
+              <div class="section-label" data-i18n="stock.letzte_aenderungen">Letzte Änderungen</div>
               <div class="recent-log-list" id="checkin-recent-log"></div>
             </div>
           </div>
@@ -215,7 +215,7 @@
 
       <div class="modal-overlay" id="date-modal">
         <div class="modal-sheet">
-          <div class="modal-title">Mindesthaltbarkeit wählen</div>
+          <div class="modal-title" data-i18n="modal.date.mindesthaltbarkeit_waehlen">Mindesthaltbarkeit wählen</div>
           <div class="picker-row">
             <div class="picker-year-group">
               <div class="picker-col" id="year-col-a"></div>
@@ -224,67 +224,67 @@
             <div class="picker-col" id="month-col"></div>
           </div>
           <div class="modal-actions">
-            <button class="modal-confirm" id="date-modal-confirm" disabled>Übernehmen</button>
+            <button class="modal-confirm" id="date-modal-confirm" disabled data-i18n="modal.date.uebernehmen">Übernehmen</button>
           </div>
         </div>
       </div>
 
       <div class="undo-toast hidden" id="undo-toast">
         <span id="undo-toast-text"></span>
-        <button id="undo-btn">Rückgängig</button>
+        <button id="undo-btn" data-i18n="stock.rueckgaengig">Rückgängig</button>
       </div>
 
       <div id="stock-flow-checkout" class="hidden">
         <div class="flow-topbar">
-          <button class="flow-back-btn" id="checkout-back-btn" type="button">‹ Zurück</button>
+          <button class="flow-back-btn" id="checkout-back-btn" type="button" data-i18n="stock.zurueck">‹ Zurück</button>
         </div>
         <div class="stock-breadcrumb" id="checkout-breadcrumb"></div>
 
         <div class="flow-step active" data-checkout-step="type">
-          <div class="search-bar"><span>🔍</span><input placeholder="Bestand direkt suchen…" id="checkout-global-search"></div>
+          <div class="search-bar"><span>🔍</span><input placeholder="Bestand direkt suchen…" id="checkout-global-search" data-i18n-attr="placeholder:stock.bestand_direkt_suchen"></div>
           <div class="product-list hidden" id="checkout-global-search-results"></div>
-          <div class="section-label" id="checkout-type-grid-label">Typ wählen</div>
+          <div class="section-label" id="checkout-type-grid-label" data-i18n="stock.typ_waehlen">Typ wählen</div>
           <div class="tile-grid" id="checkout-type-grid"></div>
         </div>
 
         <div class="flow-step" data-checkout-step="category">
-          <div class="section-label">Kategorie wählen</div>
+          <div class="section-label" data-i18n="stock.kategorie_waehlen">Kategorie wählen</div>
           <div class="tile-grid" id="checkout-category-grid"></div>
         </div>
 
         <div class="flow-step" data-checkout-step="subcategory">
-          <div class="section-label">Unterkategorie wählen</div>
+          <div class="section-label" data-i18n="stock.unterkategorie_waehlen">Unterkategorie wählen</div>
           <div class="tile-grid" id="checkout-subcategory-grid"></div>
         </div>
 
         <div class="flow-step" data-checkout-step="batch">
-          <div class="search-bar"><span>🔍</span><input placeholder="Bestand suchen…" id="checkout-batch-search"></div>
-          <div class="section-label">Bestand wählen</div>
+          <div class="search-bar"><span>🔍</span><input placeholder="Bestand suchen…" id="checkout-batch-search" data-i18n-attr="placeholder:stock.bestand_suchen"></div>
+          <div class="section-label" data-i18n="stock.bestand_waehlen">Bestand wählen</div>
           <div class="product-list" id="checkout-batch-list"></div>
         </div>
 
         <div class="flow-step" data-checkout-step="remove">
-          <h2 class="display step-title">Entnehmen</h2>
+          <h2 class="display step-title" data-i18n="stock.entnehmen">Entnehmen</h2>
           <div id="checkout-batch-meta" class="result-lines"></div>
           <div class="form-group">
-            <label>Menge entnehmen</label>
+            <label data-i18n="stock.menge_entnehmen">Menge entnehmen</label>
             <div class="qty-stepper">
               <button id="checkout-qty-minus" type="button">−</button>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" class="qty-num" id="checkout-qty-num" value="1" aria-label="Menge">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" class="qty-num" id="checkout-qty-num" value="1" aria-label="Menge" data-i18n-attr="aria-label:stock.menge">
               <button id="checkout-qty-plus" type="button">+</button>
             </div>
           </div>
-          <button class="confirm-btn" id="checkout-confirm-btn">Entnehmen bestätigen</button>
+          <button class="confirm-btn" id="checkout-confirm-btn" data-i18n="stock.entnehmen_bestaetigen">Entnehmen bestätigen</button>
         </div>
 
         <div class="flow-step" data-checkout-step="success">
           <div class="success-screen">
             <div class="check">✓</div>
-            <h2 class="display">Entnommen</h2>
+            <h2 class="display" data-i18n="stock.entnommen">Entnommen</h2>
             <div id="checkout-success-detail" class="result-lines"></div>
-            <button class="back-home-btn" id="checkout-back-home-btn">Zurück zur Übersicht</button>
+            <button class="back-home-btn" id="checkout-back-home-btn" data-i18n="stock.zurueck_zur_uebersicht">Zurück zur Übersicht</button>
             <div class="recent-log">
-              <div class="section-label">Letzte Änderungen</div>
+              <div class="section-label" data-i18n="stock.letzte_aenderungen">Letzte Änderungen</div>
               <div class="recent-log-list" id="checkout-recent-log"></div>
             </div>
           </div>
@@ -293,59 +293,59 @@
 
       <div class="undo-toast hidden" id="checkout-undo-toast">
         <span id="checkout-undo-toast-text"></span>
-        <button id="checkout-undo-btn">Rückgängig</button>
+        <button id="checkout-undo-btn" data-i18n="stock.rueckgaengig">Rückgängig</button>
       </div>
     </div>
     <div class="screen" data-screen="checklists">
       <div class="checklists-header">
         <div class="segmented">
-          <button class="seg-btn active" data-checklists-tab="maintenance" type="button">Wartung</button>
-          <button class="seg-btn" data-checklists-tab="crisis" type="button">Krise</button>
+          <button class="seg-btn active" data-checklists-tab="maintenance" type="button" data-i18n="checklists.wartung">Wartung</button>
+          <button class="seg-btn" data-checklists-tab="crisis" type="button" data-i18n="checklists.krise">Krise</button>
         </div>
       </div>
       <p id="checklists-status" class="taxonomy-status"></p>
-      <button type="button" class="fab admin-only hidden" id="checklists-edit-toggle" title="Bearbeiten">✏️</button>
+      <button type="button" class="fab admin-only hidden" id="checklists-edit-toggle" title="Bearbeiten" data-i18n-attr="title:checklists.bearbeiten">✏️</button>
 
       <div class="checklists-tab" data-checklists-tab-panel="maintenance">
         <div class="checklist-view" id="maintenance-view">
           <div class="filter-section">
-            <div class="filter-label">Checkliste</div>
+            <div class="filter-label" data-i18n="checklists.checkliste">Checkliste</div>
             <div class="filter-chip-row" id="maintenance-live-list-filters"></div>
           </div>
           <div class="filter-section">
-            <div class="filter-label">Häufigkeit</div>
+            <div class="filter-label" data-i18n="checklists.haeufigkeit">Häufigkeit</div>
             <div class="filter-chip-row" id="maintenance-live-freq-filters"></div>
           </div>
           <button type="button" class="add-row-btn small hidden" id="maintenance-dismiss-period-btn"></button>
           <div class="tax-expand-row" id="maintenance-filter-toggle">
-            <button type="button" class="select-mode-btn active" data-filter="due">Fällig</button>
-            <button type="button" class="select-mode-btn" data-filter="all">Alle</button>
+            <button type="button" class="select-mode-btn active" data-filter="due" data-i18n="checklists.faellig">Fällig</button>
+            <button type="button" class="select-mode-btn" data-filter="all" data-i18n="checklists.alle">Alle</button>
           </div>
           <div id="maintenance-list"></div>
         </div>
         <div class="checklist-edit-view hidden" id="maintenance-edit-view">
           <div class="sub-segmented">
-            <button class="sub-seg-btn active" data-maintenance-edit-tab="lists" type="button">Checklisten</button>
-            <button class="sub-seg-btn" data-maintenance-edit-tab="items" type="button">Einträge</button>
+            <button class="sub-seg-btn active" data-maintenance-edit-tab="lists" type="button" data-i18n="checklists.checklisten">Checklisten</button>
+            <button class="sub-seg-btn" data-maintenance-edit-tab="items" type="button" data-i18n="checklists.eintraege">Einträge</button>
           </div>
 
           <div class="maintenance-edit-tab" data-maintenance-edit-tab-panel="lists">
             <div id="maintenance-manage-list"></div>
-            <button type="button" class="fab" id="add-maintenance-list-btn" title="Neue Checkliste">+</button>
+            <button type="button" class="fab" id="add-maintenance-list-btn" title="Neue Checkliste" data-i18n-attr="title:checklists.neue_checkliste">+</button>
           </div>
 
           <div class="maintenance-edit-tab hidden" data-maintenance-edit-tab-panel="items">
-            <div class="search-bar"><span>🔍</span><input placeholder="Suchen…" id="maintenance-search-input"></div>
+            <div class="search-bar"><span>🔍</span><input placeholder="Suchen…" id="maintenance-search-input" data-i18n-attr="placeholder:checklists.suchen"></div>
             <div class="filter-section">
-              <div class="filter-label">Checkliste</div>
+              <div class="filter-label" data-i18n="checklists.checkliste">Checkliste</div>
               <div class="filter-chip-row" id="maintenance-list-filters"></div>
             </div>
             <div class="filter-section">
-              <div class="filter-label">Häufigkeit</div>
+              <div class="filter-label" data-i18n="checklists.haeufigkeit">Häufigkeit</div>
               <div class="filter-chip-row" id="maintenance-freq-filters"></div>
             </div>
             <div id="maintenance-flat-list"></div>
-            <button type="button" class="fab" id="add-maintenance-item-btn" title="Eintrag hinzufügen">+</button>
+            <button type="button" class="fab" id="add-maintenance-item-btn" title="Eintrag hinzufügen" data-i18n-attr="title:checklists.eintrag_hinzufuegen">+</button>
           </div>
         </div>
       </div>
@@ -356,53 +356,53 @@
         </div>
         <div class="checklist-edit-view hidden" id="crisis-edit-view">
           <div id="crisis-editor"></div>
-          <button type="button" class="fab" id="add-crisis-type-btn" title="Neuer Krisentyp">+</button>
+          <button type="button" class="fab" id="add-crisis-type-btn" title="Neuer Krisentyp" data-i18n-attr="title:checklists.neuer_krisentyp">+</button>
         </div>
       </div>
     </div>
 
     <div class="crisis-reference" id="crisis-reference">
-      <button type="button" class="crisis-reference-close" id="crisis-reference-close">‹ Zurück</button>
+      <button type="button" class="crisis-reference-close" id="crisis-reference-close" data-i18n="shell.zurueck">‹ Zurück</button>
       <div class="crisis-reference-title" id="crisis-reference-title"></div>
       <div class="crisis-reference-steps" id="crisis-reference-steps"></div>
     </div>
     <div class="screen" data-screen="info">
       <div class="segmented">
-        <button class="seg-btn active" data-info-tab="contacts" type="button">Kontakte</button>
-        <button class="seg-btn" data-info-tab="notes" type="button">Notizen</button>
-        <button class="seg-btn" data-info-tab="recipes" type="button">Rezepte</button>
+        <button class="seg-btn active" data-info-tab="contacts" type="button" data-i18n="info.kontakte">Kontakte</button>
+        <button class="seg-btn" data-info-tab="notes" type="button" data-i18n="info.notizen">Notizen</button>
+        <button class="seg-btn" data-info-tab="recipes" type="button" data-i18n="info.rezepte">Rezepte</button>
       </div>
 
       <div class="info-tab" data-info-tab-panel="contacts">
-        <button type="button" class="fab admin-only hidden" id="add-contact-btn" title="Neuer Kontakt">+</button>
+        <button type="button" class="fab admin-only hidden" id="add-contact-btn" title="Neuer Kontakt" data-i18n-attr="title:info.neuer_kontakt">+</button>
 
         <div id="contacts-emergency-section" class="hidden">
-          <div class="section-label">Notruf &amp; Wichtige Kontakte</div>
+          <div class="section-label" data-i18n="info.notruf_wichtige_kontakte">Notruf &amp; Wichtige Kontakte</div>
           <div class="product-list" id="contacts-emergency-list"></div>
         </div>
 
-        <div class="section-label">Kontakte</div>
+        <div class="section-label" data-i18n="info.kontakte">Kontakte</div>
         <div class="product-list" id="contacts-general-list"></div>
 
         <p id="contacts-status" class="taxonomy-status"></p>
       </div>
 
       <div class="info-tab hidden" data-info-tab-panel="notes">
-        <div class="search-bar"><span>🔍</span><input placeholder="Notizen durchsuchen…" id="notes-search-input"></div>
+        <div class="search-bar"><span>🔍</span><input placeholder="Notizen durchsuchen…" id="notes-search-input" data-i18n-attr="placeholder:info.notizen_durchsuchen"></div>
         <div class="tax-expand-row" id="notes-view-toggle">
-          <button type="button" class="select-mode-btn active" data-view="cards">▦ Karten</button>
-          <button type="button" class="select-mode-btn" data-view="list">☰ Liste</button>
+          <button type="button" class="select-mode-btn active" data-view="cards" data-i18n="info.karten">▦ Karten</button>
+          <button type="button" class="select-mode-btn" data-view="list" data-i18n="info.liste">☰ Liste</button>
           <div class="notes-sort-bar" id="notes-sort-bar"></div>
         </div>
-        <button type="button" class="fab admin-only hidden" id="add-note-btn" title="Neue Notiz">+</button>
+        <button type="button" class="fab admin-only hidden" id="add-note-btn" title="Neue Notiz" data-i18n-attr="title:info.neue_notiz">+</button>
         <div class="notes-grid" id="notes-list"></div>
         <p id="notes-status" class="taxonomy-status"></p>
       </div>
 
       <div class="info-tab hidden" data-info-tab-panel="recipes">
-        <div class="search-bar"><span>🔍</span><input placeholder="Rezepte durchsuchen…" id="recipes-search-input"></div>
+        <div class="search-bar"><span>🔍</span><input placeholder="Rezepte durchsuchen…" id="recipes-search-input" data-i18n-attr="placeholder:info.rezepte_durchsuchen"></div>
         <div class="filter-chip-row" id="recipes-tag-filter"></div>
-        <button type="button" class="fab admin-only hidden" id="add-recipe-btn" title="Neues Rezept">+</button>
+        <button type="button" class="fab admin-only hidden" id="add-recipe-btn" title="Neues Rezept" data-i18n-attr="title:info.neues_rezept">+</button>
         <div class="recipes-grid" id="recipes-list"></div>
         <p id="recipes-status" class="taxonomy-status"></p>
       </div>
@@ -410,60 +410,60 @@
 
     <div class="modal-overlay" id="contact-detail-modal">
       <div class="modal-sheet modal-body-padded">
-        <div class="modal-title" id="contact-detail-title">Kontakt</div>
+        <div class="modal-title" id="contact-detail-title" data-i18n="modal.contact-detail.kontakt">Kontakt</div>
 
         <div id="contact-detail-view">
           <div class="contact-detail-row hidden" id="contact-detail-role-row">
-            <span class="contact-detail-label">Rolle</span>
+            <span class="contact-detail-label" data-i18n="modal.contact-detail.rolle">Rolle</span>
             <span id="contact-detail-role"></span>
           </div>
           <div class="contact-detail-row hidden" id="contact-detail-phone-row">
-            <span class="contact-detail-label">Telefon</span>
+            <span class="contact-detail-label" data-i18n="modal.contact-detail.telefon">Telefon</span>
             <a id="contact-detail-phone" class="contact-detail-phone-link"></a>
           </div>
           <div class="contact-detail-row hidden" id="contact-detail-address-row">
-            <span class="contact-detail-label">Adresse</span>
+            <span class="contact-detail-label" data-i18n="modal.contact-detail.adresse">Adresse</span>
             <span id="contact-detail-address"></span>
           </div>
           <div class="contact-detail-row hidden" id="contact-detail-notes-row">
-            <span class="contact-detail-label">Notizen</span>
+            <span class="contact-detail-label" data-i18n="modal.contact-detail.notizen">Notizen</span>
             <span id="contact-detail-notes"></span>
           </div>
         </div>
 
         <div id="contact-edit-form" class="hidden">
           <div class="form-group">
-            <label>Name</label>
+            <label data-i18n="modal.contact-detail.name">Name</label>
             <input type="text" id="contact-edit-name">
           </div>
           <div class="form-group">
-            <label>Rolle</label>
-            <input type="text" id="contact-edit-role" placeholder="z.B. Hausarzt, Elektriker">
+            <label data-i18n="modal.contact-detail.rolle">Rolle</label>
+            <input type="text" id="contact-edit-role" placeholder="z.B. Hausarzt, Elektriker" data-i18n-attr="placeholder:modal.contact-detail.z_b_hausarzt_elektriker">
           </div>
           <div class="form-group">
-            <label>Telefon</label>
+            <label data-i18n="modal.contact-detail.telefon">Telefon</label>
             <input type="tel" id="contact-edit-phone">
           </div>
           <div class="form-group">
-            <label>Adresse</label>
+            <label data-i18n="modal.contact-detail.adresse">Adresse</label>
             <input type="text" id="contact-edit-address">
           </div>
           <div class="form-group">
-            <label>Notizen</label>
+            <label data-i18n="modal.contact-detail.notizen">Notizen</label>
             <input type="text" id="contact-edit-notes">
           </div>
-          <label class="contact-emergency-toggle">
+          <label class="contact-emergency-toggle" data-i18n="modal.contact-detail.notruf_wichtiger_kontakt_oben_angeheftet">
             <input type="checkbox" id="contact-edit-emergency">
             Notruf / wichtiger Kontakt (oben angeheftet)
           </label>
         </div>
 
         <div class="modal-actions table-edit-actions" id="contact-view-actions">
-          <button class="confirm-btn admin-only hidden" id="contact-edit-btn" type="button">Bearbeiten</button>
+          <button class="confirm-btn admin-only hidden" id="contact-edit-btn" type="button" data-i18n="modal.contact-detail.bearbeiten">Bearbeiten</button>
         </div>
         <div class="modal-actions table-edit-actions hidden" id="contact-edit-actions">
-          <button class="confirm-btn" id="contact-save-btn" type="button">Speichern</button>
-          <button class="danger-btn" id="contact-delete-btn" type="button">Löschen</button>
+          <button class="confirm-btn" id="contact-save-btn" type="button" data-i18n="modal.contact-detail.speichern">Speichern</button>
+          <button class="danger-btn" id="contact-delete-btn" type="button" data-i18n="modal.contact-detail.loeschen">Löschen</button>
         </div>
       </div>
     </div>
@@ -471,8 +471,8 @@
     <div class="modal-overlay" id="note-view-modal">
       <div class="modal-sheet note-screen-sheet">
         <div class="note-topbar">
-          <button type="button" class="note-topbar-btn" id="note-view-close-btn" title="Schließen">‹</button>
-          <button type="button" class="note-topbar-btn admin-only hidden" id="note-view-edit-btn" title="Bearbeiten">✏️</button>
+          <button type="button" class="note-topbar-btn" id="note-view-close-btn" title="Schließen" data-i18n-attr="title:modal.note-view.schliessen">‹</button>
+          <button type="button" class="note-topbar-btn admin-only hidden" id="note-view-edit-btn" title="Bearbeiten" data-i18n-attr="title:modal.note-view.bearbeiten">✏️</button>
         </div>
         <div class="note-screen-body" id="note-view-body">
           <h2 class="note-view-title" id="note-view-title"></h2>
@@ -485,23 +485,23 @@
     <div class="modal-overlay" id="note-edit-modal">
       <div class="modal-sheet note-screen-sheet">
         <div class="note-topbar">
-          <button type="button" class="note-topbar-btn" id="note-edit-back-btn" title="Zurück">‹</button>
+          <button type="button" class="note-topbar-btn" id="note-edit-back-btn" title="Zurück" data-i18n-attr="title:modal.note-edit.zurueck">‹</button>
           <div class="note-photo-btn-wrap">
-            <button type="button" class="note-topbar-btn" id="note-edit-photo-btn" title="Foto hinzufügen/ersetzen">📷</button>
-            <button type="button" class="note-photo-remove-badge hidden" id="note-edit-photo-remove-btn" title="Foto entfernen">✕</button>
+            <button type="button" class="note-topbar-btn" id="note-edit-photo-btn" title="Foto hinzufügen/ersetzen" data-i18n-attr="title:modal.note-edit.foto_hinzufuegen_ersetzen">📷</button>
+            <button type="button" class="note-photo-remove-badge hidden" id="note-edit-photo-remove-btn" title="Foto entfernen" data-i18n-attr="title:modal.note-edit.foto_entfernen">✕</button>
           </div>
         </div>
         <p class="note-edit-status" id="note-edit-status"></p>
         <input type="file" accept="image/*" id="note-edit-photo-input" class="hidden">
-        <input type="text" class="note-edit-title-input" id="note-edit-title" placeholder="Titel">
+        <input type="text" class="note-edit-title-input" id="note-edit-title" placeholder="Titel" data-i18n-attr="placeholder:modal.note-edit.titel">
         <div class="richtext-toolbar" id="note-edit-toolbar">
-          <button type="button" data-cmd="formatBlock" data-value="H2" title="Überschrift">H1</button>
-          <button type="button" data-cmd="formatBlock" data-value="H3" title="Unterüberschrift">H2</button>
-          <button type="button" data-cmd="bold" title="Fett"><b>F</b></button>
-          <button type="button" data-cmd="italic" title="Kursiv"><i>K</i></button>
-          <button type="button" data-cmd="underline" title="Unterstrichen"><u>U</u></button>
-          <button type="button" data-cmd="insertUnorderedList" title="Aufzählung">•</button>
-          <button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste">1.</button>
+          <button type="button" data-cmd="formatBlock" data-value="H2" title="Überschrift" data-i18n-attr="title:modal.note-edit.ueberschrift">H1</button>
+          <button type="button" data-cmd="formatBlock" data-value="H3" title="Unterüberschrift" data-i18n-attr="title:modal.note-edit.unterueberschrift">H2</button>
+          <button type="button" data-cmd="bold" title="Fett" data-i18n-attr="title:modal.note-edit.fett"><b data-i18n="modal.note-edit.f">F</b></button>
+          <button type="button" data-cmd="italic" title="Kursiv" data-i18n-attr="title:modal.note-edit.kursiv"><i data-i18n="modal.note-edit.k">K</i></button>
+          <button type="button" data-cmd="underline" title="Unterstrichen" data-i18n-attr="title:modal.note-edit.unterstrichen"><u data-i18n="modal.note-edit.u">U</u></button>
+          <button type="button" data-cmd="insertUnorderedList" title="Aufzählung" data-i18n-attr="title:modal.note-edit.aufzaehlung">•</button>
+          <button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste" data-i18n-attr="title:modal.note-edit.nummerierte_liste">1.</button>
         </div>
         <div class="richtext-editor note-richtext note-edit-body-box" id="note-edit-body" contenteditable="true"></div>
       </div>
@@ -510,18 +510,18 @@
     <div class="modal-overlay" id="recipe-view-modal">
       <div class="modal-sheet note-screen-sheet">
         <div class="note-topbar">
-          <button type="button" class="note-topbar-btn" id="recipe-view-close-btn" title="Schließen">‹</button>
-          <button type="button" class="note-topbar-btn admin-only hidden" id="recipe-view-edit-btn" title="Bearbeiten">✏️</button>
+          <button type="button" class="note-topbar-btn" id="recipe-view-close-btn" title="Schließen" data-i18n-attr="title:modal.recipe-view.schliessen">‹</button>
+          <button type="button" class="note-topbar-btn admin-only hidden" id="recipe-view-edit-btn" title="Bearbeiten" data-i18n-attr="title:modal.recipe-view.bearbeiten">✏️</button>
         </div>
         <div class="note-screen-body" id="recipe-view-body">
           <h2 class="note-view-title" id="recipe-view-title"></h2>
           <div class="note-view-hero hidden" id="recipe-view-hero"><img id="recipe-view-hero-img" alt=""></div>
           <div class="filter-chip-row recipe-view-tags hidden" id="recipe-view-tags"></div>
           <div class="recipe-view-section hidden" id="recipe-view-ingredients-section">
-            <div class="section-label">Zutaten</div>
+            <div class="section-label" data-i18n="modal.recipe-view.zutaten">Zutaten</div>
             <ul class="recipe-ingredients-list" id="recipe-view-ingredients"></ul>
           </div>
-          <div class="section-label hidden" id="recipe-view-body-label">Zubereitung</div>
+          <div class="section-label hidden" id="recipe-view-body-label" data-i18n="modal.recipe-view.zubereitung">Zubereitung</div>
           <div class="note-view-content note-richtext hidden" id="recipe-view-content"></div>
         </div>
       </div>
@@ -530,28 +530,28 @@
     <div class="modal-overlay" id="recipe-edit-modal">
       <div class="modal-sheet note-screen-sheet">
         <div class="note-topbar">
-          <button type="button" class="note-topbar-btn" id="recipe-edit-back-btn" title="Zurück">‹</button>
+          <button type="button" class="note-topbar-btn" id="recipe-edit-back-btn" title="Zurück" data-i18n-attr="title:modal.recipe-edit.zurueck">‹</button>
           <div class="note-photo-btn-wrap">
-            <button type="button" class="note-topbar-btn" id="recipe-edit-photo-btn" title="Foto hinzufügen/ersetzen">📷</button>
-            <button type="button" class="note-photo-remove-badge hidden" id="recipe-edit-photo-remove-btn" title="Foto entfernen">✕</button>
+            <button type="button" class="note-topbar-btn" id="recipe-edit-photo-btn" title="Foto hinzufügen/ersetzen" data-i18n-attr="title:modal.recipe-edit.foto_hinzufuegen_ersetzen">📷</button>
+            <button type="button" class="note-photo-remove-badge hidden" id="recipe-edit-photo-remove-btn" title="Foto entfernen" data-i18n-attr="title:modal.recipe-edit.foto_entfernen">✕</button>
           </div>
         </div>
         <p class="note-edit-status" id="recipe-edit-status"></p>
         <input type="file" accept="image/*" id="recipe-edit-photo-input" class="hidden">
-        <input type="text" class="note-edit-title-input" id="recipe-edit-title" placeholder="Titel">
-        <input type="text" class="recipe-edit-tags-input" id="recipe-edit-tags" placeholder="Tags, mit Komma getrennt — z.B. Eintopf, Dutch Oven">
-        <div class="section-label">Zutaten</div>
+        <input type="text" class="note-edit-title-input" id="recipe-edit-title" placeholder="Titel" data-i18n-attr="placeholder:modal.recipe-edit.titel">
+        <input type="text" class="recipe-edit-tags-input" id="recipe-edit-tags" placeholder="Tags, mit Komma getrennt — z.B. Eintopf, Dutch Oven" data-i18n-attr="placeholder:modal.recipe-edit.tags_mit_komma_getrennt_z">
+        <div class="section-label" data-i18n="modal.recipe-edit.zutaten">Zutaten</div>
         <div id="recipe-edit-ingredients"></div>
-        <button type="button" class="add-row-btn" id="recipe-edit-add-ingredient-btn">+ Zutat</button>
-        <div class="section-label">Zubereitung</div>
+        <button type="button" class="add-row-btn" id="recipe-edit-add-ingredient-btn" data-i18n="modal.recipe-edit.zutat">+ Zutat</button>
+        <div class="section-label" data-i18n="modal.recipe-edit.zubereitung">Zubereitung</div>
         <div class="richtext-toolbar" id="recipe-edit-toolbar">
-          <button type="button" data-cmd="formatBlock" data-value="H2" title="Überschrift">H1</button>
-          <button type="button" data-cmd="formatBlock" data-value="H3" title="Unterüberschrift">H2</button>
-          <button type="button" data-cmd="bold" title="Fett"><b>F</b></button>
-          <button type="button" data-cmd="italic" title="Kursiv"><i>K</i></button>
-          <button type="button" data-cmd="underline" title="Unterstrichen"><u>U</u></button>
-          <button type="button" data-cmd="insertUnorderedList" title="Aufzählung">•</button>
-          <button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste">1.</button>
+          <button type="button" data-cmd="formatBlock" data-value="H2" title="Überschrift" data-i18n-attr="title:modal.recipe-edit.ueberschrift">H1</button>
+          <button type="button" data-cmd="formatBlock" data-value="H3" title="Unterüberschrift" data-i18n-attr="title:modal.recipe-edit.unterueberschrift">H2</button>
+          <button type="button" data-cmd="bold" title="Fett" data-i18n-attr="title:modal.recipe-edit.fett"><b data-i18n="modal.recipe-edit.f">F</b></button>
+          <button type="button" data-cmd="italic" title="Kursiv" data-i18n-attr="title:modal.recipe-edit.kursiv"><i data-i18n="modal.recipe-edit.k">K</i></button>
+          <button type="button" data-cmd="underline" title="Unterstrichen" data-i18n-attr="title:modal.recipe-edit.unterstrichen"><u data-i18n="modal.recipe-edit.u">U</u></button>
+          <button type="button" data-cmd="insertUnorderedList" title="Aufzählung" data-i18n-attr="title:modal.recipe-edit.aufzaehlung">•</button>
+          <button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste" data-i18n-attr="title:modal.recipe-edit.nummerierte_liste">1.</button>
         </div>
         <div class="richtext-editor note-richtext note-edit-body-box" id="recipe-edit-body" contenteditable="true"></div>
       </div>
@@ -560,16 +560,16 @@
     <div class="modal-overlay" id="dictate-modal">
       <div class="modal-sheet note-screen-sheet dictate-sheet">
         <div class="note-topbar">
-          <button type="button" class="note-topbar-btn" id="dictate-close-btn" title="Schließen">‹</button>
-          <span class="dictate-title">🎙️ Diktieren</span>
+          <button type="button" class="note-topbar-btn" id="dictate-close-btn" title="Schließen" data-i18n-attr="title:modal.dictate.schliessen">‹</button>
+          <span class="dictate-title" data-i18n="modal.dictate.diktieren">🎙️ Diktieren</span>
         </div>
         <div class="dictate-chat" id="dictate-chat"></div>
         <div class="dictate-live hidden" id="dictate-live"></div>
         <div class="dictate-controls">
-          <p class="dictate-hint" id="dictate-hint">Zum Sprechen tippen</p>
+          <p class="dictate-hint" id="dictate-hint" data-i18n="modal.dictate.zum_sprechen_tippen">Zum Sprechen tippen</p>
           <div class="dictate-controls-buttons">
-            <button type="button" class="dictate-camera-btn" id="dictate-camera-btn" title="Foto aufnehmen">📷</button>
-            <button type="button" class="dictate-mic-btn" id="dictate-mic-btn" title="Aufnehmen">🎙️</button>
+            <button type="button" class="dictate-camera-btn" id="dictate-camera-btn" title="Foto aufnehmen" data-i18n-attr="title:modal.dictate.foto_aufnehmen">📷</button>
+            <button type="button" class="dictate-mic-btn" id="dictate-mic-btn" title="Aufnehmen" data-i18n-attr="title:modal.dictate.aufnehmen">🎙️</button>
           </div>
         </div>
         <!-- No accept="image/*" on purpose: Android/Chrome shows a
@@ -584,65 +584,65 @@
 
     <div class="modal-overlay" id="dictate-edit-modal">
       <div class="modal-sheet dictate-edit-sheet modal-body-padded">
-        <div class="modal-title" id="dictate-edit-title">Charge bearbeiten</div>
+        <div class="modal-title" id="dictate-edit-title" data-i18n="modal.dictate-edit.charge_bearbeiten">Charge bearbeiten</div>
 
         <div class="dictate-edit-taxonomy-row">
           <div class="form-group dictate-in-only">
-            <label>Typ</label>
+            <label data-i18n="modal.dictate-edit.typ">Typ</label>
             <select id="dictate-edit-type-select"></select>
           </div>
           <div class="form-group dictate-in-only">
-            <label>Kategorie</label>
+            <label data-i18n="modal.dictate-edit.kategorie">Kategorie</label>
             <select id="dictate-edit-category-select"></select>
           </div>
           <div class="form-group dictate-in-only" id="dictate-edit-subcategory-group">
-            <label>Unterkategorie</label>
+            <label data-i18n="modal.dictate-edit.unterkategorie">Unterkategorie</label>
             <select id="dictate-edit-subcategory-select"></select>
           </div>
         </div>
 
         <div class="form-group dictate-in-only">
-          <label>Produktname</label>
-          <input type="text" id="dictate-edit-name" placeholder="z.B. Bohnen weiß">
+          <label data-i18n="modal.dictate-edit.produktname">Produktname</label>
+          <input type="text" id="dictate-edit-name" placeholder="z.B. Bohnen weiß" data-i18n-attr="placeholder:modal.dictate-edit.z_b_bohnen_weiss">
         </div>
         <div class="form-group dictate-in-only">
-          <label>Einheit</label>
+          <label data-i18n="modal.dictate-edit.einheit">Einheit</label>
           <div class="unit-toggle" id="dictate-edit-unit-toggle">
-            <button class="unit-btn active" data-unit="kg" type="button">Gramm / Milliliter</button>
-            <button class="unit-btn" data-unit="stueck" type="button">Stück</button>
+            <button class="unit-btn active" data-unit="kg" type="button" data-i18n="modal.dictate-edit.gramm_milliliter">Gramm / Milliliter</button>
+            <button class="unit-btn" data-unit="stueck" type="button" data-i18n="modal.dictate-edit.stueck">Stück</button>
           </div>
         </div>
         <div class="form-group dictate-out-only" id="dictate-edit-batch-group">
-          <label>Charge</label>
+          <label data-i18n="modal.dictate-edit.charge">Charge</label>
           <select id="dictate-edit-batch-select"></select>
         </div>
         <div class="form-group">
-          <label id="dictate-edit-qty-label">Menge</label>
+          <label id="dictate-edit-qty-label" data-i18n="modal.dictate-edit.menge">Menge</label>
           <div class="qty-stepper">
             <button id="dictate-edit-qty-minus" type="button">−</button>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" class="qty-num" id="dictate-edit-qty-num" value="1" aria-label="Menge">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" class="qty-num" id="dictate-edit-qty-num" value="1" aria-label="Menge" data-i18n-attr="aria-label:modal.dictate-edit.menge">
             <button id="dictate-edit-qty-plus" type="button">+</button>
           </div>
         </div>
         <div class="form-group dictate-in-only">
-          <label>Details (optional)</label>
-          <input type="text" id="dictate-edit-details" placeholder="z.B. Dose, Glas">
+          <label data-i18n="modal.dictate-edit.details_optional">Details (optional)</label>
+          <input type="text" id="dictate-edit-details" placeholder="z.B. Dose, Glas" data-i18n-attr="placeholder:modal.dictate-edit.z_b_dose_glas">
         </div>
         <div class="form-group dictate-in-only" id="dictate-edit-content-group">
-          <label>Inhalt (z.B. 500g, 800ml)</label>
+          <label data-i18n="modal.dictate-edit.inhalt_z_b_500g_800ml">Inhalt (z.B. 500g, 800ml)</label>
           <input type="text" id="dictate-edit-content" placeholder="500g">
         </div>
         <div class="form-group dictate-in-only">
-          <label>Mindesthaltbarkeit</label>
+          <label data-i18n="modal.dictate-edit.mindesthaltbarkeit">Mindesthaltbarkeit</label>
           <input type="month" id="dictate-edit-bestbefore-input">
         </div>
         <div class="form-group dictate-in-only">
-          <label>Lagerort</label>
+          <label data-i18n="modal.dictate-edit.lagerort">Lagerort</label>
           <select id="dictate-edit-storage-select"></select>
         </div>
 
         <div class="modal-actions">
-          <button class="modal-confirm" id="dictate-edit-apply-btn" type="button">Übernehmen</button>
+          <button class="modal-confirm" id="dictate-edit-apply-btn" type="button" data-i18n="modal.dictate-edit.uebernehmen">Übernehmen</button>
         </div>
       </div>
     </div>
@@ -651,42 +651,42 @@
       <div id="settings-main">
         <div class="settings-card" data-target="data">
           <span class="sym">🗂️</span>
-          <div class="sc-text"><div class="sc-title">Einrichten</div><div class="sc-sub">Kategorien, Lagerorte, Farben</div></div>
+          <div class="sc-text"><div class="sc-title" data-i18n="settings.einrichten">Einrichten</div><div class="sc-sub" data-i18n="settings.kategorien_lagerorte_farben">Kategorien, Lagerorte, Farben</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="stocktable">
           <span class="sym">📋</span>
-          <div class="sc-text"><div class="sc-title">Bestandsliste</div><div class="sc-sub">Alle Chargen, Filter, Bearbeiten</div></div>
+          <div class="sc-text"><div class="sc-title" data-i18n="settings.bestandsliste">Bestandsliste</div><div class="sc-sub" data-i18n="settings.alle_chargen_filter_bearbeiten">Alle Chargen, Filter, Bearbeiten</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="log">
           <span class="sym">🕒</span>
-          <div class="sc-text"><div class="sc-title">Verlauf</div><div class="sc-sub">Letzte Ein-/Auslagerungen</div></div>
+          <div class="sc-text"><div class="sc-title" data-i18n="settings.verlauf">Verlauf</div><div class="sc-sub" data-i18n="settings.letzte_ein_auslagerungen">Letzte Ein-/Auslagerungen</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="people">
           <span class="sym">👥</span>
-          <div class="sc-text"><div class="sc-title">Personen</div><div class="sc-sub">Rollen der Familie verwalten</div></div>
+          <div class="sc-text"><div class="sc-title" data-i18n="settings.personen">Personen</div><div class="sc-sub" data-i18n="settings.rollen_der_familie_verwalten">Rollen der Familie verwalten</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="notifications">
           <span class="sym">🔔</span>
-          <div class="sc-text"><div class="sc-title">Erinnerungen &amp; Verbindung</div><div class="sc-sub">Checklisten-Erinnerungen, Funkstille &amp; Sync</div></div>
+          <div class="sc-text"><div class="sc-title" data-i18n="settings.erinnerungen_verbindung">Erinnerungen &amp; Verbindung</div><div class="sc-sub" data-i18n="settings.checklisten_erinnerungen_funkstille_sync">Checklisten-Erinnerungen, Funkstille &amp; Sync</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="planning">
           <span class="sym">🧮</span>
-          <div class="sc-text"><div class="sc-title">Planung</div><div class="sc-sub">Haushalt, Autonomie &amp; Makros</div></div>
+          <div class="sc-text"><div class="sc-title" data-i18n="settings.planung">Planung</div><div class="sc-sub" data-i18n="settings.haushalt_autonomie_makros">Haushalt, Autonomie &amp; Makros</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="targets">
           <span class="sym">🎯</span>
-          <div class="sc-text"><div class="sc-title">Ziele</div><div class="sc-sub">Zielmengen je Kategorie/Produkt</div></div>
+          <div class="sc-text"><div class="sc-title" data-i18n="settings.ziele">Ziele</div><div class="sc-sub" data-i18n="settings.zielmengen_je_kategorie_produkt">Zielmengen je Kategorie/Produkt</div></div>
           <span class="chev">›</span>
         </div>
         <div class="settings-card" data-target="export">
           <span class="sym">🔄</span>
-          <div class="sc-text"><div class="sc-title">Sicherung</div><div class="sc-sub">Export, Wiederherstellung &amp; PDF</div></div>
+          <div class="sc-text"><div class="sc-title" data-i18n="settings.sicherung">Sicherung</div><div class="sc-sub" data-i18n="settings.export_wiederherstellung_pdf">Export, Wiederherstellung &amp; PDF</div></div>
           <span class="chev">›</span>
         </div>
       </div>
@@ -694,34 +694,34 @@
       <div class="settings-panel hidden" id="settings-panel-data">
         <div class="sticky-panel-header">
           <div class="panel-header-row">
-            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
+            <button class="panel-back-btn" data-back type="button" data-i18n="settings.data.zurueck">‹ Zurück</button>
           </div>
           <div class="segmented">
-            <button class="seg-btn active" data-data-tab="taxonomy">Taxonomie</button>
-            <button class="seg-btn" data-data-tab="storage">Lagerorte</button>
-            <button class="seg-btn" data-data-tab="colors">Jahresfarben</button>
+            <button class="seg-btn active" data-data-tab="taxonomy" data-i18n="settings.data.taxonomie">Taxonomie</button>
+            <button class="seg-btn" data-data-tab="storage" data-i18n="settings.data.lagerorte">Lagerorte</button>
+            <button class="seg-btn" data-data-tab="colors" data-i18n="settings.data.jahresfarben">Jahresfarben</button>
           </div>
         </div>
 
         <div class="data-tab" data-data-tab-panel="taxonomy">
           <div class="tax-expand-row">
-            <button class="select-mode-btn" id="expand-all-btn" type="button">Alle aufklappen</button>
-            <button class="select-mode-btn" id="collapse-all-btn" type="button">Alle einklappen</button>
+            <button class="select-mode-btn" id="expand-all-btn" type="button" data-i18n="settings.data.alle_aufklappen">Alle aufklappen</button>
+            <button class="select-mode-btn" id="collapse-all-btn" type="button" data-i18n="settings.data.alle_einklappen">Alle einklappen</button>
           </div>
           <div id="taxonomy-editor"></div>
-          <button type="button" class="fab" id="add-type-btn" title="Neuer Typ">+</button>
+          <button type="button" class="fab" id="add-type-btn" title="Neuer Typ" data-i18n-attr="title:settings.data.neuer_typ">+</button>
           <p id="taxonomy-status" class="taxonomy-status"></p>
         </div>
 
         <div class="data-tab hidden" data-data-tab-panel="storage">
           <div id="storage-list"></div>
-          <button type="button" class="fab" id="add-storage-btn" title="Lagerort hinzufügen">+</button>
+          <button type="button" class="fab" id="add-storage-btn" title="Lagerort hinzufügen" data-i18n-attr="title:settings.data.lagerort_hinzufuegen">+</button>
           <p id="storage-status" class="taxonomy-status"></p>
         </div>
 
         <div class="data-tab hidden" data-data-tab-panel="colors">
           <div id="year-color-list"></div>
-          <button type="button" class="fab" id="add-year-btn" title="Jahr hinzufügen">+</button>
+          <button type="button" class="fab" id="add-year-btn" title="Jahr hinzufügen" data-i18n-attr="title:settings.data.jahr_hinzufuegen">+</button>
           <p id="year-color-status" class="taxonomy-status"></p>
         </div>
       </div>
@@ -729,18 +729,18 @@
       <div class="settings-panel hidden" id="settings-panel-stocktable">
         <div class="sticky-panel-header">
           <div class="panel-header-row">
-            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
+            <button class="panel-back-btn" data-back type="button" data-i18n="settings.stocktable.zurueck">‹ Zurück</button>
             <div class="panel-header-actions">
-              <button class="select-mode-btn" id="table-select-mode-btn" type="button">Auswählen</button>
+              <button class="select-mode-btn" id="table-select-mode-btn" type="button" data-i18n="settings.stocktable.auswaehlen">Auswählen</button>
             </div>
           </div>
         </div>
 
-        <button type="button" class="fab" id="table-add-btn" title="Hinzufügen">+</button>
+        <button type="button" class="fab" id="table-add-btn" title="Hinzufügen" data-i18n-attr="title:settings.stocktable.hinzufuegen">+</button>
 
         <div class="stocktable-layout">
           <div class="stocktable-list-col">
-            <div class="search-bar"><span>🔍</span><input placeholder="Suchen…" id="table-search-input"></div>
+            <div class="search-bar"><span>🔍</span><input placeholder="Suchen…" id="table-search-input" data-i18n-attr="placeholder:settings.stocktable.suchen"></div>
 
             <div class="subcat-filter-banner hidden" id="table-subcat-filter-banner">
               <span id="table-subcat-filter-label"></span>
@@ -748,31 +748,31 @@
             </div>
 
             <div class="stocktable-filter-bar">
-              <button type="button" class="select-mode-btn" id="table-filters-toggle-btn">Filter</button>
-              <button type="button" class="select-mode-btn" id="table-filters-reset-btn">Zurücksetzen</button>
+              <button type="button" class="select-mode-btn" id="table-filters-toggle-btn" data-i18n="settings.stocktable.filter">Filter</button>
+              <button type="button" class="select-mode-btn" id="table-filters-reset-btn" data-i18n="settings.stocktable.zuruecksetzen">Zurücksetzen</button>
             </div>
 
             <div class="filters-sidebar" id="table-filters-panel">
               <div class="filters-sidebar-header">
-                <div class="modal-title">Filter</div>
+                <div class="modal-title" data-i18n="settings.stocktable.filter">Filter</div>
               </div>
               <div class="filter-section">
-                <div class="filter-label">Typ</div>
+                <div class="filter-label" data-i18n="settings.stocktable.typ">Typ</div>
                 <div class="filter-chip-row" id="table-type-filters"></div>
               </div>
               <div class="filter-section">
-                <div class="filter-label">Kategorie</div>
+                <div class="filter-label" data-i18n="settings.stocktable.kategorie">Kategorie</div>
                 <div class="filter-chip-row" id="table-category-filters"></div>
               </div>
               <div class="filter-section">
-                <div class="filter-label">Unterkategorie</div>
+                <div class="filter-label" data-i18n="settings.stocktable.unterkategorie">Unterkategorie</div>
                 <div class="filter-chip-row" id="table-subcategory-filters"></div>
               </div>
               <div class="filter-section">
-                <div class="filter-label">Lagerort</div>
+                <div class="filter-label" data-i18n="settings.stocktable.lagerort">Lagerort</div>
                 <div class="filter-chip-row" id="table-storage-filters"></div>
               </div>
-              <button type="button" class="confirm-btn" id="table-filters-apply-btn">Anwenden</button>
+              <button type="button" class="confirm-btn" id="table-filters-apply-btn" data-i18n="settings.stocktable.anwenden">Anwenden</button>
             </div>
 
             <div class="sort-bar" id="table-sort-bar"></div>
@@ -780,10 +780,10 @@
             <div class="product-list" id="table-row-list"></div>
 
             <div class="bulk-bar hidden" id="table-bulk-bar">
-              <span id="table-bulk-count">0 ausgewählt</span>
+              <span id="table-bulk-count" data-i18n="settings.stocktable.0_ausgewaehlt">0 ausgewählt</span>
               <div class="bulk-bar-actions">
-                <button id="table-bulk-cancel-btn" type="button">Abbrechen</button>
-                <button id="table-bulk-delete-btn" class="danger-btn" type="button">Löschen</button>
+                <button id="table-bulk-cancel-btn" type="button" data-i18n="settings.stocktable.abbrechen">Abbrechen</button>
+                <button id="table-bulk-delete-btn" class="danger-btn" type="button" data-i18n="settings.stocktable.loeschen">Löschen</button>
               </div>
             </div>
           </div>
@@ -791,51 +791,51 @@
           <div class="stocktable-detail-col">
             <div class="modal-overlay" id="table-edit-modal">
               <div class="modal-sheet modal-body-padded">
-                <p class="screen-placeholder" id="table-edit-empty">Eintrag auswählen, um Details zu bearbeiten.</p>
+                <p class="screen-placeholder" id="table-edit-empty" data-i18n="modal.table-edit.eintrag_auswaehlen_um_details_zu">Eintrag auswählen, um Details zu bearbeiten.</p>
                 <div id="table-edit-form" class="hidden">
-                  <div class="modal-title" id="table-edit-title">Bestand bearbeiten</div>
+                  <div class="modal-title" id="table-edit-title" data-i18n="modal.table-edit.bestand_bearbeiten">Bestand bearbeiten</div>
                   <div class="form-group">
-                    <label>Produktname</label>
+                    <label data-i18n="modal.table-edit.produktname">Produktname</label>
                     <input type="text" id="table-edit-name">
-                    <p class="settings-note">Gilt für alle Chargen dieses Produkts.</p>
+                    <p class="settings-note" data-i18n="modal.table-edit.gilt_fuer_alle_chargen_dieses">Gilt für alle Chargen dieses Produkts.</p>
                   </div>
                   <div class="form-group">
-                    <label>Kategorie / Unterkategorie</label>
+                    <label data-i18n="modal.table-edit.kategorie_unterkategorie">Kategorie / Unterkategorie</label>
                     <select id="table-edit-subcategory"></select>
-                    <p class="settings-note">Gilt für alle Chargen dieses Produkts und einen evtl. verknüpften Ziele-Zielwert.</p>
+                    <p class="settings-note" data-i18n="modal.table-edit.gilt_fuer_alle_chargen_dieses_2">Gilt für alle Chargen dieses Produkts und einen evtl. verknüpften Ziele-Zielwert.</p>
                   </div>
-                  <p class="settings-note hidden" id="table-edit-no-stock-note">Kein Bestand vorhanden — Menge, Details und Mindesthaltbarkeit gibt es erst nach dem Einlagern.</p>
+                  <p class="settings-note hidden" id="table-edit-no-stock-note" data-i18n="modal.table-edit.kein_bestand_vorhanden_menge_details">Kein Bestand vorhanden — Menge, Details und Mindesthaltbarkeit gibt es erst nach dem Einlagern.</p>
                   <div id="table-edit-batch-fields">
                     <div class="form-group">
-                      <label>Menge</label>
+                      <label data-i18n="modal.table-edit.menge">Menge</label>
                       <div class="qty-stepper">
                         <button id="table-edit-qty-minus" type="button">−</button>
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="qty-num" id="table-edit-qty-num" value="1" aria-label="Menge">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="qty-num" id="table-edit-qty-num" value="1" aria-label="Menge" data-i18n-attr="aria-label:modal.table-edit.menge">
                         <button id="table-edit-qty-plus" type="button">+</button>
                       </div>
                     </div>
                     <div class="form-group">
-                      <label>Details</label>
+                      <label data-i18n="modal.table-edit.details">Details</label>
                       <input type="text" id="table-edit-details">
                     </div>
                     <div class="form-group" id="table-edit-content-group">
-                      <label>Inhalt</label>
+                      <label data-i18n="modal.table-edit.inhalt">Inhalt</label>
                       <input type="text" id="table-edit-content">
                     </div>
                     <div class="form-group">
-                      <label>Mindesthaltbarkeit (MM/JJJJ)</label>
+                      <label data-i18n="modal.table-edit.mindesthaltbarkeit_mm_jjjj">Mindesthaltbarkeit (MM/JJJJ)</label>
                       <div class="date-display" id="table-edit-bestbefore-display">
-                        <input type="text" id="table-edit-bestbefore-input" placeholder="MM/JJJJ" readonly style="pointer-events:none;">
+                        <input type="text" id="table-edit-bestbefore-input" placeholder="MM/JJJJ" readonly style="pointer-events:none;" data-i18n-attr="placeholder:modal.table-edit.mm_jjjj">
                       </div>
                     </div>
                     <div class="form-group">
-                      <label>Lagerort</label>
+                      <label data-i18n="modal.table-edit.lagerort">Lagerort</label>
                       <select id="table-edit-storage"></select>
                     </div>
                   </div>
                   <div class="modal-actions table-edit-actions">
-                    <button class="confirm-btn" id="table-edit-save-btn">Speichern</button>
-                    <button class="danger-btn" id="table-edit-delete-btn">Löschen</button>
+                    <button class="confirm-btn" id="table-edit-save-btn" data-i18n="modal.table-edit.speichern">Speichern</button>
+                    <button class="danger-btn" id="table-edit-delete-btn" data-i18n="modal.table-edit.loeschen">Löschen</button>
                   </div>
                 </div>
               </div>
@@ -845,7 +845,7 @@
 
         <div class="modal-overlay" id="table-date-modal">
           <div class="modal-sheet">
-            <div class="modal-title">Mindesthaltbarkeit wählen</div>
+            <div class="modal-title" data-i18n="modal.table-date.mindesthaltbarkeit_waehlen">Mindesthaltbarkeit wählen</div>
             <div class="picker-row">
               <div class="picker-year-group">
                 <div class="picker-col" id="table-year-col-a"></div>
@@ -854,7 +854,7 @@
               <div class="picker-col" id="table-month-col"></div>
             </div>
             <div class="modal-actions">
-              <button class="modal-confirm" id="table-date-modal-confirm" disabled>Übernehmen</button>
+              <button class="modal-confirm" id="table-date-modal-confirm" disabled data-i18n="modal.table-date.uebernehmen">Übernehmen</button>
             </div>
           </div>
         </div>
@@ -863,9 +863,9 @@
       <div class="settings-panel hidden" id="settings-panel-log">
         <div class="sticky-panel-header">
           <div class="panel-header-row">
-            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
+            <button class="panel-back-btn" data-back type="button" data-i18n="settings.log.zurueck">‹ Zurück</button>
             <div class="panel-header-actions">
-              <button class="select-mode-btn danger-btn" id="log-clear-btn" type="button">Verlauf löschen</button>
+              <button class="select-mode-btn danger-btn" id="log-clear-btn" type="button" data-i18n="settings.log.verlauf_loeschen">Verlauf löschen</button>
             </div>
           </div>
         </div>
@@ -875,207 +875,207 @@
       <div class="settings-panel hidden" id="settings-panel-people">
         <div class="sticky-panel-header">
           <div class="panel-header-row">
-            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
+            <button class="panel-back-btn" data-back type="button" data-i18n="settings.people.zurueck">‹ Zurück</button>
           </div>
         </div>
         <div class="product-list" id="people-list"></div>
-        <p class="settings-note">Personen erscheinen hier automatisch nach der ersten Anmeldung — es gibt keine Einladung per E-Mail.</p>
+        <p class="settings-note" data-i18n="settings.people.personen_erscheinen_hier_automatisch_nach">Personen erscheinen hier automatisch nach der ersten Anmeldung — es gibt keine Einladung per E-Mail.</p>
       </div>
 
       <div class="settings-panel hidden" id="settings-panel-notifications">
         <div class="sticky-panel-header">
           <div class="panel-header-row">
-            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
+            <button class="panel-back-btn" data-back type="button" data-i18n="settings.notifications.zurueck">‹ Zurück</button>
           </div>
           <div class="segmented">
-            <button class="seg-btn active" data-reminders-tab="notifications">Erinnerungen</button>
-            <button class="seg-btn" data-reminders-tab="verbindung">Verbindung</button>
+            <button class="seg-btn active" data-reminders-tab="notifications" data-i18n="settings.notifications.erinnerungen">Erinnerungen</button>
+            <button class="seg-btn" data-reminders-tab="verbindung" data-i18n="settings.notifications.verbindung">Verbindung</button>
           </div>
         </div>
 
         <div class="reminders-tab" data-reminders-tab-panel="notifications">
         <div class="tax-planning-toggle" id="notif-enabled-row">
           <input type="checkbox" id="notif-enabled-toggle" checked>
-          <label for="notif-enabled-toggle">Erinnerungen aktiviert</label>
+          <label for="notif-enabled-toggle" data-i18n="settings.notifications.erinnerungen_aktiviert">Erinnerungen aktiviert</label>
         </div>
 
         <div id="notif-body">
-        <div class="section-label">Checklisten</div>
-        <p class="settings-note">Legt fest, an welchem Tag jede Checklisten-Häufigkeit zurückgesetzt wird und wann die Erinnerung dafür verschickt wird — eine Push-Benachrichtigung pro Zeitraum (nicht pro Eintrag), die erneut erinnert, bis entweder alles erledigt oder der Zeitraum in der Wartungs-Ansicht manuell als erledigt markiert ist.</p>
+        <div class="section-label" data-i18n="settings.notifications.checklisten">Checklisten</div>
+        <p class="settings-note" data-i18n="settings.notifications.legt_fest_an_welchem_tag">Legt fest, an welchem Tag jede Checklisten-Häufigkeit zurückgesetzt wird und wann die Erinnerung dafür verschickt wird — eine Push-Benachrichtigung pro Zeitraum (nicht pro Eintrag), die erneut erinnert, bis entweder alles erledigt oder der Zeitraum in der Wartungs-Ansicht manuell als erledigt markiert ist.</p>
 
-        <div class="form-group notif-freq-heading"><label>Wöchentlich</label></div>
+        <div class="form-group notif-freq-heading"><label data-i18n="settings.notifications.woechentlich">Wöchentlich</label></div>
         <div class="tax-planning-row">
           <div class="tax-planning-field">
-            <label>Wochentag</label>
+            <label data-i18n="settings.notifications.wochentag">Wochentag</label>
             <select id="notif-weekly-weekday">
-              <option value="1">Montag</option>
-              <option value="2">Dienstag</option>
-              <option value="3">Mittwoch</option>
-              <option value="4">Donnerstag</option>
-              <option value="5">Freitag</option>
-              <option value="6">Samstag</option>
-              <option value="7">Sonntag</option>
+              <option value="1" data-i18n="settings.notifications.montag">Montag</option>
+              <option value="2" data-i18n="settings.notifications.dienstag">Dienstag</option>
+              <option value="3" data-i18n="settings.notifications.mittwoch">Mittwoch</option>
+              <option value="4" data-i18n="settings.notifications.donnerstag">Donnerstag</option>
+              <option value="5" data-i18n="settings.notifications.freitag">Freitag</option>
+              <option value="6" data-i18n="settings.notifications.samstag">Samstag</option>
+              <option value="7" data-i18n="settings.notifications.sonntag">Sonntag</option>
             </select>
           </div>
         </div>
 
-        <div class="form-group notif-freq-heading"><label>Monatlich</label></div>
+        <div class="form-group notif-freq-heading"><label data-i18n="settings.notifications.monatlich">Monatlich</label></div>
         <div class="tax-planning-row">
           <div class="tax-planning-field">
-            <label>Woche</label>
+            <label data-i18n="settings.notifications.woche">Woche</label>
             <select id="notif-monthly-week">
-              <option value="1">1. Woche</option>
-              <option value="2">2. Woche</option>
-              <option value="3">3. Woche</option>
-              <option value="4">4. Woche</option>
+              <option value="1" data-i18n="settings.notifications.1_woche">1. Woche</option>
+              <option value="2" data-i18n="settings.notifications.2_woche">2. Woche</option>
+              <option value="3" data-i18n="settings.notifications.3_woche">3. Woche</option>
+              <option value="4" data-i18n="settings.notifications.4_woche">4. Woche</option>
             </select>
           </div>
           <div class="tax-planning-field">
-            <label>Wochentag</label>
+            <label data-i18n="settings.notifications.wochentag">Wochentag</label>
             <select id="notif-monthly-weekday">
-              <option value="1">Montag</option>
-              <option value="2">Dienstag</option>
-              <option value="3">Mittwoch</option>
-              <option value="4">Donnerstag</option>
-              <option value="5">Freitag</option>
-              <option value="6">Samstag</option>
-              <option value="7">Sonntag</option>
+              <option value="1" data-i18n="settings.notifications.montag">Montag</option>
+              <option value="2" data-i18n="settings.notifications.dienstag">Dienstag</option>
+              <option value="3" data-i18n="settings.notifications.mittwoch">Mittwoch</option>
+              <option value="4" data-i18n="settings.notifications.donnerstag">Donnerstag</option>
+              <option value="5" data-i18n="settings.notifications.freitag">Freitag</option>
+              <option value="6" data-i18n="settings.notifications.samstag">Samstag</option>
+              <option value="7" data-i18n="settings.notifications.sonntag">Sonntag</option>
             </select>
           </div>
         </div>
 
-        <div class="form-group notif-freq-heading"><label>Vierteljährlich</label></div>
+        <div class="form-group notif-freq-heading"><label data-i18n="settings.notifications.vierteljaehrlich">Vierteljährlich</label></div>
         <div class="tax-planning-row">
           <div class="tax-planning-field">
-            <label>Startmonat</label>
+            <label data-i18n="settings.notifications.startmonat">Startmonat</label>
             <select id="notif-quarterly-month">
-              <option value="1">Januar</option>
-              <option value="2">Februar</option>
-              <option value="3">März</option>
-              <option value="4">April</option>
-              <option value="5">Mai</option>
-              <option value="6">Juni</option>
-              <option value="7">Juli</option>
-              <option value="8">August</option>
-              <option value="9">September</option>
-              <option value="10">Oktober</option>
-              <option value="11">November</option>
-              <option value="12">Dezember</option>
+              <option value="1" data-i18n="settings.notifications.januar">Januar</option>
+              <option value="2" data-i18n="settings.notifications.februar">Februar</option>
+              <option value="3" data-i18n="settings.notifications.maerz">März</option>
+              <option value="4" data-i18n="settings.notifications.april">April</option>
+              <option value="5" data-i18n="settings.notifications.mai">Mai</option>
+              <option value="6" data-i18n="settings.notifications.juni">Juni</option>
+              <option value="7" data-i18n="settings.notifications.juli">Juli</option>
+              <option value="8" data-i18n="settings.notifications.august">August</option>
+              <option value="9" data-i18n="settings.notifications.september">September</option>
+              <option value="10" data-i18n="settings.notifications.oktober">Oktober</option>
+              <option value="11" data-i18n="settings.notifications.november">November</option>
+              <option value="12" data-i18n="settings.notifications.dezember">Dezember</option>
             </select>
           </div>
           <div class="tax-planning-field">
-            <label>Woche</label>
+            <label data-i18n="settings.notifications.woche">Woche</label>
             <select id="notif-quarterly-week">
-              <option value="1">1. Woche</option>
-              <option value="2">2. Woche</option>
-              <option value="3">3. Woche</option>
-              <option value="4">4. Woche</option>
+              <option value="1" data-i18n="settings.notifications.1_woche">1. Woche</option>
+              <option value="2" data-i18n="settings.notifications.2_woche">2. Woche</option>
+              <option value="3" data-i18n="settings.notifications.3_woche">3. Woche</option>
+              <option value="4" data-i18n="settings.notifications.4_woche">4. Woche</option>
             </select>
           </div>
           <div class="tax-planning-field">
-            <label>Wochentag</label>
+            <label data-i18n="settings.notifications.wochentag">Wochentag</label>
             <select id="notif-quarterly-weekday">
-              <option value="1">Montag</option>
-              <option value="2">Dienstag</option>
-              <option value="3">Mittwoch</option>
-              <option value="4">Donnerstag</option>
-              <option value="5">Freitag</option>
-              <option value="6">Samstag</option>
-              <option value="7">Sonntag</option>
+              <option value="1" data-i18n="settings.notifications.montag">Montag</option>
+              <option value="2" data-i18n="settings.notifications.dienstag">Dienstag</option>
+              <option value="3" data-i18n="settings.notifications.mittwoch">Mittwoch</option>
+              <option value="4" data-i18n="settings.notifications.donnerstag">Donnerstag</option>
+              <option value="5" data-i18n="settings.notifications.freitag">Freitag</option>
+              <option value="6" data-i18n="settings.notifications.samstag">Samstag</option>
+              <option value="7" data-i18n="settings.notifications.sonntag">Sonntag</option>
             </select>
           </div>
         </div>
-        <p class="settings-note">Feuert alle 3 Monate ab dem Startmonat, z. B. Startmonat Januar → Januar, April, Juli, Oktober.</p>
+        <p class="settings-note" data-i18n="settings.notifications.feuert_alle_3_monate_ab">Feuert alle 3 Monate ab dem Startmonat, z. B. Startmonat Januar → Januar, April, Juli, Oktober.</p>
 
-        <div class="form-group notif-freq-heading"><label>Halbjährlich</label></div>
+        <div class="form-group notif-freq-heading"><label data-i18n="settings.notifications.halbjaehrlich">Halbjährlich</label></div>
         <div class="tax-planning-row">
           <div class="tax-planning-field">
-            <label>Startmonat</label>
+            <label data-i18n="settings.notifications.startmonat">Startmonat</label>
             <select id="notif-halfyearly-month">
-              <option value="1">Januar</option>
-              <option value="2">Februar</option>
-              <option value="3">März</option>
-              <option value="4">April</option>
-              <option value="5">Mai</option>
-              <option value="6">Juni</option>
-              <option value="7">Juli</option>
-              <option value="8">August</option>
-              <option value="9">September</option>
-              <option value="10">Oktober</option>
-              <option value="11">November</option>
-              <option value="12">Dezember</option>
+              <option value="1" data-i18n="settings.notifications.januar">Januar</option>
+              <option value="2" data-i18n="settings.notifications.februar">Februar</option>
+              <option value="3" data-i18n="settings.notifications.maerz">März</option>
+              <option value="4" data-i18n="settings.notifications.april">April</option>
+              <option value="5" data-i18n="settings.notifications.mai">Mai</option>
+              <option value="6" data-i18n="settings.notifications.juni">Juni</option>
+              <option value="7" data-i18n="settings.notifications.juli">Juli</option>
+              <option value="8" data-i18n="settings.notifications.august">August</option>
+              <option value="9" data-i18n="settings.notifications.september">September</option>
+              <option value="10" data-i18n="settings.notifications.oktober">Oktober</option>
+              <option value="11" data-i18n="settings.notifications.november">November</option>
+              <option value="12" data-i18n="settings.notifications.dezember">Dezember</option>
             </select>
           </div>
           <div class="tax-planning-field">
-            <label>Woche</label>
+            <label data-i18n="settings.notifications.woche">Woche</label>
             <select id="notif-halfyearly-week">
-              <option value="1">1. Woche</option>
-              <option value="2">2. Woche</option>
-              <option value="3">3. Woche</option>
-              <option value="4">4. Woche</option>
+              <option value="1" data-i18n="settings.notifications.1_woche">1. Woche</option>
+              <option value="2" data-i18n="settings.notifications.2_woche">2. Woche</option>
+              <option value="3" data-i18n="settings.notifications.3_woche">3. Woche</option>
+              <option value="4" data-i18n="settings.notifications.4_woche">4. Woche</option>
             </select>
           </div>
           <div class="tax-planning-field">
-            <label>Wochentag</label>
+            <label data-i18n="settings.notifications.wochentag">Wochentag</label>
             <select id="notif-halfyearly-weekday">
-              <option value="1">Montag</option>
-              <option value="2">Dienstag</option>
-              <option value="3">Mittwoch</option>
-              <option value="4">Donnerstag</option>
-              <option value="5">Freitag</option>
-              <option value="6">Samstag</option>
-              <option value="7">Sonntag</option>
+              <option value="1" data-i18n="settings.notifications.montag">Montag</option>
+              <option value="2" data-i18n="settings.notifications.dienstag">Dienstag</option>
+              <option value="3" data-i18n="settings.notifications.mittwoch">Mittwoch</option>
+              <option value="4" data-i18n="settings.notifications.donnerstag">Donnerstag</option>
+              <option value="5" data-i18n="settings.notifications.freitag">Freitag</option>
+              <option value="6" data-i18n="settings.notifications.samstag">Samstag</option>
+              <option value="7" data-i18n="settings.notifications.sonntag">Sonntag</option>
             </select>
           </div>
         </div>
-        <p class="settings-note">Feuert alle 6 Monate ab dem Startmonat, z. B. Startmonat März → März, September.</p>
+        <p class="settings-note" data-i18n="settings.notifications.feuert_alle_6_monate_ab">Feuert alle 6 Monate ab dem Startmonat, z. B. Startmonat März → März, September.</p>
 
-        <div class="form-group notif-freq-heading"><label>Jährlich</label></div>
+        <div class="form-group notif-freq-heading"><label data-i18n="settings.notifications.jaehrlich">Jährlich</label></div>
         <div class="tax-planning-row">
           <div class="tax-planning-field">
-            <label>Monat</label>
+            <label data-i18n="settings.notifications.monat">Monat</label>
             <select id="notif-yearly-month">
-              <option value="1">Januar</option>
-              <option value="2">Februar</option>
-              <option value="3">März</option>
-              <option value="4">April</option>
-              <option value="5">Mai</option>
-              <option value="6">Juni</option>
-              <option value="7">Juli</option>
-              <option value="8">August</option>
-              <option value="9">September</option>
-              <option value="10">Oktober</option>
-              <option value="11">November</option>
-              <option value="12">Dezember</option>
+              <option value="1" data-i18n="settings.notifications.januar">Januar</option>
+              <option value="2" data-i18n="settings.notifications.februar">Februar</option>
+              <option value="3" data-i18n="settings.notifications.maerz">März</option>
+              <option value="4" data-i18n="settings.notifications.april">April</option>
+              <option value="5" data-i18n="settings.notifications.mai">Mai</option>
+              <option value="6" data-i18n="settings.notifications.juni">Juni</option>
+              <option value="7" data-i18n="settings.notifications.juli">Juli</option>
+              <option value="8" data-i18n="settings.notifications.august">August</option>
+              <option value="9" data-i18n="settings.notifications.september">September</option>
+              <option value="10" data-i18n="settings.notifications.oktober">Oktober</option>
+              <option value="11" data-i18n="settings.notifications.november">November</option>
+              <option value="12" data-i18n="settings.notifications.dezember">Dezember</option>
             </select>
           </div>
           <div class="tax-planning-field">
-            <label>Woche</label>
+            <label data-i18n="settings.notifications.woche">Woche</label>
             <select id="notif-yearly-week">
-              <option value="1">1. Woche</option>
-              <option value="2">2. Woche</option>
-              <option value="3">3. Woche</option>
-              <option value="4">4. Woche</option>
+              <option value="1" data-i18n="settings.notifications.1_woche">1. Woche</option>
+              <option value="2" data-i18n="settings.notifications.2_woche">2. Woche</option>
+              <option value="3" data-i18n="settings.notifications.3_woche">3. Woche</option>
+              <option value="4" data-i18n="settings.notifications.4_woche">4. Woche</option>
             </select>
           </div>
           <div class="tax-planning-field">
-            <label>Wochentag</label>
+            <label data-i18n="settings.notifications.wochentag">Wochentag</label>
             <select id="notif-yearly-weekday">
-              <option value="1">Montag</option>
-              <option value="2">Dienstag</option>
-              <option value="3">Mittwoch</option>
-              <option value="4">Donnerstag</option>
-              <option value="5">Freitag</option>
-              <option value="6">Samstag</option>
-              <option value="7">Sonntag</option>
+              <option value="1" data-i18n="settings.notifications.montag">Montag</option>
+              <option value="2" data-i18n="settings.notifications.dienstag">Dienstag</option>
+              <option value="3" data-i18n="settings.notifications.mittwoch">Mittwoch</option>
+              <option value="4" data-i18n="settings.notifications.donnerstag">Donnerstag</option>
+              <option value="5" data-i18n="settings.notifications.freitag">Freitag</option>
+              <option value="6" data-i18n="settings.notifications.samstag">Samstag</option>
+              <option value="7" data-i18n="settings.notifications.sonntag">Sonntag</option>
             </select>
           </div>
         </div>
 
-        <div class="form-group notif-freq-heading"><label>Versand</label></div>
+        <div class="form-group notif-freq-heading"><label data-i18n="settings.notifications.versand">Versand</label></div>
         <div class="tax-planning-row">
           <div class="tax-planning-field">
-            <label>Uhrzeit</label>
+            <label data-i18n="settings.notifications.uhrzeit">Uhrzeit</label>
             <select id="notif-hour">
               <option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option>
               <option value="3">03:00</option><option value="4">04:00</option><option value="5">05:00</option>
@@ -1088,25 +1088,25 @@
             </select>
           </div>
           <div class="tax-planning-field">
-            <label>Erneut erinnern nach</label>
+            <label data-i18n="settings.notifications.erneut_erinnern_nach">Erneut erinnern nach</label>
             <select id="notif-repeat-days">
-              <option value="1">1 Tag</option>
-              <option value="2">2 Tagen</option>
-              <option value="3" selected>3 Tagen</option>
-              <option value="5">5 Tagen</option>
-              <option value="7">7 Tagen</option>
+              <option value="1" data-i18n="settings.notifications.1_tag">1 Tag</option>
+              <option value="2" data-i18n="settings.notifications.2_tagen">2 Tagen</option>
+              <option value="3" selected data-i18n="settings.notifications.3_tagen">3 Tagen</option>
+              <option value="5" data-i18n="settings.notifications.5_tagen">5 Tagen</option>
+              <option value="7" data-i18n="settings.notifications.7_tagen">7 Tagen</option>
             </select>
           </div>
         </div>
 
-        <div class="section-label">Push auf diesem Gerät</div>
-        <p class="settings-note" id="notif-push-status">Lädt…</p>
-        <button type="button" class="add-row-btn" id="notif-enable-push-btn">Auf diesem Gerät aktivieren</button>
+        <div class="section-label" data-i18n="settings.notifications.push_auf_diesem_geraet">Push auf diesem Gerät</div>
+        <p class="settings-note" id="notif-push-status" data-i18n="settings.notifications.laedt">Lädt…</p>
+        <button type="button" class="add-row-btn" id="notif-enable-push-btn" data-i18n="settings.notifications.auf_diesem_geraet_aktivieren">Auf diesem Gerät aktivieren</button>
         <div class="product-list" id="notif-device-list"></div>
 
         <div class="tax-expand-row">
-          <button type="button" class="select-mode-btn" id="notif-test-btn">Testbenachrichtigung senden</button>
-          <button type="button" class="select-mode-btn" id="notif-preview-btn">Vorschau: was würde gesendet?</button>
+          <button type="button" class="select-mode-btn" id="notif-test-btn" data-i18n="settings.notifications.testbenachrichtigung_senden">Testbenachrichtigung senden</button>
+          <button type="button" class="select-mode-btn" id="notif-preview-btn" data-i18n="settings.notifications.vorschau_was_wuerde_gesendet">Vorschau: was würde gesendet?</button>
         </div>
         <pre class="dictate-debug-detail hidden" id="notif-preview-result"></pre>
         </div>
@@ -1117,28 +1117,28 @@
         <div class="reminders-tab hidden" data-reminders-tab-panel="verbindung">
           <div class="tax-planning-toggle" id="verbindung-funkstille-row">
             <input type="checkbox" id="verbindung-funkstille-toggle">
-            <label for="verbindung-funkstille-toggle">Funkstille — dieses Gerät komplett offline</label>
+            <label for="verbindung-funkstille-toggle" data-i18n="settings.notifications.funkstille_dieses_geraet_komplett_offline">Funkstille — dieses Gerät komplett offline</label>
           </div>
-          <p class="settings-note">Trennt nur dieses Gerät gezielt von Firebase: keine Synchronisation, kein KI-Diktieren, keine Push-Benachrichtigungen (die kommen ohne Netz ohnehin nicht an). Andere Geräte sind nicht betroffen. Änderungen bleiben lokal gespeichert und synchronisieren automatisch, sobald Funkstille wieder ausgeschaltet wird.</p>
+          <p class="settings-note" data-i18n="settings.notifications.trennt_nur_dieses_geraet_gezielt">Trennt nur dieses Gerät gezielt von Firebase: keine Synchronisation, kein KI-Diktieren, keine Push-Benachrichtigungen (die kommen ohne Netz ohnehin nicht an). Andere Geräte sind nicht betroffen. Änderungen bleiben lokal gespeichert und synchronisieren automatisch, sobald Funkstille wieder ausgeschaltet wird.</p>
 
-          <div class="section-label">Einzelne Funktionen</div>
+          <div class="section-label" data-i18n="settings.notifications.einzelne_funktionen">Einzelne Funktionen</div>
           <div id="verbindung-suboptions">
             <div class="tax-planning-toggle" id="verbindung-sync-row">
               <input type="checkbox" id="verbindung-sync-toggle" checked>
-              <label for="verbindung-sync-toggle">Synchronisation</label>
+              <label for="verbindung-sync-toggle" data-i18n="settings.notifications.synchronisation">Synchronisation</label>
             </div>
             <div class="tax-planning-toggle" id="verbindung-ai-row">
               <input type="checkbox" id="verbindung-ai-toggle" checked>
-              <label for="verbindung-ai-toggle">KI-Diktieren</label>
+              <label for="verbindung-ai-toggle" data-i18n="settings.notifications.ki_diktieren">KI-Diktieren</label>
             </div>
             <div class="tax-planning-toggle" id="verbindung-reminders-row">
               <input type="checkbox" id="verbindung-reminders-toggle" checked>
-              <label for="verbindung-reminders-toggle">Erinnerungen</label>
+              <label for="verbindung-reminders-toggle" data-i18n="settings.notifications.erinnerungen">Erinnerungen</label>
             </div>
           </div>
-          <p class="settings-note">Erinnerungen gilt für den ganzen Haushalt (wie im Tab „Erinnerungen“); Synchronisation und KI-Diktieren gelten nur für dieses Gerät.</p>
+          <p class="settings-note" data-i18n="settings.notifications.erinnerungen_gilt_fuer_den_ganzen">Erinnerungen gilt für den ganzen Haushalt (wie im Tab „Erinnerungen“); Synchronisation und KI-Diktieren gelten nur für dieses Gerät.</p>
 
-          <p class="settings-note">Cloud-Backup bekommt hier einen eigenen Schalter, sobald die automatische Sicherung gebaut ist (SPEC.md Section 14).</p>
+          <p class="settings-note" data-i18n="settings.notifications.cloud_backup_bekommt_hier_einen">Cloud-Backup bekommt hier einen eigenen Schalter, sobald die automatische Sicherung gebaut ist (SPEC.md Section 14).</p>
 
           <p id="verbindung-status" class="taxonomy-status"></p>
         </div>
@@ -1147,27 +1147,27 @@
       <div class="settings-panel hidden" id="settings-panel-targets">
         <div class="sticky-panel-header">
           <div class="panel-header-row">
-            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
+            <button class="panel-back-btn" data-back type="button" data-i18n="settings.targets.zurueck">‹ Zurück</button>
           </div>
           <div class="segmented">
-            <button class="seg-btn active" data-ziele-tab="categories">Kategorien</button>
-            <button class="seg-btn" data-ziele-tab="food">Lebensmittel</button>
-            <button class="seg-btn" data-ziele-tab="nonfood">Sonstiges</button>
+            <button class="seg-btn active" data-ziele-tab="categories" data-i18n="settings.targets.kategorien">Kategorien</button>
+            <button class="seg-btn" data-ziele-tab="food" data-i18n="settings.targets.lebensmittel">Lebensmittel</button>
+            <button class="seg-btn" data-ziele-tab="nonfood" data-i18n="settings.targets.sonstiges">Sonstiges</button>
           </div>
         </div>
 
         <div class="ziele-tab" data-ziele-tab-panel="categories">
-          <p class="settings-note">So entstehen die Lebensmittel-Ziele: Schritt 1 — die Makros (Kohlenhydrate, Protein, Fett) werden auf die passenden Kategorien verteilt. Schritt 2 — jedes Kategorie-Ziel wird auf seine Unterkategorien aufgeteilt.</p>
+          <p class="settings-note" data-i18n="settings.targets.so_entstehen_die_lebensmittel_ziele">So entstehen die Lebensmittel-Ziele: Schritt 1 — die Makros (Kohlenhydrate, Protein, Fett) werden auf die passenden Kategorien verteilt. Schritt 2 — jedes Kategorie-Ziel wird auf seine Unterkategorien aufgeteilt.</p>
           <div class="tax-expand-row" id="targets-unit-toggle">
             <button class="select-mode-btn active" data-unit="kg" type="button">kg</button>
-            <button class="select-mode-btn" data-unit="kgpd" type="button">g/P/T</button>
+            <button class="select-mode-btn" data-unit="kgpd" type="button" data-i18n="settings.targets.g_p_t">g/P/T</button>
             <button class="select-mode-btn" data-unit="kcal" type="button">kcal</button>
-            <button class="select-mode-btn" data-unit="kcalpd" type="button">kcal/P/T</button>
+            <button class="select-mode-btn" data-unit="kcalpd" type="button" data-i18n="settings.targets.kcal_p_t">kcal/P/T</button>
           </div>
 
           <div class="targets-section">
             <button class="targets-section-header" data-section-toggle="categories" type="button">
-              <span>Kategorien</span>
+              <span data-i18n="settings.targets.kategorien">Kategorien</span>
               <span class="tax-toggle">▴</span>
             </button>
             <div class="targets-section-body" id="targets-categories-body">
@@ -1177,7 +1177,7 @@
 
           <div class="targets-section">
             <button class="targets-section-header" data-section-toggle="subcategories" type="button">
-              <span>Unterkategorien</span>
+              <span data-i18n="settings.targets.unterkategorien">Unterkategorien</span>
               <span class="tax-toggle">▴</span>
             </button>
             <div class="targets-section-body" id="targets-subcategories-body">
@@ -1187,14 +1187,14 @@
         </div>
 
         <div class="ziele-tab hidden" data-ziele-tab-panel="food">
-          <p class="settings-note">Zusätzlich lassen sich hier unabhängige Ziele für einzelne Produkte festlegen, z. B. 5× Pfefferminztee.</p>
-          <button type="button" class="fab" id="add-product-target-btn" title="Produktziel hinzufügen">+</button>
+          <p class="settings-note" data-i18n="settings.targets.zusaetzlich_lassen_sich_hier_unabhaengige">Zusätzlich lassen sich hier unabhängige Ziele für einzelne Produkte festlegen, z. B. 5× Pfefferminztee.</p>
+          <button type="button" class="fab" id="add-product-target-btn" title="Produktziel hinzufügen" data-i18n-attr="title:settings.targets.produktziel_hinzufuegen">+</button>
           <div id="product-targets-list"></div>
         </div>
 
         <div class="ziele-tab hidden" data-ziele-tab-panel="nonfood">
-          <p class="settings-note">Hier lassen sich unabhängige Ziele für einzelne Sonstiges-Produkte festlegen, z. B. 10× Kerzen.</p>
-          <button type="button" class="fab" id="add-product-target-nonfood-btn" title="Neues Produktziel hinzufügen">+</button>
+          <p class="settings-note" data-i18n="settings.targets.hier_lassen_sich_unabhaengige_ziele">Hier lassen sich unabhängige Ziele für einzelne Sonstiges-Produkte festlegen, z. B. 10× Kerzen.</p>
+          <button type="button" class="fab" id="add-product-target-nonfood-btn" title="Neues Produktziel hinzufügen" data-i18n-attr="title:settings.targets.neues_produktziel_hinzufuegen">+</button>
           <div id="product-targets-list-nonfood"></div>
         </div>
 
@@ -1203,9 +1203,9 @@
 
       <div class="modal-overlay" id="target-picker-modal">
         <div class="modal-sheet">
-          <div class="modal-title">Produkt wählen</div>
+          <div class="modal-title" data-i18n="modal.target-picker.produkt_waehlen">Produkt wählen</div>
           <div class="modal-body-padded">
-            <div class="search-bar"><span>🔍</span><input placeholder="Produkt suchen…" id="target-picker-search"></div>
+            <div class="search-bar"><span>🔍</span><input placeholder="Produkt suchen…" id="target-picker-search" data-i18n-attr="placeholder:modal.target-picker.produkt_suchen"></div>
             <div class="product-list" id="target-picker-list"></div>
           </div>
         </div>
@@ -1213,55 +1213,55 @@
 
       <div class="modal-overlay" id="target-new-product-food-modal">
         <div class="modal-sheet modal-body-padded">
-          <div class="modal-title">Neues Produkt (Lebensmittel)</div>
+          <div class="modal-title" data-i18n="modal.target-new-product-food.neues_produkt_lebensmittel">Neues Produkt (Lebensmittel)</div>
           <div class="form-group">
-            <label>Produktname</label>
-            <input type="text" id="target-new-product-name" placeholder="z.B. Bohnen weiß">
+            <label data-i18n="modal.target-new-product-food.produktname">Produktname</label>
+            <input type="text" id="target-new-product-name" placeholder="z.B. Bohnen weiß" data-i18n-attr="placeholder:modal.target-new-product-food.z_b_bohnen_weiss">
           </div>
           <div class="form-group">
-            <label>Einheit</label>
+            <label data-i18n="modal.target-new-product-food.einheit">Einheit</label>
             <div class="unit-toggle" id="target-new-product-unit-toggle">
-              <button class="unit-btn active" data-unit="kg" type="button">Gramm / Milliliter</button>
-              <button class="unit-btn" data-unit="stueck" type="button">Stück</button>
+              <button class="unit-btn active" data-unit="kg" type="button" data-i18n="modal.target-new-product-food.gramm_milliliter">Gramm / Milliliter</button>
+              <button class="unit-btn" data-unit="stueck" type="button" data-i18n="modal.target-new-product-food.stueck">Stück</button>
             </div>
           </div>
           <div class="form-group">
-            <label id="target-new-product-amount-label">Ziel-Menge (kg)</label>
-            <input type="number" step="0.01" id="target-new-product-amount" placeholder="z.B. 5">
+            <label id="target-new-product-amount-label" data-i18n="modal.target-new-product-food.ziel_menge_kg">Ziel-Menge (kg)</label>
+            <input type="number" step="0.01" id="target-new-product-amount" placeholder="z.B. 5" data-i18n-attr="placeholder:modal.target-new-product-food.z_b_5">
           </div>
           <div class="form-group">
-            <label>Unterkategorie</label>
+            <label data-i18n="modal.target-new-product-food.unterkategorie">Unterkategorie</label>
             <select id="target-new-product-subcategory"></select>
           </div>
           <div class="modal-actions">
-            <button class="confirm-btn" id="target-new-product-create-btn" type="button">Anlegen</button>
+            <button class="confirm-btn" id="target-new-product-create-btn" type="button" data-i18n="modal.target-new-product-food.anlegen">Anlegen</button>
           </div>
         </div>
       </div>
 
       <div class="modal-overlay" id="target-new-product-nonfood-modal">
         <div class="modal-sheet modal-body-padded">
-          <div class="modal-title">Neues Produkt (Sonstiges)</div>
+          <div class="modal-title" data-i18n="modal.target-new-product-nonfood.neues_produkt_sonstiges">Neues Produkt (Sonstiges)</div>
           <div class="form-group">
-            <label>Produktname</label>
-            <input type="text" id="target-nonfood-new-name" placeholder="z.B. Hundefutter">
+            <label data-i18n="modal.target-new-product-nonfood.produktname">Produktname</label>
+            <input type="text" id="target-nonfood-new-name" placeholder="z.B. Hundefutter" data-i18n-attr="placeholder:modal.target-new-product-nonfood.z_b_hundefutter">
           </div>
           <div class="form-group">
-            <label>Einheit</label>
+            <label data-i18n="modal.target-new-product-nonfood.einheit">Einheit</label>
             <select id="target-nonfood-unit-select"></select>
-            <input type="text" id="target-nonfood-unit-custom" placeholder="oder eigene Einheit eingeben">
-            <p class="settings-note">Jede Einheit erlaubt. kg und l werden wie bei Lebensmitteln als Teilmenge erfasst (z. B. „500g“); jede andere Einheit (Stück, Flaschen, Säcke, …) wird als Stückzahl gezählt.</p>
+            <input type="text" id="target-nonfood-unit-custom" placeholder="oder eigene Einheit eingeben" data-i18n-attr="placeholder:modal.target-new-product-nonfood.oder_eigene_einheit_eingeben">
+            <p class="settings-note" data-i18n="modal.target-new-product-nonfood.jede_einheit_erlaubt_kg_und">Jede Einheit erlaubt. kg und l werden wie bei Lebensmitteln als Teilmenge erfasst (z. B. „500g“); jede andere Einheit (Stück, Flaschen, Säcke, …) wird als Stückzahl gezählt.</p>
           </div>
           <div class="form-group">
-            <label id="target-nonfood-new-amount-label">Ziel-Menge</label>
-            <input type="number" step="0.01" id="target-nonfood-new-amount" placeholder="z.B. 10">
+            <label id="target-nonfood-new-amount-label" data-i18n="modal.target-new-product-nonfood.ziel_menge">Ziel-Menge</label>
+            <input type="number" step="0.01" id="target-nonfood-new-amount" placeholder="z.B. 10" data-i18n-attr="placeholder:modal.target-new-product-nonfood.z_b_10">
           </div>
           <div class="form-group">
-            <label>Unterkategorie</label>
+            <label data-i18n="modal.target-new-product-nonfood.unterkategorie">Unterkategorie</label>
             <select id="target-nonfood-new-subcategory"></select>
           </div>
           <div class="modal-actions">
-            <button class="confirm-btn" id="target-nonfood-new-create-btn" type="button">Anlegen</button>
+            <button class="confirm-btn" id="target-nonfood-new-create-btn" type="button" data-i18n="modal.target-new-product-nonfood.anlegen">Anlegen</button>
           </div>
         </div>
       </div>
@@ -1271,35 +1271,35 @@
           <div class="modal-title" id="target-edit-title"></div>
           <div class="modal-body-padded">
           <div class="unit-toggle" id="target-mode-toggle">
-            <button class="unit-btn active" data-mode="flat" type="button">Feste Menge</button>
-            <button class="unit-btn" data-mode="peopleDuration" type="button">Personen × Tage</button>
+            <button class="unit-btn active" data-mode="flat" type="button" data-i18n="modal.target-edit.feste_menge">Feste Menge</button>
+            <button class="unit-btn" data-mode="peopleDuration" type="button" data-i18n="modal.target-edit.personen_tage">Personen × Tage</button>
           </div>
 
           <div class="form-group" id="target-flat-group">
-            <label id="target-flat-label">Menge (kg)</label>
-            <input type="number" step="0.01" id="target-flat-input" placeholder="z.B. 10">
+            <label id="target-flat-label" data-i18n="modal.target-edit.menge_kg">Menge (kg)</label>
+            <input type="number" step="0.01" id="target-flat-input" placeholder="z.B. 10" data-i18n-attr="placeholder:modal.target-edit.z_b_10">
           </div>
 
           <div id="target-pd-group" class="hidden">
             <div class="form-group">
-              <label id="target-rate-label">Menge pro Person/Tag (kg)</label>
-              <input type="number" step="0.01" id="target-rate-input" placeholder="z.B. 0.5">
+              <label id="target-rate-label" data-i18n="modal.target-edit.menge_pro_person_tag_kg">Menge pro Person/Tag (kg)</label>
+              <input type="number" step="0.01" id="target-rate-input" placeholder="z.B. 0.5" data-i18n-attr="placeholder:modal.target-edit.z_b_0_5">
             </div>
             <div class="form-group">
-              <label>Personen</label>
-              <input type="number" id="target-people-input" placeholder="z.B. 4">
+              <label data-i18n="modal.target-edit.personen">Personen</label>
+              <input type="number" id="target-people-input" placeholder="z.B. 4" data-i18n-attr="placeholder:modal.target-edit.z_b_4">
             </div>
             <div class="form-group">
-              <label>Tage</label>
-              <input type="number" id="target-days-input" placeholder="z.B. 90">
+              <label data-i18n="modal.target-edit.tage">Tage</label>
+              <input type="number" id="target-days-input" placeholder="z.B. 90" data-i18n-attr="placeholder:modal.target-edit.z_b_90">
             </div>
             <p class="settings-note" id="target-computed-note"></p>
           </div>
           </div>
 
           <div class="modal-actions table-edit-actions">
-            <button class="confirm-btn" id="target-save-btn">Speichern</button>
-            <button class="danger-btn" id="target-clear-btn">Ziel entfernen</button>
+            <button class="confirm-btn" id="target-save-btn" data-i18n="modal.target-edit.speichern">Speichern</button>
+            <button class="danger-btn" id="target-clear-btn" data-i18n="modal.target-edit.ziel_entfernen">Ziel entfernen</button>
           </div>
         </div>
       </div>
@@ -1307,45 +1307,45 @@
       <div class="settings-panel hidden" id="settings-panel-planning">
         <div class="sticky-panel-header">
           <div class="panel-header-row">
-            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
+            <button class="panel-back-btn" data-back type="button" data-i18n="settings.planning.zurueck">‹ Zurück</button>
           </div>
         </div>
 
-        <div class="section-label">Haushalt</div>
+        <div class="section-label" data-i18n="settings.planning.haushalt">Haushalt</div>
         <div id="household-list"></div>
-        <button class="add-row-btn" id="add-household-member-btn">+ Person hinzufügen</button>
-        <p class="settings-note">Richtwerte pro Tag: Kind ~1200–1800 kcal, Teenager ~2000–2200 kcal, Erwachsener ~2000–2500 kcal — bei hoher körperlicher Aktivität höher ansetzen.</p>
+        <button class="add-row-btn" id="add-household-member-btn" data-i18n="settings.planning.person_hinzufuegen">+ Person hinzufügen</button>
+        <p class="settings-note" data-i18n="settings.planning.richtwerte_pro_tag_kind_1200">Richtwerte pro Tag: Kind ~1200–1800 kcal, Teenager ~2000–2200 kcal, Erwachsener ~2000–2500 kcal — bei hoher körperlicher Aktivität höher ansetzen.</p>
 
-        <div class="section-label">Autonomie &amp; Makros</div>
+        <div class="section-label" data-i18n="settings.planning.autonomie_makros">Autonomie &amp; Makros</div>
         <div class="form-group">
-          <label>Autonomiedauer (Tage)</label>
-          <input type="number" id="planning-autonomy-days" placeholder="z.B. 90">
+          <label data-i18n="settings.planning.autonomiedauer_tage">Autonomiedauer (Tage)</label>
+          <input type="number" id="planning-autonomy-days" placeholder="z.B. 90" data-i18n-attr="placeholder:settings.planning.z_b_90">
         </div>
         <div class="tax-planning-row planning-macro-row">
           <div class="tax-planning-field">
-            <label>Kohlenhydrate %</label>
+            <label data-i18n="settings.planning.kohlenhydrate">Kohlenhydrate %</label>
             <input type="number" id="planning-macro-kohlenhydrat">
           </div>
           <div class="tax-planning-field">
-            <label>Protein %</label>
+            <label data-i18n="settings.planning.protein">Protein %</label>
             <input type="number" id="planning-macro-protein">
           </div>
           <div class="tax-planning-field">
-            <label>Fett %</label>
+            <label data-i18n="settings.planning.fett">Fett %</label>
             <input type="number" id="planning-macro-fett">
           </div>
         </div>
-        <p class="settings-note">Richtwert nach den DGE-Referenzwerten für eine ausgewogene Ernährung: ca. 50 % Kohlenhydrate, 30 % Fett, 20 % Protein der Kalorienzufuhr — ein guter Ausgangspunkt für die Vorratsplanung, keine individuelle Ernährungsberatung.</p>
+        <p class="settings-note" data-i18n="settings.planning.richtwert_nach_den_dge_referenzwerten">Richtwert nach den DGE-Referenzwerten für eine ausgewogene Ernährung: ca. 50 % Kohlenhydrate, 30 % Fett, 20 % Protein der Kalorienzufuhr — ein guter Ausgangspunkt für die Vorratsplanung, keine individuelle Ernährungsberatung.</p>
 
-        <div class="section-label">Wasser</div>
+        <div class="section-label" data-i18n="settings.planning.wasser">Wasser</div>
         <div class="form-group">
-          <label>Liter pro Person/Tag</label>
+          <label data-i18n="settings.planning.liter_pro_person_tag">Liter pro Person/Tag</label>
           <input type="number" step="0.1" id="planning-water-rate">
         </div>
-        <p class="settings-note">Empfehlung des BBK (Bundesamt für Bevölkerungsschutz und Katastrophenhilfe): 2 L Trinkwasser pro Person und Tag (Trinken, Kochen) plus Brauchwasser für Hygiene — z. B. eine gefüllte Badewanne (150–200 L) oder überschlägig +1 L pro Person und Tag. Der Standardwert 3 L/Tag deckt Trink- und Brauchwasser hier zusammen ab.</p>
+        <p class="settings-note" data-i18n="settings.planning.empfehlung_des_bbk_bundesamt_fuer">Empfehlung des BBK (Bundesamt für Bevölkerungsschutz und Katastrophenhilfe): 2 L Trinkwasser pro Person und Tag (Trinken, Kochen) plus Brauchwasser für Hygiene — z. B. eine gefüllte Badewanne (150–200 L) oder überschlägig +1 L pro Person und Tag. Der Standardwert 3 L/Tag deckt Trink- und Brauchwasser hier zusammen ab.</p>
 
-        <div class="section-label">Berechnete Ziele</div>
-        <p class="settings-note">Diese Zahlen werden live in Ziele auf die passenden Kategorien und Unterkategorien verteilt — keine weitere Aktion hier nötig.</p>
+        <div class="section-label" data-i18n="settings.planning.berechnete_ziele">Berechnete Ziele</div>
+        <p class="settings-note" data-i18n="settings.planning.diese_zahlen_werden_live_in">Diese Zahlen werden live in Ziele auf die passenden Kategorien und Unterkategorien verteilt — keine weitere Aktion hier nötig.</p>
         <div id="planning-computed"></div>
 
         <p id="planning-status" class="taxonomy-status"></p>
@@ -1354,129 +1354,129 @@
       <div class="settings-panel hidden" id="settings-panel-export">
         <div class="sticky-panel-header">
           <div class="panel-header-row">
-            <button class="panel-back-btn" data-back type="button">‹ Zurück</button>
+            <button class="panel-back-btn" data-back type="button" data-i18n="settings.export.zurueck">‹ Zurück</button>
           </div>
           <div class="segmented">
-            <button class="seg-btn active" data-backup-tab="export">Export</button>
-            <button class="seg-btn" data-backup-tab="import">Import</button>
-            <button class="seg-btn" data-backup-tab="pdf">PDF-Export</button>
+            <button class="seg-btn active" data-backup-tab="export" data-i18n="settings.export.export">Export</button>
+            <button class="seg-btn" data-backup-tab="import" data-i18n="settings.export.import">Import</button>
+            <button class="seg-btn" data-backup-tab="pdf" data-i18n="settings.export.pdf_export">PDF-Export</button>
           </div>
         </div>
 
         <div class="backup-tab" data-backup-tab-panel="export">
-          <p class="settings-note">CSV eignet sich zum Öffnen und Bearbeiten eines einzelnen Bereichs in einer Tabelle. Das Datenbank-Backup (JSON) ist eine vollständige, originalgetreue Kopie aller Daten — z.B. für einen Gerätewechsel.</p>
+          <p class="settings-note" data-i18n="settings.export.csv_eignet_sich_zum_oeffnen">CSV eignet sich zum Öffnen und Bearbeiten eines einzelnen Bereichs in einer Tabelle. Das Datenbank-Backup (JSON) ist eine vollständige, originalgetreue Kopie aller Daten — z.B. für einen Gerätewechsel.</p>
 
-          <div class="section-label">CSV-Export</div>
+          <div class="section-label" data-i18n="settings.export.csv_export">CSV-Export</div>
           <div class="product-list">
             <div class="stock-product-row">
-              <span class="export-row-text"><span class="pname">Bestand</span><span class="pmeta">Alle Chargen mit Produkt, Menge, MHD, Lagerort</span></span>
-              <button type="button" class="select-mode-btn" id="export-stock-btn">Herunterladen</button>
+              <span class="export-row-text"><span class="pname" data-i18n="settings.export.bestand">Bestand</span><span class="pmeta" data-i18n="settings.export.alle_chargen_mit_produkt_menge">Alle Chargen mit Produkt, Menge, MHD, Lagerort</span></span>
+              <button type="button" class="select-mode-btn" id="export-stock-btn" data-i18n="settings.export.herunterladen">Herunterladen</button>
             </div>
             <div class="stock-product-row">
-              <span class="export-row-text"><span class="pname">Checklisten</span><span class="pmeta">Alle Aufgaben mit Häufigkeit</span></span>
-              <button type="button" class="select-mode-btn" id="export-checklists-btn">Herunterladen</button>
+              <span class="export-row-text"><span class="pname" data-i18n="settings.export.checklisten">Checklisten</span><span class="pmeta" data-i18n="settings.export.alle_aufgaben_mit_haeufigkeit">Alle Aufgaben mit Häufigkeit</span></span>
+              <button type="button" class="select-mode-btn" id="export-checklists-btn" data-i18n="settings.export.herunterladen">Herunterladen</button>
             </div>
             <div class="stock-product-row">
-              <span class="export-row-text"><span class="pname">Kontakte</span><span class="pmeta">Name, Rolle, Telefon, Adresse, Notizen</span></span>
-              <button type="button" class="select-mode-btn" id="export-contacts-btn">Herunterladen</button>
+              <span class="export-row-text"><span class="pname" data-i18n="settings.export.kontakte">Kontakte</span><span class="pmeta" data-i18n="settings.export.name_rolle_telefon_adresse_notizen">Name, Rolle, Telefon, Adresse, Notizen</span></span>
+              <button type="button" class="select-mode-btn" id="export-contacts-btn" data-i18n="settings.export.herunterladen">Herunterladen</button>
             </div>
             <div class="stock-product-row">
-              <span class="export-row-text"><span class="pname">Notizen</span><span class="pmeta">Titel und Text</span></span>
-              <button type="button" class="select-mode-btn" id="export-notes-btn">Herunterladen</button>
+              <span class="export-row-text"><span class="pname" data-i18n="settings.export.notizen">Notizen</span><span class="pmeta" data-i18n="settings.export.titel_und_text">Titel und Text</span></span>
+              <button type="button" class="select-mode-btn" id="export-notes-btn" data-i18n="settings.export.herunterladen">Herunterladen</button>
             </div>
             <div class="stock-product-row">
-              <span class="export-row-text"><span class="pname">Rezepte</span><span class="pmeta">Titel, Tags, Zutaten, Zubereitung</span></span>
-              <button type="button" class="select-mode-btn" id="export-recipes-btn">Herunterladen</button>
+              <span class="export-row-text"><span class="pname" data-i18n="settings.export.rezepte">Rezepte</span><span class="pmeta" data-i18n="settings.export.titel_tags_zutaten_zubereitung">Titel, Tags, Zutaten, Zubereitung</span></span>
+              <button type="button" class="select-mode-btn" id="export-recipes-btn" data-i18n="settings.export.herunterladen">Herunterladen</button>
             </div>
           </div>
 
-          <div class="section-label">Datenbank-Backup</div>
+          <div class="section-label" data-i18n="settings.export.datenbank_backup">Datenbank-Backup</div>
           <div class="product-list">
             <div class="stock-product-row">
-              <span class="export-row-text"><span class="pname">Vollständiges Backup</span><span class="pmeta">Alle Daten als JSON</span></span>
-              <button type="button" class="select-mode-btn" id="export-json-btn">Herunterladen</button>
+              <span class="export-row-text"><span class="pname" data-i18n="settings.export.vollstaendiges_backup">Vollständiges Backup</span><span class="pmeta" data-i18n="settings.export.alle_daten_als_json">Alle Daten als JSON</span></span>
+              <button type="button" class="select-mode-btn" id="export-json-btn" data-i18n="settings.export.herunterladen">Herunterladen</button>
             </div>
           </div>
 
           <p id="export-status" class="taxonomy-status"></p>
 
-          <div class="section-label">Checklisten-Migration</div>
-          <p class="settings-note">Stellt Checklisten von einem einzelnen Dokument auf einzelne Dokumente pro Eintrag um — Voraussetzung dafür, dass gleichzeitige Änderungen auf zwei Geräten offline nicht verloren gehen. Lädt vorher automatisch ein Sicherheits-Backup herunter.</p>
+          <div class="section-label" data-i18n="settings.export.checklisten_migration">Checklisten-Migration</div>
+          <p class="settings-note" data-i18n="settings.export.stellt_checklisten_von_einem_einzelnen">Stellt Checklisten von einem einzelnen Dokument auf einzelne Dokumente pro Eintrag um — Voraussetzung dafür, dass gleichzeitige Änderungen auf zwei Geräten offline nicht verloren gehen. Lädt vorher automatisch ein Sicherheits-Backup herunter.</p>
           <div class="product-list">
             <div class="stock-product-row">
-              <span class="export-row-text"><span class="pname">Auf einzelne Dokumente umstellen</span><span class="pmeta" id="migrate-checklists-meta">Wird geladen…</span></span>
-              <button type="button" class="select-mode-btn" id="migrate-checklists-btn" disabled>Migration starten</button>
+              <span class="export-row-text"><span class="pname" data-i18n="settings.export.auf_einzelne_dokumente_umstellen">Auf einzelne Dokumente umstellen</span><span class="pmeta" id="migrate-checklists-meta" data-i18n="settings.export.wird_geladen">Wird geladen…</span></span>
+              <button type="button" class="select-mode-btn" id="migrate-checklists-btn" disabled data-i18n="settings.export.migration_starten">Migration starten</button>
             </div>
           </div>
           <p id="migrate-checklists-status" class="taxonomy-status"></p>
         </div>
 
         <div class="backup-tab hidden" data-backup-tab-panel="import">
-          <p class="settings-note">Import ersetzt <strong>alle</strong> Daten (Bestand, Checklisten, Kontakte, Notizen, Rezepte, Einrichten, Erinnerungen, Planung, Ziele) unwiderruflich durch den Inhalt der ausgewählten Datei. Personen/Rollen sind nicht betroffen. Vor dem Ersetzen wird automatisch ein Sicherheits-Backup der aktuellen Daten heruntergeladen.</p>
+          <p class="settings-note" data-i18n-html="settings.export.import_ersetzt_strong_alle_strong">Import ersetzt <strong data-i18n="settings.export.alle">alle</strong> Daten (Bestand, Checklisten, Kontakte, Notizen, Rezepte, Einrichten, Erinnerungen, Planung, Ziele) unwiderruflich durch den Inhalt der ausgewählten Datei. Personen/Rollen sind nicht betroffen. Vor dem Ersetzen wird automatisch ein Sicherheits-Backup der aktuellen Daten heruntergeladen.</p>
 
-          <div class="section-label">Backup-Datei</div>
+          <div class="section-label" data-i18n="settings.export.backup_datei">Backup-Datei</div>
           <div class="product-list">
             <div class="stock-product-row">
-              <span class="export-row-text"><span class="pname">JSON-Datenbank-Backup</span><span class="pmeta" id="import-file-name">Keine Datei ausgewählt</span></span>
-              <button type="button" class="select-mode-btn" id="import-file-btn">Datei wählen</button>
+              <span class="export-row-text"><span class="pname" data-i18n="settings.export.json_datenbank_backup">JSON-Datenbank-Backup</span><span class="pmeta" id="import-file-name" data-i18n="settings.export.keine_datei_ausgewaehlt">Keine Datei ausgewählt</span></span>
+              <button type="button" class="select-mode-btn" id="import-file-btn" data-i18n="settings.export.datei_waehlen">Datei wählen</button>
             </div>
           </div>
           <input type="file" accept="application/json" id="import-file-input" class="hidden">
 
           <div id="import-summary" class="settings-note hidden"></div>
 
-          <div class="section-label">Bestätigung</div>
-          <p class="settings-note">Zum Bestätigen exakt <strong>ALLES ERSETZEN</strong> eingeben.</p>
-          <input type="text" class="tax-name-input" id="import-confirm-input" placeholder="ALLES ERSETZEN" disabled>
-          <button type="button" class="select-mode-btn danger-btn" id="import-confirm-btn" disabled>Alles ersetzen</button>
+          <div class="section-label" data-i18n="settings.export.bestaetigung">Bestätigung</div>
+          <p class="settings-note" data-i18n-html="settings.export.zum_bestaetigen_exakt_strong_alles">Zum Bestätigen exakt <strong data-i18n="settings.export.alles_ersetzen">ALLES ERSETZEN</strong> eingeben.</p>
+          <input type="text" class="tax-name-input" id="import-confirm-input" placeholder="ALLES ERSETZEN" disabled data-i18n-attr="placeholder:settings.export.alles_ersetzen">
+          <button type="button" class="select-mode-btn danger-btn" id="import-confirm-btn" disabled data-i18n="settings.export.alles_ersetzen_2">Alles ersetzen</button>
 
           <p id="import-status" class="taxonomy-status"></p>
         </div>
 
         <div class="backup-tab hidden" data-backup-tab-panel="pdf">
-          <p class="settings-note">Erzeugt eine PDF-Datei zum Herunterladen — kein Druckdialog. Jeder ausgewählte Abschnitt beginnt auf einer neuen Seite.</p>
+          <p class="settings-note" data-i18n="settings.export.erzeugt_eine_pdf_datei_zum">Erzeugt eine PDF-Datei zum Herunterladen — kein Druckdialog. Jeder ausgewählte Abschnitt beginnt auf einer neuen Seite.</p>
 
           <div class="tax-expand-row">
-            <button class="select-mode-btn" id="pdf-select-all-btn" type="button">Alle auswählen</button>
-            <button class="select-mode-btn" id="pdf-select-none-btn" type="button">Alle abwählen</button>
+            <button class="select-mode-btn" id="pdf-select-all-btn" type="button" data-i18n="settings.export.alle_auswaehlen">Alle auswählen</button>
+            <button class="select-mode-btn" id="pdf-select-none-btn" type="button" data-i18n="settings.export.alle_abwaehlen">Alle abwählen</button>
           </div>
 
           <div class="product-list">
             <div class="stock-product-row">
               <input type="checkbox" class="pdf-section-check" id="pdf-section-dashboard" data-pdf-section="dashboard" checked>
-              <label for="pdf-section-dashboard" class="export-row-text"><span class="pname">Übersicht</span><span class="pmeta">Stand heute: Bestand vs. Ziel, MHD-Alarme, Einkaufsliste</span></label>
+              <label for="pdf-section-dashboard" class="export-row-text"><span class="pname" data-i18n="settings.export.uebersicht">Übersicht</span><span class="pmeta" data-i18n="settings.export.stand_heute_bestand_vs_ziel">Stand heute: Bestand vs. Ziel, MHD-Alarme, Einkaufsliste</span></label>
             </div>
             <div class="stock-product-row">
               <input type="checkbox" class="pdf-section-check" id="pdf-section-stock" data-pdf-section="stock" checked>
-              <label for="pdf-section-stock" class="export-row-text"><span class="pname">Bestand</span><span class="pmeta">Alle Chargen mit Produkt, Menge, MHD, Lagerort</span></label>
+              <label for="pdf-section-stock" class="export-row-text"><span class="pname" data-i18n="settings.export.bestand">Bestand</span><span class="pmeta" data-i18n="settings.export.alle_chargen_mit_produkt_menge">Alle Chargen mit Produkt, Menge, MHD, Lagerort</span></label>
             </div>
             <div class="stock-product-row">
               <input type="checkbox" class="pdf-section-check" id="pdf-section-maintenance" data-pdf-section="maintenance" checked>
-              <label for="pdf-section-maintenance" class="export-row-text"><span class="pname">Checkliste – Wartung</span><span class="pmeta">Alle Aufgaben mit Häufigkeit, leere Kästchen zum Ausfüllen</span></label>
+              <label for="pdf-section-maintenance" class="export-row-text"><span class="pname" data-i18n="settings.export.checkliste_wartung">Checkliste – Wartung</span><span class="pmeta" data-i18n="settings.export.alle_aufgaben_mit_haeufigkeit_leere">Alle Aufgaben mit Häufigkeit, leere Kästchen zum Ausfüllen</span></label>
             </div>
             <div class="stock-product-row">
               <input type="checkbox" class="pdf-section-check" id="pdf-section-crisis" data-pdf-section="crisis" checked>
-              <label for="pdf-section-crisis" class="export-row-text"><span class="pname">Checkliste – Krise</span><span class="pmeta">Alle Krisentypen mit nummerierten Schritten</span></label>
+              <label for="pdf-section-crisis" class="export-row-text"><span class="pname" data-i18n="settings.export.checkliste_krise">Checkliste – Krise</span><span class="pmeta" data-i18n="settings.export.alle_krisentypen_mit_nummerierten_schritten">Alle Krisentypen mit nummerierten Schritten</span></label>
             </div>
             <div class="stock-product-row">
               <input type="checkbox" class="pdf-section-check" id="pdf-section-contacts" data-pdf-section="contacts" checked>
-              <label for="pdf-section-contacts" class="export-row-text"><span class="pname">Kontakte</span><span class="pmeta">Notruf zuerst, dann alle weiteren Kontakte</span></label>
+              <label for="pdf-section-contacts" class="export-row-text"><span class="pname" data-i18n="settings.export.kontakte">Kontakte</span><span class="pmeta" data-i18n="settings.export.notruf_zuerst_dann_alle_weiteren">Notruf zuerst, dann alle weiteren Kontakte</span></label>
             </div>
             <div class="stock-product-row">
               <input type="checkbox" class="pdf-section-check" id="pdf-section-notes" data-pdf-section="notes" checked>
-              <label for="pdf-section-notes" class="export-row-text"><span class="pname">Notizen</span><span class="pmeta">Titel, Text und Foto je Notiz</span></label>
+              <label for="pdf-section-notes" class="export-row-text"><span class="pname" data-i18n="settings.export.notizen">Notizen</span><span class="pmeta" data-i18n="settings.export.titel_text_und_foto_je">Titel, Text und Foto je Notiz</span></label>
             </div>
             <div class="stock-product-row">
               <input type="checkbox" class="pdf-section-check" id="pdf-section-recipes" data-pdf-section="recipes" checked>
-              <label for="pdf-section-recipes" class="export-row-text"><span class="pname">Rezepte</span><span class="pmeta">Titel, Tags, Zutaten und Zubereitung je Rezept</span></label>
+              <label for="pdf-section-recipes" class="export-row-text"><span class="pname" data-i18n="settings.export.rezepte">Rezepte</span><span class="pmeta" data-i18n="settings.export.titel_tags_zutaten_und_zubereitung">Titel, Tags, Zutaten und Zubereitung je Rezept</span></label>
             </div>
             <div class="stock-product-row">
               <input type="checkbox" class="pdf-section-check" id="pdf-section-targets" data-pdf-section="targets" checked>
-              <label for="pdf-section-targets" class="export-row-text"><span class="pname">Ziele</span><span class="pmeta">Konfigurierte Zielmengen je Kategorie/Unterkategorie/Produkt</span></label>
+              <label for="pdf-section-targets" class="export-row-text"><span class="pname" data-i18n="settings.export.ziele">Ziele</span><span class="pmeta" data-i18n="settings.export.konfigurierte_zielmengen_je_kategorie_unterkategorie">Konfigurierte Zielmengen je Kategorie/Unterkategorie/Produkt</span></label>
             </div>
           </div>
 
-          <button type="button" class="confirm-btn" id="pdf-create-btn">PDF erstellen</button>
+          <button type="button" class="confirm-btn" id="pdf-create-btn" data-i18n="settings.export.pdf_erstellen">PDF erstellen</button>
           <p id="pdf-status" class="taxonomy-status"></p>
         </div>
       </div>
@@ -1485,11 +1485,11 @@
   </main>
 
   <nav class="bottomnav">
-    <button class="nav-btn active" data-tab="dashboard"><span class="icon">🏠</span>Übersicht</button>
-    <button class="nav-btn" data-tab="stock"><span class="icon">📦</span>Bestand</button>
-    <button class="nav-btn" data-tab="checklists"><span class="icon">✅</span>Checklisten</button>
-    <button class="nav-btn" data-tab="info"><span class="icon">📚</span>Info</button>
-    <button class="nav-btn admin-only hidden" data-tab="settings"><span class="icon">⚙️</span>Mehr</button>
+    <button class="nav-btn active" data-tab="dashboard" data-i18n="nav.uebersicht"><span class="icon">🏠</span>Übersicht</button>
+    <button class="nav-btn" data-tab="stock" data-i18n="nav.bestand"><span class="icon">📦</span>Bestand</button>
+    <button class="nav-btn" data-tab="checklists" data-i18n="nav.checklisten"><span class="icon">✅</span>Checklisten</button>
+    <button class="nav-btn" data-tab="info" data-i18n="nav.info"><span class="icon">📚</span>Info</button>
+    <button class="nav-btn admin-only hidden" data-tab="settings" data-i18n="nav.mehr"><span class="icon">⚙️</span>Mehr</button>
   </nav>
 
 </div>
@@ -1504,37 +1504,37 @@
      makes a plain reload reliably fetch the new build with no cache-clear
      needed. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="js/app.js?v=189"></script>
-<script type="module" src="js/i18n.js?v=189"></script>
-<script type="module" src="js/auth.js?v=189"></script>
-<script type="module" src="js/app-shell.js?v=189"></script>
-<script type="module" src="js/account-menu.js?v=189"></script>
-<script type="module" src="js/refresh-button.js?v=189"></script>
-<script type="module" src="js/settings-nav.js?v=189"></script>
-<script type="module" src="js/data-tabs.js?v=189"></script>
-<script type="module" src="js/reminders-tabs.js?v=189"></script>
-<script type="module" src="js/taxonomy.js?v=189"></script>
-<script type="module" src="js/storage-locations.js?v=189"></script>
-<script type="module" src="js/year-colors.js?v=189"></script>
-<script type="module" src="js/stock-checkin.js?v=189"></script>
-<script type="module" src="js/stock-checkout.js?v=189"></script>
-<script type="module" src="js/stock-table.js?v=189"></script>
-<script type="module" src="js/dashboard.js?v=189"></script>
-<script type="module" src="js/targets.js?v=189"></script>
-<script type="module" src="js/planning.js?v=189"></script>
-<script type="module" src="js/notifications.js?v=189"></script>
-<script type="module" src="js/verbindung.js?v=189"></script>
-<script type="module" src="js/checklists.js?v=189"></script>
-<script type="module" src="js/info-nav.js?v=189"></script>
-<script type="module" src="js/contacts.js?v=189"></script>
-<script type="module" src="js/notes.js?v=189"></script>
-<script type="module" src="js/recipes.js?v=189"></script>
-<script type="module" src="js/backup-tabs.js?v=189"></script>
-<script type="module" src="js/backup.js?v=189"></script>
-<script type="module" src="js/admin-log.js?v=189"></script>
-<script type="module" src="js/people.js?v=189"></script>
-<script type="module" src="js/pdf-export.js?v=189"></script>
-<script type="module" src="js/dictate.js?v=189"></script>
-<script type="module" src="js/back-nav.js?v=189"></script>
+<script src="js/app.js?v=190"></script>
+<script type="module" src="js/i18n.js?v=190"></script>
+<script type="module" src="js/auth.js?v=190"></script>
+<script type="module" src="js/app-shell.js?v=190"></script>
+<script type="module" src="js/account-menu.js?v=190"></script>
+<script type="module" src="js/refresh-button.js?v=190"></script>
+<script type="module" src="js/settings-nav.js?v=190"></script>
+<script type="module" src="js/data-tabs.js?v=190"></script>
+<script type="module" src="js/reminders-tabs.js?v=190"></script>
+<script type="module" src="js/taxonomy.js?v=190"></script>
+<script type="module" src="js/storage-locations.js?v=190"></script>
+<script type="module" src="js/year-colors.js?v=190"></script>
+<script type="module" src="js/stock-checkin.js?v=190"></script>
+<script type="module" src="js/stock-checkout.js?v=190"></script>
+<script type="module" src="js/stock-table.js?v=190"></script>
+<script type="module" src="js/dashboard.js?v=190"></script>
+<script type="module" src="js/targets.js?v=190"></script>
+<script type="module" src="js/planning.js?v=190"></script>
+<script type="module" src="js/notifications.js?v=190"></script>
+<script type="module" src="js/verbindung.js?v=190"></script>
+<script type="module" src="js/checklists.js?v=190"></script>
+<script type="module" src="js/info-nav.js?v=190"></script>
+<script type="module" src="js/contacts.js?v=190"></script>
+<script type="module" src="js/notes.js?v=190"></script>
+<script type="module" src="js/recipes.js?v=190"></script>
+<script type="module" src="js/backup-tabs.js?v=190"></script>
+<script type="module" src="js/backup.js?v=190"></script>
+<script type="module" src="js/admin-log.js?v=190"></script>
+<script type="module" src="js/people.js?v=190"></script>
+<script type="module" src="js/pdf-export.js?v=190"></script>
+<script type="module" src="js/dictate.js?v=190"></script>
+<script type="module" src="js/back-nav.js?v=190"></script>
 </body>
 </html>
