@@ -1,5 +1,5 @@
-import { renderRecentLog, deleteAllLogs } from './stock-log.js?v=198';
-import { t } from './i18n.js?v=198';
+import { renderRecentLog, deleteAllLogs } from './stock-log.js?v=199';
+import { t } from './i18n.js?v=199';
 
 const logCard = document.querySelector('.settings-card[data-target="log"]');
 const logListEl = document.getElementById('admin-log-list');

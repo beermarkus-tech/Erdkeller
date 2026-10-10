@@ -128,4 +128,5 @@ module.exports = [
   { name: 'settings: export', run: seq(closeModal, nav('settings'), c('.settings-card[data-target="export"]')) },
   { name: 'settings: import', run: c('[data-backup-tab="import"]') },
   { name: 'settings: pdf', run: c('[data-backup-tab="pdf"]') },
+  { name: 'settings: create pdf (all sections)', run: c('#pdf-create-btn') },
 ];
