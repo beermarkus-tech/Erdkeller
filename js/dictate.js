@@ -15,12 +15,12 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=197';
+import { db, functions } from './firebase-init.js?v=198';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { t } from './i18n.js?v=197';
+import { t, getLang, getLocale } from './i18n.js?v=198';
 
 const startBtn = document.getElementById('start-dictate-btn');
 const modal = document.getElementById('dictate-modal');
@@ -244,7 +244,10 @@ function setBusy(v) {
 // enabling continuous mode.
 function runRecognitionSession() {
   recognizer = new SpeechRecognitionCtor();
-  recognizer.lang = 'de-DE';
+  // Follows the UI language (I18N.md 8.2), read per session so an in-place
+  // switch applies to the next recording. The server prompt is told the
+  // transcript language via `lang` below; the catalog itself stays German.
+  recognizer.lang = getLocale();
   recognizer.continuous = false;
   recognizer.interimResults = true;
 
@@ -661,7 +664,7 @@ async function handleTranscript(transcript) {
 
   let items = [];
   try {
-    const result = await parseDictationFn({ transcript });
+    const result = await parseDictationFn({ transcript, lang: getLang() });
     items = (result.data && Array.isArray(result.data.items)) ? result.data.items : [];
   } catch (err) {
     console.error(err);
@@ -684,7 +687,7 @@ async function handlePhoto(dataUri) {
 
   let items = [];
   try {
-    const result = await parseDictationFn({ imageBase64, mimeType: 'image/jpeg' });
+    const result = await parseDictationFn({ imageBase64, mimeType: 'image/jpeg', lang: getLang() });
     items = (result.data && Array.isArray(result.data.items)) ? result.data.items : [];
   } catch (err) {
     console.error(err);

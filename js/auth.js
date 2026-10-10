@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=197';
+import { auth, db } from './firebase-init.js?v=198';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -11,7 +11,7 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=197';
+import { t, getLang } from './i18n.js?v=198';
 
 const provider = new GoogleAuthProvider();
 
@@ -214,6 +214,7 @@ async function ensureUserDoc(user) {
       photoURL: user.photoURL || '',
       role: 'member',
       createdAt: new Date().toISOString(),
+      lang: getLang(),
     });
     return;
   }
@@ -221,6 +222,9 @@ async function ensureUserDoc(user) {
   const patch = {};
   if ((user.displayName || '') !== (data.name || '')) patch.name = user.displayName || '';
   if ((user.photoURL || '') !== (data.photoURL || '')) patch.photoURL = user.photoURL || '';
+  // I18N.md Phase 5: the scheduled reminders (functions/index.js) are written
+  // in each recipient's language, read from here.
+  if (data.lang !== getLang()) patch.lang = getLang();
   if (Object.keys(patch).length) await updateDoc(ref, patch);
 }
 
@@ -263,8 +267,14 @@ function paintSignedIn(identity) {
 }
 
 // Language switch (I18N.md): the role label in the account popover is only
-// painted on sign-in, so repaint it in the new language.
+// painted on sign-in, so repaint it in the new language — and store the new
+// language on the user doc for the reminders (Phase 5). Firestore queues the
+// write while offline; the rules allow self-updates that keep `role`.
 window.addEventListener('erdkeller:langchange', () => {
+  if (auth.currentUser) {
+    updateDoc(doc(db, 'users', auth.currentUser.uid), { lang: getLang() })
+      .catch((err) => console.error('Sprache konnte nicht gespeichert werden', err));
+  }
   if (!paintedIdentity) return;
   roleEls.forEach((el) => {
     el.textContent = paintedIdentity.role === 'admin' ? t('auth.admin') : t('auth.mitglied');

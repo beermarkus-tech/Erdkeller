@@ -4,13 +4,13 @@
 // and calls into the functions exported here, same split as e.g. the
 // checklist boundary math (js/checklists.js) living apart from the screen
 // that configures its inputs (js/notifications.js) already does.
-import { app, auth, db, functions } from './firebase-init.js?v=197';
+import { app, auth, db, functions } from './firebase-init.js?v=198';
 import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging.js";
 import {
   collection, doc, getDocs, setDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { t } from './i18n.js?v=197';
+import { t, getLang } from './i18n.js?v=198';
 
 // Generated once in the Firebase console (Project Settings → Cloud
 // Messaging → Web Push certificates — see SPEC.md Section 18). Public by
@@ -122,13 +122,14 @@ export async function listMyDevices() {
 
 const sendTestNotificationFn = httpsCallable(functions, 'sendTestNotification');
 export async function sendTestNotification() {
-  const result = await sendTestNotificationFn();
+  // `lang`: the server answers (test text, errors) in the UI language.
+  const result = await sendTestNotificationFn({ lang: getLang() });
   return result.data;
 }
 
 const previewRemindersFn = httpsCallable(functions, 'previewReminders');
 export async function previewReminders() {
-  const result = await previewRemindersFn();
+  const result = await previewRemindersFn({ lang: getLang() });
   return result.data;
 }
 
