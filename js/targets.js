@@ -19,11 +19,11 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=194';
+import { db } from './firebase-init.js?v=195';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=194';
+import { t, getLocale } from './i18n.js?v=195';
 
 const targetsCard = document.querySelector('.settings-card[data-target="targets"]');
 const panelEl = document.getElementById('settings-panel-targets');
@@ -103,7 +103,11 @@ const computedNote = document.getElementById('target-computed-note');
 const saveBtn = document.getElementById('target-save-btn');
 const clearBtn = document.getElementById('target-clear-btn');
 
-const MACRO_LABELS = { kohlenhydrat: t('targets.kohlenhydrate'), protein: t('targets.protein'), fett: t('targets.fett') };
+const MACRO_LABELS = {
+  get kohlenhydrat() { return t('targets.kohlenhydrate'); },
+  get protein() { return t('targets.protein'); },
+  get fett() { return t('targets.fett'); },
+};
 
 let taxonomy = { types: [] };
 let allProducts = [];

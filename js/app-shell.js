@@ -1,10 +1,11 @@
-import { t } from './i18n.js?v=194';
-const TAB_LABELS = {
-  dashboard: t('nav.uebersicht'),
-  stock: t('nav.bestand'),
-  checklists: t('nav.checklisten'),
-  info: t('nav.info'),
-  settings: t('nav.admin'),
+import { t } from './i18n.js?v=195';
+// Looked up when shown, not at load, so they follow a language switch.
+const TAB_LABEL_KEYS = {
+  dashboard: 'nav.uebersicht',
+  stock: 'nav.bestand',
+  checklists: 'nav.checklisten',
+  info: 'nav.info',
+  settings: 'nav.admin',
 };
 
 const navButtons = document.querySelectorAll('.nav-btn[data-tab]');
@@ -14,12 +15,27 @@ const tabletHeader = document.getElementById('tablet-header');
 
 let activeTab = 'dashboard';
 
+// The header (topbar subtitle on phone, tablet-header on tablet) is shared
+// by several modules: the tab label by default, a sub-panel's or flow's own
+// name while one is open (settings-nav.js, stock-checkin.js,
+// stock-checkout.js). Each passes a function rather than a string, so the
+// header can be re-rendered in the new language on erdkeller:langchange.
+let headerLabel = () => '';
+
+export function setHeader(label) {
+  headerLabel = typeof label === 'function' ? label : () => label;
+  const text = headerLabel();
+  topbarSubtitle.textContent = text;
+  tabletHeader.textContent = text;
+}
+
+window.addEventListener('erdkeller:langchange', () => setHeader(headerLabel));
+
 function setActiveTab(tab) {
   activeTab = tab;
   navButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
   screens.forEach((screen) => screen.classList.toggle('active', screen.dataset.screen === tab));
-  topbarSubtitle.textContent = TAB_LABELS[tab] || '';
-  tabletHeader.textContent = TAB_LABELS[tab] || '';
+  setHeader(() => (TAB_LABEL_KEYS[tab] ? t(TAB_LABEL_KEYS[tab]) : ''));
 }
 
 navButtons.forEach((btn) => {

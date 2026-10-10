@@ -403,7 +403,6 @@ export default {
   "settings.export.wird_geladen": "Wird geladen…",
   "settings.export.migration_starten": "Migration starten",
   "settings.export.import_ersetzt_strong_alle_strong": "Import ersetzt <strong>alle</strong> Daten (Bestand, Checklisten, Kontakte, Notizen, Rezepte, Einrichten, Erinnerungen, Planung, Ziele) unwiderruflich durch den Inhalt der ausgewählten Datei. Personen/Rollen sind nicht betroffen. Vor dem Ersetzen wird automatisch ein Sicherheits-Backup der aktuellen Daten heruntergeladen.",
-  "settings.export.alle": "alle",
   "settings.export.backup_datei": "Backup-Datei",
   "settings.export.json_datenbank_backup": "JSON-Datenbank-Backup",
   "settings.export.keine_datei_ausgewaehlt": "Keine Datei ausgewählt",

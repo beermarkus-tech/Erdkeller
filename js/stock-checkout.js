@@ -1,11 +1,12 @@
-import { db } from './firebase-init.js?v=194';
-import { PALETTE } from './year-colors.js?v=194';
-import { renderRecentLog } from './stock-log.js?v=194';
-import { renderResultLines } from './format-batch.js?v=194';
+import { db } from './firebase-init.js?v=195';
+import { PALETTE } from './year-colors.js?v=195';
+import { renderRecentLog } from './stock-log.js?v=195';
+import { renderResultLines } from './format-batch.js?v=195';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=194';
+import { t } from './i18n.js?v=195';
+import { setHeader } from './app-shell.js?v=195';
 
 const stockHomeEl = document.getElementById('stock-home');
 const stockFlowEl = document.getElementById('stock-flow-checkout');
@@ -20,13 +21,8 @@ const flowSteps = document.querySelectorAll('#stock-flow-checkout .flow-step');
 // The header (topbar-subtitle/tablet-header) otherwise just shows the
 // tab's own fixed label ("Bestand") no matter which of Einlagern/Entnehmen
 // is open, making the two flows' identical-looking first step ambiguous —
-// same pattern js/settings-nav.js already uses for its own sub-panels.
-const topbarSubtitle = document.getElementById('topbar-subtitle');
-const tabletHeader = document.getElementById('tablet-header');
-function setHeader(text) {
-  topbarSubtitle.textContent = text;
-  tabletHeader.textContent = text;
-}
+// same pattern js/settings-nav.js already uses for its own sub-panels
+// (setHeader lives in app-shell.js so it can follow a language switch).
 
 const PREV_STEP = {
   type: null,
@@ -554,7 +550,8 @@ confirmBtn.addEventListener('click', async () => {
     confirmBtn.textContent = t('checkout.entnehmen_bestaetigen');
 
     goToStep('type');
-    showUndoToast(t('checkout.entnommen_2', { productName: productName(batch.productId) }));
+    const removedName = productName(batch.productId);
+    showUndoToast(() => t('checkout.entnommen_2', { productName: removedName }));
     renderRecentLog(recentLogEl);
     // Bestandsliste (stock-table.js) and Einlagern (stock-checkin.js) each
     // keep their own read cache of stockItems — without this they wouldn't
@@ -570,8 +567,13 @@ confirmBtn.addEventListener('click', async () => {
 
 // --- Success / undo ----------------------------------------------------
 
-function showUndoToast(text) {
-  undoToastText.textContent = text;
+// The toast text is a function so a language switch while it's showing can
+// re-render it (erdkeller:langchange below).
+let undoToastLabel = null;
+
+function showUndoToast(label) {
+  undoToastLabel = label;
+  undoToastText.textContent = label();
   undoToast.classList.remove('hidden');
   clearTimeout(undoTimer);
   undoTimer = setTimeout(() => {
@@ -626,7 +628,7 @@ function returnHome() {
   hideUndoToast();
   stockFlowEl.classList.add('hidden');
   stockHomeEl.classList.remove('hidden');
-  setHeader(t('checkout.bestand'));
+  setHeader(() => t('checkout.bestand'));
 }
 
 backHomeBtn.addEventListener('click', returnHome);
@@ -637,12 +639,20 @@ startCheckoutBtn.addEventListener('click', () => {
   selection = { type: null, category: null, subcategory: null, batch: null, removeQty: 1 };
   stockHomeEl.classList.add('hidden');
   stockFlowEl.classList.remove('hidden');
-  setHeader(t('checkout.entnehmen'));
+  setHeader(() => t('checkout.entnehmen'));
   goToStep('type');
 });
 
 window.addEventListener('erdkeller:signedin', () => loadConfig());
 window.addEventListener('erdkeller:refresh', () => loadConfig());
+
+// Language switch (I18N.md): re-render the JS-built text of whatever step
+// is open, without touching the selection or anything already typed.
+window.addEventListener('erdkeller:langchange', () => {
+  if (currentStepName() === 'batch') renderBatchList(batchSearchInput.value);
+  if (!globalSearchResults.classList.contains('hidden')) renderGlobalSearchResults(globalSearchInput.value);
+  if (undoToastLabel && !undoToast.classList.contains('hidden')) undoToastText.textContent = undoToastLabel();
+});
 
 // Tapping the Bestand nav icon (even while already on it) always returns
 // to the two big buttons, regardless of how deep this flow was.

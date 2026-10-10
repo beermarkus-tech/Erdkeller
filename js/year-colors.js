@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=194';
+import { db } from './firebase-init.js?v=195';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=194';
+import { t } from './i18n.js?v=195';
 
 const listEl = document.getElementById('year-color-list');
 const addBtn = document.getElementById('add-year-btn');
@@ -11,14 +11,14 @@ const ref = doc(db, 'config', 'yearColorMap');
 // (SPEC.md Section 5) — a small fixed palette rather than a free color
 // picker, since the point is a handful of easily-told-apart marker colors.
 export const PALETTE = [
-  { name: 'green', hex: '#3C9142', label: t('yearColors.gruen') },
-  { name: 'blue', hex: '#2F6FED', label: t('yearColors.blau') },
-  { name: 'pink', hex: '#E85D9C', label: t('yearColors.pink') },
-  { name: 'yellow', hex: '#F2C94C', label: t('yearColors.gelb') },
-  { name: 'red', hex: '#E23D3D', label: t('yearColors.rot') },
-  { name: 'orange', hex: '#F2994A', label: t('yearColors.orange') },
-  { name: 'black', hex: '#1A1A1A', label: t('yearColors.schwarz') },
-  { name: 'white', hex: '#FFFFFF', label: t('yearColors.weiss') },
+  { name: 'green', hex: '#3C9142', get label() { return t('yearColors.gruen'); } },
+  { name: 'blue', hex: '#2F6FED', get label() { return t('yearColors.blau'); } },
+  { name: 'pink', hex: '#E85D9C', get label() { return t('yearColors.pink'); } },
+  { name: 'yellow', hex: '#F2C94C', get label() { return t('yearColors.gelb'); } },
+  { name: 'red', hex: '#E23D3D', get label() { return t('yearColors.rot'); } },
+  { name: 'orange', hex: '#F2994A', get label() { return t('yearColors.orange'); } },
+  { name: 'black', hex: '#1A1A1A', get label() { return t('yearColors.schwarz'); } },
+  { name: 'white', hex: '#FFFFFF', get label() { return t('yearColors.weiss'); } },
 ];
 
 let yearColorMap = {};

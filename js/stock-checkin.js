@@ -1,11 +1,11 @@
-import { db } from './firebase-init.js?v=194';
-import { renderRecentLog } from './stock-log.js?v=194';
-import { renderResultLines } from './format-batch.js?v=194';
-import { switchTabWithoutReset } from './app-shell.js?v=194';
+import { db } from './firebase-init.js?v=195';
+import { renderRecentLog } from './stock-log.js?v=195';
+import { renderResultLines } from './format-batch.js?v=195';
+import { switchTabWithoutReset, setHeader } from './app-shell.js?v=195';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=194';
+import { t } from './i18n.js?v=195';
 
 const stockHomeEl = document.getElementById('stock-home');
 const stockFlowEl = document.getElementById('stock-flow');
@@ -66,13 +66,8 @@ const successDetail = document.getElementById('success-detail');
 // The header (topbar-subtitle/tablet-header) otherwise just shows the
 // tab's own fixed label ("Bestand") no matter which of Einlagern/Entnehmen
 // is open, making the two flows' identical-looking first step ambiguous —
-// same pattern js/settings-nav.js already uses for its own sub-panels.
-const topbarSubtitle = document.getElementById('topbar-subtitle');
-const tabletHeader = document.getElementById('tablet-header');
-function setHeader(text) {
-  topbarSubtitle.textContent = text;
-  tabletHeader.textContent = text;
-}
+// same pattern js/settings-nav.js already uses for its own sub-panels
+// (setHeader lives in app-shell.js so it can follow a language switch).
 
 const dateModal = document.getElementById('date-modal');
 const monthCol = document.getElementById('month-col');
@@ -445,6 +440,10 @@ function updateContentFieldForUnit() {
   // The kg/ml toggle otherwise treats weight and volume as interchangeable
   // for this household's tracking purposes (1l ≈ 1kg), so its content
   // field's hint reflects both, matching the toggle's own "kg/ml" label.
+  updateContentFieldLabel();
+}
+
+function updateContentFieldLabel() {
   contentFieldLabel.textContent = currentUnitType() === 'l' ? t('checkin.inhalt_z_b_800ml') : t('checkin.inhalt_z_b_500g_800ml');
 }
 
@@ -745,7 +744,7 @@ checkinConfirmBtn.addEventListener('click', async () => {
     } else {
       goToStep('type');
     }
-    showUndoToast(t('checkin.eingelagert_2', { confirmedProductName }));
+    showUndoToast(() => t('checkin.eingelagert_2', { confirmedProductName }));
     renderRecentLog(recentLogEl);
     // Bestandsliste (stock-table.js) and Entnehmen (stock-checkout.js) each
     // keep their own read cache of stockItems/products — without this they
@@ -761,8 +760,13 @@ checkinConfirmBtn.addEventListener('click', async () => {
 
 // --- Success / undo ----------------------------------------------------
 
-function showUndoToast(text) {
-  undoToastText.textContent = text;
+// The toast text is a function so a language switch while it's showing can
+// re-render it (erdkeller:langchange below).
+let undoToastLabel = null;
+
+function showUndoToast(label) {
+  undoToastLabel = label;
+  undoToastText.textContent = label();
   undoToast.classList.remove('hidden');
   clearTimeout(undoTimer);
   undoTimer = setTimeout(() => {
@@ -813,7 +817,7 @@ function returnHome() {
   hideUndoToast();
   stockFlowEl.classList.add('hidden');
   stockHomeEl.classList.remove('hidden');
-  setHeader(t('checkin.bestand'));
+  setHeader(() => t('checkin.bestand'));
   if (launchedFromStocktable) {
     launchedFromStocktable = false;
     document.querySelector('.nav-btn[data-tab="settings"]').click();
@@ -841,7 +845,7 @@ startCheckinBtn.addEventListener('click', () => {
   };
   stockHomeEl.classList.add('hidden');
   stockFlowEl.classList.remove('hidden');
-  setHeader(t('checkin.einlagern'));
+  setHeader(() => t('checkin.einlagern'));
   goToStep('type');
 });
 
@@ -881,12 +885,22 @@ export function openAtSubcategory(subcategoryId) {
   };
   stockHomeEl.classList.add('hidden');
   stockFlowEl.classList.remove('hidden');
-  setHeader(t('checkin.einlagern'));
+  setHeader(() => t('checkin.einlagern'));
   goToStep(ctx ? 'product' : 'type');
 }
 
 window.addEventListener('erdkeller:signedin', () => loadConfig());
 window.addEventListener('erdkeller:refresh', () => loadConfig());
+
+// Language switch (I18N.md): re-render the JS-built text of whatever step
+// is open, without touching the selection or anything already typed.
+window.addEventListener('erdkeller:langchange', () => {
+  const step = currentStepName();
+  if (step === 'product') renderProductList(productSearchInput.value);
+  if (step === 'detail') updateContentFieldLabel();
+  if (!globalSearchResults.classList.contains('hidden')) renderGlobalSearchResults(globalSearchInput.value);
+  if (undoToastLabel && !undoToast.classList.contains('hidden')) undoToastText.textContent = undoToastLabel();
+});
 
 // Tapping the Bestand nav icon (even while already on it) always returns
 // to the two big buttons, regardless of how deep this flow was — and, if

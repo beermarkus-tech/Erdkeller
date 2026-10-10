@@ -1,11 +1,11 @@
-import { db } from './firebase-init.js?v=194';
-import { PALETTE } from './year-colors.js?v=194';
-import { openAddFlow } from './stock-checkin.js?v=194';
-import { switchTabWithoutReset } from './app-shell.js?v=194';
+import { db } from './firebase-init.js?v=195';
+import { PALETTE } from './year-colors.js?v=195';
+import { openAddFlow } from './stock-checkin.js?v=195';
+import { switchTabWithoutReset } from './app-shell.js?v=195';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=194';
+import { t } from './i18n.js?v=195';
 
 const stocktableCard = document.querySelector('.settings-card[data-target="stocktable"]');
 const settingsPanelStocktable = document.getElementById('settings-panel-stocktable');
@@ -66,10 +66,10 @@ const dateModalConfirmBtn = document.getElementById('table-date-modal-confirm');
 // can pick as the *explicit* sort column; the multi-key fallback sort when
 // none is picked is unaffected.
 const COLUMNS = [
-  { key: 'product', label: t('stockTable.produkt') },
-  { key: 'quantity', label: t('stockTable.menge') },
-  { key: 'content', label: t('stockTable.inhalt') },
-  { key: 'bestBefore', label: t('stockTable.mhd') },
+  { key: 'product', get label() { return t('stockTable.produkt'); } },
+  { key: 'quantity', get label() { return t('stockTable.menge'); } },
+  { key: 'content', get label() { return t('stockTable.inhalt'); } },
+  { key: 'bestBefore', get label() { return t('stockTable.mhd'); } },
 ];
 
 const COLOR_HEX = Object.fromEntries(PALETTE.map((c) => [c.name, c.hex]));
@@ -1122,6 +1122,14 @@ stockOpenTableBtn.addEventListener('click', () => {
   document.querySelector('.nav-btn[data-tab="settings"]').click();
   stocktableCard.click();
   returnTarget = 'stock';
+});
+
+// Language switch (I18N.md): the sort bar and the select-mode button are
+// built once, not by the data refresh, so re-render them here.
+window.addEventListener('erdkeller:langchange', () => {
+  if (sortBarEl.children.length) renderSortBar();
+  selectModeBtn.textContent = selectMode ? t('stockTable.fertig') : t('stockTable.auswaehlen');
+  updateBulkBar();
 });
 
 window.addEventListener('erdkeller:signedin', () => loadConfig());

@@ -1,5 +1,5 @@
-import de from './locales/de.js?v=194';
-import en from './locales/en.js?v=194';
+import de from './locales/de.js?v=195';
+import en from './locales/en.js?v=195';
 
 // UI language (I18N.md). Plain dictionaries, no library: i18next & co. would
 // need a CDN fetch or a build step, and the app must boot fully offline —
@@ -36,11 +36,9 @@ function deviceLang() {
 
 let lang = readStoredLang() || deviceLang();
 
-// Build 190 — the switch will move from "save + reload" to switching in
-// place once every module re-renders on erdkeller:langchange (end of I18N.md
-// Phase 3). Until then a reload is the only way to get JS-rendered text into
-// the new language, so this stays false and setLang() reloads.
-const LIVE_SWITCH = false;
+// Build 195 — switching happens in place (no reload): see setLang(). The
+// reload path is kept behind this flag as a fallback.
+const LIVE_SWITCH = true;
 
 export function getLang() {
   return lang;
@@ -52,9 +50,15 @@ export function getLocale() {
 
 // Switching saves the choice, then either reloads (LIVE_SWITCH false — works
 // offline, the service worker serves the shell) or switches in place:
-// static markup is re-applied here, and every module re-renders its own
-// JS-built text on erdkeller:langchange, dispatched after the static pass so
-// a module's render always wins over a stale static default.
+// static markup is re-applied here, then
+// - erdkeller:langchange lets modules fix text that no data refresh touches
+//   (headers, labels painted once at sign-in), and
+// - erdkeller:refresh makes every screen re-render from its data, exactly
+//   as the ↻ button does — and like ↻, the language button is unreachable
+//   while a full-screen modal is open, so no half-typed form is ever
+//   re-rendered under the user.
+// Both come after the static pass, so a module's own render always wins
+// over a stale static default.
 export function setLang(next) {
   if (!LANGUAGES.includes(next) || next === lang) return;
   try {
@@ -69,18 +73,20 @@ export function setLang(next) {
     location.reload();
     return;
   }
+  const prev = lang;
   lang = next;
   pluralRules = new Intl.PluralRules(LOCALES[lang]);
   document.documentElement.lang = lang;
-  applyStatic();
+  applyStatic(document, prev);
   updateLangButtons();
   window.dispatchEvent(new CustomEvent('erdkeller:langchange', { detail: { lang } }));
+  window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
 }
 
 let pluralRules = new Intl.PluralRules(LOCALES[lang]);
 
-function lookup(key) {
-  if (Object.prototype.hasOwnProperty.call(DICTS[lang], key)) return DICTS[lang][key];
+function lookup(key, inLang = lang) {
+  if (Object.prototype.hasOwnProperty.call(DICTS[inLang], key)) return DICTS[inLang][key];
   if (Object.prototype.hasOwnProperty.call(de, key)) return de[key];
   console.warn('i18n: missing key', key);
   return key;
@@ -119,30 +125,45 @@ export function fmtDate(value, options) {
 //   with inline markup (<strong>), whose values live in de.js/en.js — never
 //   use it for anything containing user data.
 // - data-i18n-attr="placeholder:key;title:key" sets attributes.
-// Run once at startup below, and callable on freshly inserted markup.
-function setOwnText(el, text) {
+//
+// `from` is the language the markup currently shows (the HTML source is
+// German). Text is only replaced while it still reads exactly as the static
+// default in that language: many of these elements are later rewritten by
+// their module (a modal title showing a contact's name, a select-mode
+// button toggled to "Fertig", a status line), and on a language switch those
+// must be left to the module's own re-render rather than reset to the
+// static default.
+// Run once at startup below, and on every in-place language switch.
+const plain = (v) => (typeof v === 'string' ? v : '');
+
+function setOwnText(el, text, expected) {
   const node = [...el.childNodes].find((n) => n.nodeType === Node.TEXT_NODE && n.nodeValue.trim());
-  if (!node) {
-    // JS emptied it, or it never had text: only safe to fill if there are
-    // no child elements to clobber.
-    if (!el.children.length) el.textContent = text;
-    return;
-  }
-  const [, lead, , trail] = node.nodeValue.match(/^(\s*)([\s\S]*?)(\s*)$/);
+  if (!node) return; // emptied or rewritten by its module: not ours any more
+  const [, lead, current, trail] = node.nodeValue.match(/^(\s*)([\s\S]*?)(\s*)$/);
+  if (current !== expected) return;
   node.nodeValue = lead + text + trail;
 }
 
-export function applyStatic(root = document) {
+function serializeHtml(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  return tpl.innerHTML;
+}
+
+export function applyStatic(root = document, from = 'de') {
   root.querySelectorAll('[data-i18n]').forEach((el) => {
-    setOwnText(el, t(el.dataset.i18n));
+    const key = el.dataset.i18n;
+    setOwnText(el, t(key), plain(lookup(key, from)));
   });
   root.querySelectorAll('[data-i18n-html]').forEach((el) => {
-    el.innerHTML = t(el.dataset.i18nHtml);
+    const key = el.dataset.i18nHtml;
+    if (el.innerHTML === serializeHtml(plain(lookup(key, from)))) el.innerHTML = t(key);
   });
   root.querySelectorAll('[data-i18n-attr]').forEach((el) => {
     el.dataset.i18nAttr.split(';').forEach((pair) => {
       const [attr, key] = pair.split(':').map((s) => s.trim());
-      if (attr && key) el.setAttribute(attr, t(key));
+      if (!attr || !key) return;
+      if (!el.hasAttribute(attr) || el.getAttribute(attr) === plain(lookup(key, from))) el.setAttribute(attr, t(key));
     });
   });
 }

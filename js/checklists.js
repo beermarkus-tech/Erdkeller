@@ -61,11 +61,11 @@
 // or triggers a render — never a manual optimistic flip in the same tick,
 // which would be a second writer to the same state and risk a visible
 // flicker if a slightly-lagged snapshot event arrived after it.
-import { db } from './firebase-init.js?v=194';
+import { db } from './firebase-init.js?v=195';
 import {
   collection, doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=194';
+import { t } from './i18n.js?v=195';
 
 // --- DOM refs: main screen ------------------------------------------------
 //
@@ -122,7 +122,11 @@ const RECIPIENT_OPTIONS = [
 ];
 
 const FREQ_LABELS = {
-  weekly: t('checklists.woechentlich'), monthly: t('checklists.monatlich'), quarterly: t('checklists.vierteljaehrlich'), halfYearly: t('checklists.halbjaehrlich'), yearly: t('checklists.jaehrlich'),
+  get weekly() { return t('checklists.woechentlich'); },
+  get monthly() { return t('checklists.monatlich'); },
+  get quarterly() { return t('checklists.vierteljaehrlich'); },
+  get halfYearly() { return t('checklists.halbjaehrlich'); },
+  get yearly() { return t('checklists.jaehrlich'); },
 };
 
 // Kept in sync with js/notifications.js's defaultChecklists() — same

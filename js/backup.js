@@ -14,11 +14,11 @@
 // replacement wrote (every subsequent write's isAdmin() check re-reads
 // /users/{currentUid}). Roles/names are managed only through Settings →
 // Personen, backup or no backup.
-import { db } from './firebase-init.js?v=194';
+import { db } from './firebase-init.js?v=195';
 import {
   collection, getDocs, doc, getDoc, setDoc, deleteDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=194';
+import { t, getLocale } from './i18n.js?v=195';
 
 const statusEl = document.getElementById('export-status');
 
@@ -459,6 +459,8 @@ async function runChecklistsMigration() {
 
 migrateBtn.addEventListener('click', runChecklistsMigration);
 loadMigrationMarker();
+// Language switch (I18N.md): the status line is rendered once per load.
+window.addEventListener('erdkeller:langchange', () => loadMigrationMarker());
 
 // --- Import (full-replace JSON restore) -------------------------------
 // Deletes every doc in each collection above and every /config doc, then

@@ -4,6 +4,10 @@
 //
 //   node tools/i18n-test/run.cjs <oldDir> <newDir> [--lang de|en] [--only name]
 //   node tools/i18n-test/run.cjs --dump <dir> [--lang en]   (print visible text per step)
+//   node tools/i18n-test/run.cjs --live <dir>
+//       German tour; after every step where the language button is reachable,
+//       switch to (fake) English in place, list text that stayed German,
+//       switch back, and require the DOM to equal the pre-switch DOM.
 //   node tools/i18n-test/run.cjs --leftovers <dir>
 //       English with a fake en.js ("§" + German for every key): lists every
 //       visible text, attribute and dialog that did NOT go through t(), i.e.
@@ -42,7 +46,7 @@ function normalize(html) {
     .replace(/Build \d+/g, 'Build N');
 }
 
-async function runTour(dir, lang, only, fake) {
+async function runTour(dir, lang, only, fake, afterStep) {
   const srv = await serve(dir);
   const base = `http://localhost:${srv.address().port}`;
   const browser = await chromium.launch();
@@ -54,7 +58,8 @@ async function runTour(dir, lang, only, fake) {
     await ctx.route(/cdnjs\.cloudflare\.com/, (r) => r.fulfill({ contentType: 'text/javascript', body: '' }));
     if (fake) {
       const de = new Function(fs.readFileSync(path.join(dir, 'js/locales/de.js'), 'utf8').replace('export default', 'return'))();
-      const mark = (v) => (typeof v === 'string' ? '§' + v : Object.fromEntries(Object.entries(v).map(([k, x]) => [k, '§' + x])));
+      const markStr = (x) => (/</.test(x) ? x.replace(/(^|>)([^<]+)/g, '$1§$2') : '§' + x); // markup values: mark every text run
+      const mark = (v) => (typeof v === 'string' ? markStr(v) : Object.fromEntries(Object.entries(v).map(([k, x]) => [k, markStr(x)])));
       const fakeEn = Object.fromEntries(Object.entries(de).map(([k, v]) => [k, mark(v)]));
       await ctx.route(/locales\/en\.js/, (r) => r.fulfill({ contentType: 'text/javascript', body: 'export default ' + JSON.stringify(fakeEn) }));
     }
@@ -109,29 +114,43 @@ async function runTour(dir, lang, only, fake) {
       await page.waitForTimeout(150);
       const html = normalize(await page.evaluate(() => document.body.innerHTML));
       const text = await page.evaluate(() => document.body.innerText);
-      const strings = fake ? await page.evaluate(() => {
-        const out = [];
-        const visible = (el) => el && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden';
-        const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-        while (w.nextNode()) {
-          const v = w.currentNode.nodeValue.trim();
-          const el = w.currentNode.parentElement;
-          if (v && visible(el) && !el.closest('[data-i18n-html]')) out.push(v);
-        }
-        document.querySelectorAll('[placeholder],[title],[aria-label]').forEach((el) => {
-          if (!visible(el)) return;
-          ['placeholder', 'title', 'aria-label'].forEach((a) => el.getAttribute(a) && out.push(`[${a}] ${el.getAttribute(a)}`));
-        });
-        document.querySelectorAll('select option').forEach((o) => visible(o.parentElement) && out.push(o.textContent.trim()));
-        return out;
-      }) : [];
-      out.push({ name: step.name, html, text, strings, dialogs: [...dialogs], note, errors: errors.splice(0) });
+      const strings = fake ? await visibleStrings(page) : [];
+      const extra = afterStep ? await afterStep(page, step, html) : null;
+      out.push({ name: step.name, html, text, strings, dialogs: [...dialogs], note, errors: errors.splice(0), extra });
     }
     await ctx.close();
   }
   await browser.close();
   srv.close();
   return out;
+}
+
+// A string is a leftover if it contains a word that is neither fixture data
+// (product/category names etc. — user content, never translated) nor a unit.
+// Plus the default names of items the tour itself creates (they become data).
+const dataWords = new Set(['kg', 'kcal', 'L', 'l', 'g', 'ml', 'EN', 'DE', 'Build', 'Erdkeller', 'Test', 'Admin', 'Bulgur', 'Kaviar', 'Neue', 'Checkliste', 'Neuer', 'Eintrag', 'Krisentyp']);
+const words = (v) => v.match(/[A-Za-zÄÖÜäöüß]{2,}/g) || [];
+(function collect(v) { if (typeof v === 'string') [v, v.replace(/<[^>]+>/g, '')].forEach((x) => words(x).forEach((w) => dataWords.add(w))); else if (v && typeof v === 'object') Object.values(v).forEach(collect); })(FIXTURES);
+'zwei Dosen Thunfisch und eine Packung Bulgur, eine Tafel Schokolade raus'.split(' ').forEach((w) => dataWords.add(w.replace(/,/, '')));
+const isLeft = (s) => !s.includes('§') && words(s.replace(/^\[[a-z-]+\] /, '')).some((w) => !dataWords.has(w));
+
+async function visibleStrings(page) {
+  return page.evaluate(() => {
+    const out = [];
+    const visible = (el) => el && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden';
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (w.nextNode()) {
+      const v = w.currentNode.nodeValue.trim();
+      const el = w.currentNode.parentElement;
+      if (v && visible(el)) out.push(v);
+    }
+    document.querySelectorAll('[placeholder],[title],[aria-label]').forEach((el) => {
+      if (!visible(el)) return;
+      ['placeholder', 'title', 'aria-label'].forEach((a) => el.getAttribute(a) && out.push(`[${a}] ${el.getAttribute(a)}`));
+    });
+    document.querySelectorAll('select option').forEach((o) => visible(o.parentElement) && out.push(o.textContent.trim()));
+    return out;
+  });
 }
 
 function firstDiff(a, b) {
@@ -146,14 +165,6 @@ function firstDiff(a, b) {
   const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
   if (args[0] === '--leftovers') {
     const r = await runTour(path.resolve(args[1]), 'en', only, true);
-    // A string is a leftover if it contains a word that is neither fixture
-    // data (product/category names etc. — user content, never translated)
-    // nor a unit symbol.
-    const dataWords = new Set(['kg', 'kcal', 'L', 'l', 'g', 'ml', 'EN', 'DE', 'Build', 'Erdkeller', 'Test', 'Admin']);
-    const words = (v) => v.match(/[A-Za-zÄÖÜäöüß]{2,}/g) || [];
-    const collect = (v) => { if (typeof v === 'string') words(v).forEach((w) => dataWords.add(w)); else if (v && typeof v === 'object') Object.values(v).forEach(collect); };
-    collect(FIXTURES);
-    const isLeft = (s) => !s.includes('§') && words(s.replace(/^\[[a-z-]+\] /, '')).some((w) => !dataWords.has(w));
     const seen = new Map();
     r.forEach((s) => {
       [...s.strings, ...s.dialogs.map((d) => '[dialog] ' + d)].filter(isLeft).forEach((v) => { if (!seen.has(v)) seen.set(v, s.name); });
@@ -161,6 +172,37 @@ function firstDiff(a, b) {
     });
     for (const [v, step] of seen) console.log(`${step.padEnd(40)} ${JSON.stringify(v)}`);
     console.log(`\n${seen.size} untranslated string(s)`);
+    return;
+  }
+  if (args[0] === '--live') {
+    const switchLang = async (page) => {
+      const btn = page.locator('.sidebar .lang-btn');
+      try { await btn.click({ timeout: 500, trial: true }); } catch { return false; }
+      await btn.click();
+      await page.clock.runFor(2000);
+      await page.waitForTimeout(150);
+      return true;
+    };
+    const r = await runTour(path.resolve(args[1]), 'de', only, true, async (page, step, htmlBefore) => {
+      if (!(await switchLang(page))) return { skipped: true };
+      const left = (await visibleStrings(page)).filter(isLeft);
+      await switchLang(page);
+      const htmlAfter = normalize(await page.evaluate(() => document.body.innerHTML));
+      return { left, same: htmlAfter === htmlBefore, diff: htmlAfter === htmlBefore ? '' : firstDiff(htmlBefore, htmlAfter) };
+    });
+    let bad = 0;
+    r.forEach((s) => {
+      const x = s.extra || {};
+      if (x.skipped) return console.log(`skip ${s.name} (language button covered)`);
+      const problems = [];
+      if (x.left.length) problems.push('stayed German: ' + JSON.stringify([...new Set(x.left)]));
+      if (!x.same) problems.push('DE→EN→DE changed the DOM:' + x.diff);
+      if (s.errors.length) problems.push('errors: ' + s.errors.join(' | '));
+      if (problems.length) bad++;
+      console.log(`${problems.length ? 'FAIL' : ' ok '} ${s.name}${problems.length ? '\n  ' + problems.join('\n  ') : ''}`);
+    });
+    console.log(`\n${r.length - bad}/${r.length} steps pass`);
+    process.exitCode = bad ? 1 : 0;
     return;
   }
   if (args[0] === '--dump') {

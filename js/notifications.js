@@ -12,12 +12,12 @@
 // whether an item is done-for-the-current-period; functions/index.js's
 // sendReminders is what actually reads the send-time half and dispatches
 // the push.
-import { db } from './firebase-init.js?v=194';
+import { db } from './firebase-init.js?v=195';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   permissionState, enableOnThisDevice, refreshIfAlreadyEnabled, listMyDevices, sendTestNotification, previewReminders,
-} from './push.js?v=194';
-import { t, getLocale } from './i18n.js?v=194';
+} from './push.js?v=195';
+import { t, getLocale } from './i18n.js?v=195';
 
 const notificationsCard = document.querySelector('.settings-card[data-target="notifications"]');
 const panelEl = document.getElementById('settings-panel-notifications');
@@ -265,7 +265,11 @@ testBtn.addEventListener('click', async () => {
 });
 
 const FREQ_LABELS = {
-  weekly: t('notifications.woechentlich'), monthly: t('notifications.monatlich'), quarterly: t('notifications.vierteljaehrlich'), halfYearly: t('notifications.halbjaehrlich'), yearly: t('notifications.jaehrlich'),
+  get weekly() { return t('notifications.woechentlich'); },
+  get monthly() { return t('notifications.monatlich'); },
+  get quarterly() { return t('notifications.vierteljaehrlich'); },
+  get halfYearly() { return t('notifications.halbjaehrlich'); },
+  get yearly() { return t('notifications.jaehrlich'); },
 };
 
 function formatPreview(result) {

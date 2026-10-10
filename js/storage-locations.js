@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=194';
+import { db } from './firebase-init.js?v=195';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=194';
+import { t } from './i18n.js?v=195';
 
 const listEl = document.getElementById('storage-list');
 const addBtn = document.getElementById('add-storage-btn');
