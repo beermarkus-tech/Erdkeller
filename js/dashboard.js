@@ -22,14 +22,14 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=195';
+import { db } from './firebase-init.js?v=196';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=195';
-import { openAtSubcategory } from './stock-checkin.js?v=195';
-import { openMaintenanceDue } from './checklists.js?v=195';
-import { t, getLocale } from './i18n.js?v=195';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=196';
+import { openAtSubcategory } from './stock-checkin.js?v=196';
+import { openMaintenanceDue } from './checklists.js?v=196';
+import { t, getLocale } from './i18n.js?v=196';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -220,6 +220,13 @@ function renderChecklistWarning() {
 }
 
 checklistWarningBtn.addEventListener('click', openMaintenanceDue);
+
+// Build 196 — live updates from js/checklists.js' own listeners, so ticking
+// an item updates the badge right away instead of at the next refresh.
+window.addEventListener('erdkeller:checklistitems', (e) => {
+  checklistItems = e.detail.items;
+  renderChecklistWarning();
+});
 
 // --- Same target math as js/targets.js (see file header) ----------------
 
