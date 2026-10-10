@@ -22,11 +22,11 @@
 // note with more than one photo just shows photos[0] as its hero until
 // next edited, same as everywhere else in this app that reads a narrowed
 // field defensively instead of needing a migration.
-import { db } from './firebase-init.js?v=193';
+import { db } from './firebase-init.js?v=194';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=193';
+import { t } from './i18n.js?v=194';
 
 const MAX_PHOTO_DIMENSION = 1000;
 const JPEG_QUALITY = 0.6;

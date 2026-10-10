@@ -1,11 +1,11 @@
-import { db } from './firebase-init.js?v=193';
-import { PALETTE } from './year-colors.js?v=193';
-import { renderRecentLog } from './stock-log.js?v=193';
-import { renderResultLines } from './format-batch.js?v=193';
+import { db } from './firebase-init.js?v=194';
+import { PALETTE } from './year-colors.js?v=194';
+import { renderRecentLog } from './stock-log.js?v=194';
+import { renderResultLines } from './format-batch.js?v=194';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=193';
+import { t } from './i18n.js?v=194';
 
 const stockHomeEl = document.getElementById('stock-home');
 const stockFlowEl = document.getElementById('stock-flow-checkout');

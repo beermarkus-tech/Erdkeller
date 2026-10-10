@@ -14,10 +14,11 @@
 // replacement wrote (every subsequent write's isAdmin() check re-reads
 // /users/{currentUid}). Roles/names are managed only through Settings →
 // Personen, backup or no backup.
-import { db } from './firebase-init.js?v=193';
+import { db } from './firebase-init.js?v=194';
 import {
   collection, getDocs, doc, getDoc, setDoc, deleteDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t, getLocale } from './i18n.js?v=194';
 
 const statusEl = document.getElementById('export-status');
 
@@ -78,7 +79,7 @@ async function downloadCsv(btn, section, load) {
     const { rows, columns } = await load();
     download(`erdkeller-${section}-${todayStamp()}.csv`, toCsv(rows, columns), 'text/csv;charset=utf-8');
   } catch (err) {
-    statusEl.textContent = 'Export fehlgeschlagen: ' + err.message;
+    statusEl.textContent = t('backup.export_fehlgeschlagen') + err.message;
     console.error(err);
   } finally {
     btn.disabled = false;
@@ -95,17 +96,17 @@ stockBtn.addEventListener('click', () => downloadCsv(stockBtn, 'bestand', async 
   const productNames = new Map(productsSnap.docs.map((d) => [d.id, d.data().name || '']));
   const rows = batchesSnap.docs.map((d) => d.data());
   const columns = [
-    { label: 'Typ', get: (r) => r.type },
-    { label: 'Kategorie', get: (r) => r.category },
-    { label: 'Unterkategorie', get: (r) => r.subcategory },
-    { label: 'Produkt', get: (r) => productNames.get(r.productId) || '' },
-    { label: 'Details', get: (r) => r.details },
-    { label: 'Menge', get: (r) => r.quantity },
-    { label: 'Inhalt', get: (r) => r.content },
-    { label: 'MHD', get: (r) => r.bestBefore },
-    { label: 'Lagerort', get: (r) => r.storage },
-    { label: 'Erstellt', get: (r) => r.createdAt },
-    { label: 'Geändert', get: (r) => r.updatedAt },
+    { label: t('backup.typ'), get: (r) => r.type },
+    { label: t('backup.kategorie'), get: (r) => r.category },
+    { label: t('backup.unterkategorie'), get: (r) => r.subcategory },
+    { label: t('backup.produkt'), get: (r) => productNames.get(r.productId) || '' },
+    { label: t('backup.details'), get: (r) => r.details },
+    { label: t('backup.menge'), get: (r) => r.quantity },
+    { label: t('backup.inhalt'), get: (r) => r.content },
+    { label: t('backup.mhd'), get: (r) => r.bestBefore },
+    { label: t('backup.lagerort'), get: (r) => r.storage },
+    { label: t('backup.erstellt'), get: (r) => r.createdAt },
+    { label: t('backup.geaendert'), get: (r) => r.updatedAt },
   ];
   return { rows, columns };
 }));
@@ -115,7 +116,7 @@ stockBtn.addEventListener('click', () => downloadCsv(stockBtn, 'bestand', async 
 
 checklistsBtn.addEventListener('click', () => downloadCsv(checklistsBtn, 'checklisten', async () => {
   const FREQ_LABELS = {
-    weekly: 'Wöchentlich', monthly: 'Monatlich', quarterly: 'Vierteljährlich', halfYearly: 'Halbjährlich', yearly: 'Jährlich',
+    weekly: t('backup.woechentlich'), monthly: t('backup.monatlich'), quarterly: t('backup.vierteljaehrlich'), halfYearly: t('backup.halbjaehrlich'), yearly: t('backup.jaehrlich'),
   };
   // Reads the split /checklists + /checklistItems collections (dev plan
   // Step 16.3, step 6 cutover) — see js/pdf-export.js's buildMaintenanceSection
@@ -154,10 +155,10 @@ checklistsBtn.addEventListener('click', () => downloadCsv(checklistsBtn, 'checkl
     });
   });
   const columns = [
-    { label: 'Checkliste', get: (r) => r.list },
-    { label: 'Aufgabe', get: (r) => r.text },
-    { label: 'Häufigkeit', get: (r) => r.frequency },
-    { label: 'Zuletzt erledigt', get: (r) => r.lastCompletedAt },
+    { label: t('backup.checkliste'), get: (r) => r.list },
+    { label: t('backup.aufgabe'), get: (r) => r.text },
+    { label: t('backup.haeufigkeit'), get: (r) => r.frequency },
+    { label: t('backup.zuletzt_erledigt'), get: (r) => r.lastCompletedAt },
   ];
   return { rows, columns };
 }));
@@ -168,12 +169,12 @@ contactsBtn.addEventListener('click', () => downloadCsv(contactsBtn, 'kontakte',
   const snap = await getDocs(collection(db, 'contacts'));
   const rows = snap.docs.map((d) => d.data());
   const columns = [
-    { label: 'Name', get: (r) => r.name },
-    { label: 'Rolle', get: (r) => r.role },
-    { label: 'Telefon', get: (r) => r.phone },
-    { label: 'Adresse', get: (r) => r.address },
-    { label: 'Notizen', get: (r) => r.notes },
-    { label: 'Notruf', get: (r) => (r.isEmergency ? 'Ja' : 'Nein') },
+    { label: t('backup.name'), get: (r) => r.name },
+    { label: t('backup.rolle'), get: (r) => r.role },
+    { label: t('backup.telefon'), get: (r) => r.phone },
+    { label: t('backup.adresse'), get: (r) => r.address },
+    { label: t('backup.notizen'), get: (r) => r.notes },
+    { label: t('backup.notruf'), get: (r) => (r.isEmergency ? t('backup.ja') : t('backup.nein')) },
   ];
   return { rows, columns };
 }));
@@ -184,11 +185,11 @@ notesBtn.addEventListener('click', () => downloadCsv(notesBtn, 'notizen', async 
   const snap = await getDocs(collection(db, 'notes'));
   const rows = snap.docs.map((d) => d.data());
   const columns = [
-    { label: 'Titel', get: (r) => r.title },
-    { label: 'Text', get: (r) => bodyPlainText(r.body) },
-    { label: 'Foto vorhanden', get: (r) => ((r.photos || []).length ? 'Ja' : 'Nein') },
-    { label: 'Erstellt', get: (r) => r.createdAt },
-    { label: 'Geändert', get: (r) => r.updatedAt },
+    { label: t('backup.titel'), get: (r) => r.title },
+    { label: t('backup.text'), get: (r) => bodyPlainText(r.body) },
+    { label: t('backup.foto_vorhanden'), get: (r) => ((r.photos || []).length ? t('backup.ja') : t('backup.nein')) },
+    { label: t('backup.erstellt'), get: (r) => r.createdAt },
+    { label: t('backup.geaendert'), get: (r) => r.updatedAt },
   ];
   return { rows, columns };
 }));
@@ -199,13 +200,13 @@ recipesBtn.addEventListener('click', () => downloadCsv(recipesBtn, 'rezepte', as
   const snap = await getDocs(collection(db, 'recipes'));
   const rows = snap.docs.map((d) => d.data());
   const columns = [
-    { label: 'Titel', get: (r) => r.title },
-    { label: 'Tags', get: (r) => (r.tags || []).join('; ') },
-    { label: 'Zutaten', get: (r) => (r.ingredients || []).join('; ') },
-    { label: 'Zubereitung', get: (r) => bodyPlainText(r.body) },
-    { label: 'Foto vorhanden', get: (r) => ((r.photos || []).length ? 'Ja' : 'Nein') },
-    { label: 'Erstellt', get: (r) => r.createdAt },
-    { label: 'Geändert', get: (r) => r.updatedAt },
+    { label: t('backup.titel'), get: (r) => r.title },
+    { label: t('backup.tags'), get: (r) => (r.tags || []).join('; ') },
+    { label: t('backup.zutaten'), get: (r) => (r.ingredients || []).join('; ') },
+    { label: t('backup.zubereitung'), get: (r) => bodyPlainText(r.body) },
+    { label: t('backup.foto_vorhanden'), get: (r) => ((r.photos || []).length ? t('backup.ja') : t('backup.nein')) },
+    { label: t('backup.erstellt'), get: (r) => r.createdAt },
+    { label: t('backup.geaendert'), get: (r) => r.updatedAt },
   ];
   return { rows, columns };
 }));
@@ -261,7 +262,7 @@ jsonBtn.addEventListener('click', async () => {
     const backup = await buildBackup();
     download(`erdkeller-backup-${todayStamp()}.json`, JSON.stringify(backup, null, 2), 'application/json;charset=utf-8');
   } catch (err) {
-    statusEl.textContent = 'Backup fehlgeschlagen: ' + err.message;
+    statusEl.textContent = t('backup.backup_fehlgeschlagen') + err.message;
     console.error(err);
   } finally {
     jsonBtn.disabled = false;
@@ -288,18 +289,18 @@ jsonBtn.addEventListener('click', async () => {
 // refuses loudly rather than silently merging two items into one.
 function validateChecklistsForMigration(maintenance) {
   const lists = Array.isArray(maintenance.lists) ? maintenance.lists : [];
-  if (!lists.length) return 'Keine Checklisten gefunden — nichts zu migrieren.';
+  if (!lists.length) return t('backup.keine_checklisten_gefunden_nichts_zu');
   const listIds = new Set();
   const itemIds = new Set();
   for (const list of lists) {
-    if (!list.id) return `Checkliste "${list.name || '(ohne Namen)'}" hat keine ID.`;
-    if (String(list.id).includes('/')) return `Checklisten-ID "${list.id}" enthält ein "/" und kann nicht migriert werden.`;
-    if (listIds.has(list.id)) return `Doppelte Checklisten-ID "${list.id}".`;
+    if (!list.id) return t('backup.checkliste_hat_keine_id', { value: list.name || t('backup.ohne_namen') });
+    if (String(list.id).includes('/')) return t('backup.checklisten_id_enthaelt_ein_und', { id: list.id });
+    if (listIds.has(list.id)) return t('backup.doppelte_checklisten_id', { id: list.id });
     listIds.add(list.id);
     for (const item of (list.items || [])) {
-      if (!item.id) return `Ein Eintrag in "${list.name || list.id}" hat keine ID.`;
-      if (String(item.id).includes('/')) return `Eintrags-ID "${item.id}" enthält ein "/" und kann nicht migriert werden.`;
-      if (itemIds.has(item.id)) return `Doppelte Eintrags-ID "${item.id}" — würde beim Umstieg auf einzelne Dokumente kollidieren.`;
+      if (!item.id) return t('backup.ein_eintrag_in_hat_keine', { value: list.name || list.id });
+      if (String(item.id).includes('/')) return t('backup.eintrags_id_enthaelt_ein_und', { id: item.id });
+      if (itemIds.has(item.id)) return t('backup.doppelte_eintrags_id_wuerde_beim', { id: item.id });
       itemIds.add(item.id);
     }
   }
@@ -346,30 +347,30 @@ async function loadMigrationMarker() {
   try {
     const snap = await getDoc(doc(db, 'config', 'checklistsMigration'));
     if (!snap.exists()) {
-      migrateMeta.textContent = 'Noch nicht ausgeführt';
-      migrateBtn.textContent = 'Migration starten';
+      migrateMeta.textContent = t('backup.noch_nicht_ausgefuehrt');
+      migrateBtn.textContent = t('backup.migration_starten');
       migrateBtn.disabled = false;
       return;
     }
     const data = snap.data();
     if (data.cutoverAt) {
-      migrateMeta.textContent = `Abgeschlossen am ${new Date(data.cutoverAt).toLocaleString('de-DE')}`;
-      migrateBtn.textContent = 'Abgeschlossen';
+      migrateMeta.textContent = t('backup.abgeschlossen_am', { date: new Date(data.cutoverAt).toLocaleString(getLocale()) });
+      migrateBtn.textContent = t('backup.abgeschlossen');
       migrateBtn.disabled = true;
       return;
     }
-    migrateMeta.textContent = `Migriert am ${new Date(data.migratedAt).toLocaleString('de-DE')} — ${data.listCount} Checklisten, ${data.itemCount} Einträge`;
-    migrateBtn.textContent = 'Erneut ausführen';
+    migrateMeta.textContent = t('backup.migriert_am_checklisten_eintraege', { date: new Date(data.migratedAt).toLocaleString(getLocale()), listCount: data.listCount, itemCount: data.itemCount });
+    migrateBtn.textContent = t('backup.erneut_ausfuehren');
     migrateBtn.disabled = false;
   } catch (err) {
-    migrateMeta.textContent = 'Status konnte nicht geladen werden';
+    migrateMeta.textContent = t('backup.status_konnte_nicht_geladen_werden');
     console.error('Migrations-Status konnte nicht geladen werden', err);
   }
 }
 
 async function runChecklistsMigration() {
   migrateBtn.disabled = true;
-  migrateStatus.textContent = 'Prüfe Daten…';
+  migrateStatus.textContent = t('backup.pruefe_daten');
   try {
     // Defense in depth, not just the disabled button above: refuse to
     // re-run for real if cutoverAt is already set, in case this ever got
@@ -378,7 +379,7 @@ async function runChecklistsMigration() {
     // actually unsafe, not merely redundant.
     const markerSnap = await getDoc(doc(db, 'config', 'checklistsMigration'));
     if (markerSnap.exists() && markerSnap.data().cutoverAt) {
-      migrateStatus.textContent = 'Migration bereits abgeschlossen — keine erneute Ausführung möglich.';
+      migrateStatus.textContent = t('backup.migration_bereits_abgeschlossen_keine_erneute');
       return;
     }
 
@@ -386,12 +387,12 @@ async function runChecklistsMigration() {
     const maintenance = snap.exists() && Array.isArray(snap.data().lists) ? snap.data() : { lists: [] };
     const validationError = validateChecklistsForMigration(maintenance);
     if (validationError) {
-      migrateStatus.textContent = 'Migration abgebrochen: ' + validationError;
+      migrateStatus.textContent = t('backup.migration_abgebrochen') + validationError;
       migrateBtn.disabled = false;
       return;
     }
 
-    migrateStatus.textContent = 'Sicherheits-Backup wird heruntergeladen…';
+    migrateStatus.textContent = t('backup.sicherheits_backup_wird_heruntergeladen');
     const safetyBackup = await buildBackup();
     download(`erdkeller-vor-checklisten-migration-${todayStamp()}.json`, JSON.stringify(safetyBackup, null, 2), 'application/json;charset=utf-8');
 
@@ -402,7 +403,7 @@ async function runChecklistsMigration() {
     // for testing but before this migration's "run again" is disabled).
     // Read what's there now so the newer of the two timestamps always
     // wins, never the legacy one just because it happens to run last.
-    migrateStatus.textContent = 'Lese bereits migrierte Einträge…';
+    migrateStatus.textContent = t('backup.lese_bereits_migrierte_eintraege');
     const existingItemsSnap = await getDocs(collection(db, 'checklistItems'));
     const existingItems = new Map(existingItemsSnap.docs.map((d) => [d.id, d.data()]));
 
@@ -411,7 +412,7 @@ async function runChecklistsMigration() {
     let itemCount = 0;
     lists.forEach((list) => { itemCount += (list.items || []).length; });
 
-    migrateStatus.textContent = `Migriere ${lists.length} Checklisten, ${itemCount} Einträge…`;
+    migrateStatus.textContent = t('backup.migriere_checklisten_eintraege', { length: lists.length, itemCount });
     const ops = [];
     lists.forEach((list) => {
       ops.push((batch) => batch.set(doc(db, 'checklists', list.id), {
@@ -447,10 +448,10 @@ async function runChecklistsMigration() {
     }));
     await commitInChunks(ops);
 
-    migrateStatus.textContent = `Migration abgeschlossen: ${lists.length} Checklisten, ${itemCount} Einträge.`;
+    migrateStatus.textContent = t('backup.migration_abgeschlossen_checklisten_eintraege', { length: lists.length, itemCount });
     await loadMigrationMarker();
   } catch (err) {
-    migrateStatus.textContent = 'Migration fehlgeschlagen: ' + err.message;
+    migrateStatus.textContent = t('backup.migration_fehlgeschlagen') + err.message;
     console.error(err);
     migrateBtn.disabled = false;
   }
@@ -466,7 +467,11 @@ loadMigrationMarker();
 // write phase of each collection are chunked (same pattern as Settings →
 // Verlauf's "Verlauf löschen", js/stock-log.js's deleteAllLogs).
 
-const CONFIRM_PHRASE = 'ALLES ERSETZEN';
+// The phrase to type is the same dictionary entry as the placeholder and
+// the <strong> in the hint above the input (index.html), so a translation
+// can never make the hint and the check disagree. Looked up at check time,
+// not load time, so it follows a language switch.
+const confirmPhrase = () => t('settings.export.alles_ersetzen');
 
 const importFileInput = document.getElementById('import-file-input');
 const importFileBtn = document.getElementById('import-file-btn');
@@ -490,27 +495,27 @@ function resetImportState(message) {
 
 function validateBackup(obj) {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
-    return 'Die Datei enthält kein gültiges Backup-Objekt.';
+    return t('backup.die_datei_enthaelt_kein_gueltiges');
   }
   for (const name of COLLECTIONS) {
     if (name in obj && !Array.isArray(obj[name])) {
-      return `Das Feld "${name}" müsste eine Liste sein.`;
+      return t('backup.das_feld_muesste_eine_liste', { name });
     }
   }
   if ('config' in obj && (typeof obj.config !== 'object' || obj.config === null || Array.isArray(obj.config))) {
-    return 'Das Feld "config" müsste ein Objekt sein.';
+    return t('backup.das_feld_config_muesste_ein');
   }
   return null;
 }
 
 function describeBackup(backup) {
   const lines = [];
-  if (backup.exportedAt) lines.push(`Erstellt am: ${new Date(backup.exportedAt).toLocaleString('de-DE')}`);
+  if (backup.exportedAt) lines.push(t('backup.erstellt_am', { date: new Date(backup.exportedAt).toLocaleString(getLocale()) }));
   COLLECTIONS.forEach((name) => {
     lines.push(`${name}: ${(backup[name] || []).length}`);
   });
   const configKeys = backup.config ? Object.keys(backup.config).filter((k) => backup.config[k] != null) : [];
-  lines.push(`Einstellungen enthalten: ${configKeys.length ? configKeys.join(', ') : '—'}`);
+  lines.push(t('backup.einstellungen_enthalten', { value: configKeys.length ? configKeys.join(', ') : '—' }));
   return lines;
 }
 
@@ -521,13 +526,13 @@ importFileInput.addEventListener('change', async () => {
   importFileInput.value = '';
   if (!file) return;
   importFileName.textContent = file.name;
-  resetImportState('Datei wird geprüft…');
+  resetImportState(t('backup.datei_wird_geprueft'));
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
     const err = validateBackup(parsed);
     if (err) {
-      resetImportState('Datei ungültig: ' + err);
+      resetImportState(t('backup.datei_ungueltig') + err);
       return;
     }
     pendingBackup = parsed;
@@ -541,13 +546,13 @@ importFileInput.addEventListener('change', async () => {
     importConfirmInput.disabled = false;
     importStatus.textContent = '';
   } catch (err) {
-    resetImportState('Datei ungültig: konnte nicht als JSON gelesen werden.');
+    resetImportState(t('backup.datei_ungueltig_konnte_nicht_als'));
     console.error(err);
   }
 });
 
 importConfirmInput.addEventListener('input', () => {
-  importConfirmBtn.disabled = !pendingBackup || importConfirmInput.value !== CONFIRM_PHRASE;
+  importConfirmBtn.disabled = !pendingBackup || importConfirmInput.value !== confirmPhrase();
 });
 
 async function replaceCollection(name, backupDocs) {
@@ -582,27 +587,27 @@ async function replaceConfig(config) {
 }
 
 importConfirmBtn.addEventListener('click', async () => {
-  if (!pendingBackup || importConfirmInput.value !== CONFIRM_PHRASE) return;
+  if (!pendingBackup || importConfirmInput.value !== confirmPhrase()) return;
   importFileBtn.disabled = true;
   importConfirmBtn.disabled = true;
   importConfirmInput.disabled = true;
   try {
-    importStatus.textContent = 'Sicherheits-Backup der aktuellen Daten wird heruntergeladen…';
+    importStatus.textContent = t('backup.sicherheits_backup_der_aktuellen_daten');
     const safetyBackup = await buildBackup();
     download(`erdkeller-vor-import-backup-${todayStamp()}.json`, JSON.stringify(safetyBackup, null, 2), 'application/json;charset=utf-8');
 
     for (let i = 0; i < COLLECTIONS.length; i++) {
       const name = COLLECTIONS[i];
-      importStatus.textContent = `Ersetze ${name}… (${i + 1}/${COLLECTIONS.length + 1})`;
+      importStatus.textContent = t('backup.ersetze', { name, value: i + 1, value2: COLLECTIONS.length + 1 });
       await replaceCollection(name, pendingBackup[name]);
     }
-    importStatus.textContent = `Aktualisiere Einstellungen… (${COLLECTIONS.length + 1}/${COLLECTIONS.length + 1})`;
+    importStatus.textContent = t('backup.aktualisiere_einstellungen', { value: COLLECTIONS.length + 1, value2: COLLECTIONS.length + 1 });
     await replaceConfig(pendingBackup.config);
 
-    importStatus.textContent = 'Fertig — wird neu geladen…';
+    importStatus.textContent = t('backup.fertig_wird_neu_geladen');
     setTimeout(() => location.reload(), 1000);
   } catch (err) {
-    importStatus.textContent = 'Import fehlgeschlagen: ' + err.message + ' — bitte Datei erneut auswählen und Bestätigung erneut eingeben.';
+    importStatus.textContent = t('backup.import_fehlgeschlagen') + err.message + t('backup.bitte_datei_erneut_auswaehlen_und');
     console.error(err);
     importFileBtn.disabled = false;
     importConfirmInput.disabled = false;

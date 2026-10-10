@@ -65,6 +65,24 @@ async function runTour(dir, lang, only, fake) {
       crypto.randomUUID = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
       let seed = 42;
       Math.random = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+      // Speech recognition: start() yields one final result; stop() ends the
+      // session (the app then submits the transcript to parseDictation).
+      class FakeRecognition {
+        start() { setTimeout(() => this.onresult && this.onresult({ results: [Object.assign([{ transcript: 'zwei Dosen Thunfisch und eine Packung Bulgur, eine Tafel Schokolade raus' }], { isFinal: true })] }), 20); }
+        stop() { setTimeout(() => this.onend && this.onend(), 20); }
+        abort() { this.stop(); }
+      }
+      window.SpeechRecognition = window.webkitSpeechRecognition = FakeRecognition;
+      window.__CALLABLES__ = {
+        parseDictation: () => ({ items: [
+          { direction: 'in', matchedProductId: 'p-tuna', quantity: 2, content: '185g', bestBefore: '12/2028', storage: 'Keller Regal 2', confidence: 'high' },
+          { direction: 'in', newProductName: 'Bulgur', guessedUnitType: 'kg', quantity: 1, content: '500g', bestBefore: '', storage: '', confidence: 'medium' },
+          { direction: 'out', matchedBatchId: 'b7', quantity: 1, confidence: 'low' },
+          { direction: 'out', matchedBatchId: 'nope', attemptedName: 'Kaviar', quantity: 1 },
+        ] }),
+        previewReminders: () => ({ enabled: true, currentParisHour: 12, configuredHour: 9, frequencies: {} }),
+        sendTestNotification: () => ({ total: 1, succeeded: 1, failures: [] }),
+      };
       localStorage.setItem('erdkeller-last-user', JSON.stringify({ uid: 'u-admin', name: 'Test Admin', photoURL: '', role: 'admin' }));
       localStorage.setItem('erdkeller-lang', lang);
     }, { fixtures: FIXTURES, lang });

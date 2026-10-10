@@ -71,6 +71,12 @@ module.exports = [
 
   // --- Diktieren ------------------------------------------------------------
   { name: 'dictate: open', run: seq(nav('stock'), c('#start-dictate-btn')) },
+  { name: 'dictate: listening', run: c('#dictate-mic-btn') },
+  { name: 'dictate: proposal', run: c('#dictate-mic-btn') },
+  { name: 'dictate: edit line', run: c('.dictate-proposal-line', 0) },
+  { name: 'dictate: edit out line', run: seq(closeModal, c('.dictate-proposal-line', 2)) },
+  { name: 'dictate: register', run: seq(closeModal, c('.dictate-proposal-actions .confirm-btn')) },
+  { name: 'dictate: undo', run: c('.dictate-undo-btn') },
   { name: 'dictate: close', run: c('#dictate-close-btn') },
 
   // --- Info -----------------------------------------------------------------
