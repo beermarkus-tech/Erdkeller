@@ -19,11 +19,11 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=196';
+import { db } from './firebase-init.js?v=197';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=196';
+import { t, getLocale } from './i18n.js?v=197';
 
 const targetsCard = document.querySelector('.settings-card[data-target="targets"]');
 const panelEl = document.getElementById('settings-panel-targets');
@@ -365,13 +365,13 @@ function formatComputedAmount(kg, cat) {
   const people = peopleCount();
   const days = autonomyDaysVal();
   if (displayUnit === 'kgpd') {
-    return people > 0 && days > 0 ? `${Math.round((kg / people / days) * 1000)} g/P/T` : `${round1(kg)} kg`;
+    return people > 0 && days > 0 ? `${Math.round((kg / people / days) * 1000)} ${t('targets.unit_g_pt')}` : `${round1(kg)} kg`;
   }
   if (displayUnit === 'kcal' || displayUnit === 'kcalpd') {
     if (!cat || cat.kcalPerKg == null) return t('targets.nicht_verfuegbar');
     const kcal = kg * cat.kcalPerKg;
     if (displayUnit === 'kcal') return `${Math.round(kcal).toLocaleString(getLocale())} kcal`;
-    return people > 0 && days > 0 ? `${Math.round(kcal / people / days)} kcal/P/T` : `${round1(kg)} kg`;
+    return people > 0 && days > 0 ? `${Math.round(kcal / people / days)} ${t('targets.unit_kcal_pt')}` : `${round1(kg)} kg`;
   }
   return `${round1(kg)} kg`;
 }
@@ -387,11 +387,11 @@ function formatMacroHeaderTotal(macro, items) {
   const days = autonomyDaysVal();
   if (displayUnit === 'kcal') return `${Math.round(macroGlobalKcal(macro)).toLocaleString(getLocale())} kcal`;
   if (displayUnit === 'kcalpd') {
-    return people > 0 && days > 0 ? `${Math.round(macroGlobalKcal(macro) / people / days)} kcal/P/T` : `${round1(macroGlobalKcal(macro))} kcal`;
+    return people > 0 && days > 0 ? `${Math.round(macroGlobalKcal(macro) / people / days)} ${t('targets.unit_kcal_pt')}` : `${round1(macroGlobalKcal(macro))} kcal`;
   }
   const sumKg = items.reduce((s, it) => s + (it.kg || 0), 0);
   if (displayUnit === 'kgpd') {
-    return people > 0 && days > 0 ? `${Math.round((sumKg / people / days) * 1000)} g/P/T` : `${round1(sumKg)} kg`;
+    return people > 0 && days > 0 ? `${Math.round((sumKg / people / days) * 1000)} ${t('targets.unit_g_pt')}` : `${round1(sumKg)} kg`;
   }
   return `${round1(sumKg)} kg`;
 }

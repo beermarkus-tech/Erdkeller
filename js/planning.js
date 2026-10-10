@@ -7,9 +7,9 @@
 // category picker: which stock counts as water is now a whole Taxonomie
 // type tagged Wasser (js/taxonomy.js), summed globally in the Übersicht
 // (js/dashboard.js) rather than assigned to one hand-picked category here.
-import { db } from './firebase-init.js?v=196';
+import { db } from './firebase-init.js?v=197';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=196';
+import { t, getLocale } from './i18n.js?v=197';
 
 const planningCard = document.querySelector('.settings-card[data-target="planning"]');
 const panelEl = document.getElementById('settings-panel-planning');

@@ -4,7 +4,8 @@
 const vis = (page, sel) => page.locator(sel).filter({ visible: true });
 const c = (sel, n = 0) => async (page) => vis(page, sel).nth(n).click({ timeout: 2000 });
 const seq = (...fns) => async (page) => { for (const f of fns) { await f(page); await page.clock.runFor(400); } };
-const nav = (tab) => c(`.sidebar .nav-btn[data-tab="${tab}"]`);
+// Sidebar on tablet, bottom nav on phone — whichever is visible.
+const nav = (tab) => c(`.nav-btn[data-tab="${tab}"]`);
 const fill = (sel, value) => async (page) => vis(page, sel).first().fill(value, { timeout: 2000 });
 const press = (key) => async (page) => page.keyboard.press(key);
 // Modals close on a tap on the dimmed overlay itself (e.target === overlay);
@@ -13,6 +14,14 @@ const closeModal = async (page) => {
   await page.evaluate(() => {
     [...document.querySelectorAll('.modal-overlay.show')].reverse()
       .forEach((el) => el.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  });
+};
+
+// Only the topmost modal (e.g. the dictation line editor over the dictation sheet).
+const closeTopModal = async (page) => {
+  await page.evaluate(() => {
+    const open = [...document.querySelectorAll('.modal-overlay.show')];
+    if (open.length) open[open.length - 1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
 };
 
@@ -74,8 +83,10 @@ module.exports = [
   { name: 'dictate: listening', run: c('#dictate-mic-btn') },
   { name: 'dictate: proposal', run: c('#dictate-mic-btn') },
   { name: 'dictate: edit line', run: c('.dictate-proposal-line', 0) },
-  { name: 'dictate: edit out line', run: seq(closeModal, c('.dictate-proposal-line', 2)) },
-  { name: 'dictate: register', run: seq(closeModal, c('.dictate-proposal-actions .confirm-btn')) },
+  { name: 'dictate: edit out line', run: seq(closeTopModal, c('.dictate-proposal-line', 2)) },
+  { name: 'dictate: discard', run: seq(closeTopModal, c('.dictate-discard-btn')) },
+  { name: 'dictate: second proposal', run: seq(c('#dictate-mic-btn'), c('#dictate-mic-btn')) },
+  { name: 'dictate: register', run: c('.dictate-proposal-actions .confirm-btn') },
   { name: 'dictate: undo', run: c('.dictate-undo-btn') },
   { name: 'dictate: close', run: c('#dictate-close-btn') },
 

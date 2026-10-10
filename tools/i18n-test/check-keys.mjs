@@ -30,7 +30,10 @@ let problems = 0;
 const report = (msg) => { problems++; console.log(msg); };
 for (const [k, where] of used) if (!(k in de)) report(`MISSING in de.js: ${k} (${where})`);
 for (const k of Object.keys(de)) if (!used.has(k)) report(`UNUSED in de.js: ${k}`);
-const ph = (v) => JSON.stringify((typeof v === 'string' ? v : Object.values(v).join(' ')).match(/\{\w+\}/g)?.sort() || []);
+// Distinct placeholder names; a plural entry ({ one, other }) must use the
+// same set in every form.
+const phSet = (str) => JSON.stringify([...new Set(str.match(/\{\w+\}/g) || [])].sort());
+const ph = (v) => (typeof v === 'string' ? phSet(v) : [...new Set(Object.values(v).map(phSet))].join(' | '));
 for (const [k, v] of Object.entries(en)) {
   if (!(k in de)) report(`en.js key not in de.js: ${k}`);
   else if (ph(v) !== ph(de[k])) report(`placeholder mismatch ${k}: de ${ph(de[k])} en ${ph(v)}`);
@@ -40,6 +43,13 @@ for (const [k, v] of Object.entries(en)) {
   const markupOk = k.endsWith('_html') || /[<&]/.test(typeof de[k] === 'string' ? de[k] : '');
   const flat = typeof v === 'string' ? v : Object.values(v).join(' ');
   if (!markupOk && /[<>&]/.test(flat)) report(`en ${k}: contains < > or & — use plain text or an *_html key`);
+}
+// js/backup.js checks the typed confirmation against this key, and the hint
+// above the input shows it in <strong>: both must match in every language.
+for (const [name, dict] of [['de', de], ['en', en]]) {
+  const phrase = dict['settings.export.alles_ersetzen'];
+  const hint = dict['settings.export.zum_bestaetigen_exakt_strong_alles'];
+  if (phrase && hint && !hint.includes(`<strong>${phrase}</strong>`)) report(`${name}: confirmation hint doesn't contain <strong>${phrase}</strong>`);
 }
 const enCount = Object.keys(en).length;
 console.log(`${Object.keys(de).length} de keys, ${used.size} used, ${enCount} translated to en; ${problems} problem(s)`);

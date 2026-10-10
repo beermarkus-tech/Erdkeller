@@ -20,6 +20,12 @@ node tools/i18n-test/run.cjs --dump . [--lang en] [--only "<step name>"]
 
 # Dictionary consistency: missing/unused keys, en.js placeholders
 node tools/i18n-test/check-keys.mjs
+
+# Any mode, with screenshots per step and/or the phone layout
+SHOTS=/tmp/shots VIEWPORT=phone node tools/i18n-test/run.cjs --dump . --lang en
+
+# German tour; switch to fake English in place after each step, then back
+node tools/i18n-test/run.cjs --live .
 ```
 
 Playwright is preinstalled in the Claude Code cloud container. If `require('playwright')` fails, set `PW=/opt/node-tools/node_modules/playwright`.

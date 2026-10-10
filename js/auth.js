@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=196';
+import { auth, db } from './firebase-init.js?v=197';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -11,7 +11,7 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=196';
+import { t } from './i18n.js?v=197';
 
 const provider = new GoogleAuthProvider();
 

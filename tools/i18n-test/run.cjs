@@ -4,6 +4,7 @@
 //
 //   node tools/i18n-test/run.cjs <oldDir> <newDir> [--lang de|en] [--only name]
 //   node tools/i18n-test/run.cjs --dump <dir> [--lang en]   (print visible text per step)
+//   SHOTS=<outdir> before any mode also saves a screenshot per step
 //   node tools/i18n-test/run.cjs --live <dir>
 //       German tour; after every step where the language button is reachable,
 //       switch to (fake) English in place, list text that stayed German,
@@ -51,7 +52,8 @@ async function runTour(dir, lang, only, fake, afterStep) {
   const base = `http://localhost:${srv.address().port}`;
   const browser = await chromium.launch();
   const out = [];
-  for (const viewport of [{ width: 1280, height: 900 }]) {
+  // VIEWPORT=phone renders the phone layout (bottom nav, topbar) instead of the tablet one.
+  for (const viewport of [process.env.VIEWPORT === 'phone' ? { width: 390, height: 844 } : { width: 1280, height: 900 }]) {
     const ctx = await browser.newContext({ viewport, locale: lang === 'en' ? 'en-US' : 'de-DE', serviceWorkers: 'block' });
     await ctx.route(/gstatic\.com\/firebasejs\//, (r) => r.fulfill({ contentType: 'text/javascript', body: MOCK }));
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.fulfill({ contentType: 'text/css', body: '' }));
@@ -79,11 +81,18 @@ async function runTour(dir, lang, only, fake, afterStep) {
       }
       window.SpeechRecognition = window.webkitSpeechRecognition = FakeRecognition;
       window.__CALLABLES__ = {
-        parseDictation: () => ({ items: [
+        // 1st call: a proposal with gaps (missing category/storage, a line
+        // not in stock) to exercise the warnings; later calls: a complete
+        // one that can be registered.
+        parseDictation: () => ((window.__dictations = (window.__dictations || 0) + 1) === 1 ? { items: [
           { direction: 'in', matchedProductId: 'p-tuna', quantity: 2, content: '185g', bestBefore: '12/2028', storage: 'Keller Regal 2', confidence: 'high' },
           { direction: 'in', newProductName: 'Bulgur', guessedUnitType: 'kg', quantity: 1, content: '500g', bestBefore: '', storage: '', confidence: 'medium' },
           { direction: 'out', matchedBatchId: 'b7', quantity: 1, confidence: 'low' },
           { direction: 'out', matchedBatchId: 'nope', attemptedName: 'Kaviar', quantity: 1 },
+        ] } : { items: [
+          { direction: 'in', matchedProductId: 'p-tuna', quantity: 2, content: '185g', bestBefore: '12/2028', storage: 'Keller Regal 2', confidence: 'high' },
+          { direction: 'in', newProductName: 'Bulgur', suggestedSubcategoryId: 's-pasta', guessedUnitType: 'kg', quantity: 1, content: '500g', bestBefore: '06/2027', storage: 'Küche', confidence: 'high' },
+          { direction: 'out', matchedBatchId: 'b7', quantity: 1, confidence: 'high' },
         ] }),
         previewReminders: () => ({ enabled: true, currentParisHour: 12, configuredHour: 9, frequencies: {} }),
         sendTestNotification: () => ({ total: 1, succeeded: 1, failures: [] }),
@@ -112,6 +121,10 @@ async function runTour(dir, lang, only, fake, afterStep) {
       }
       await page.clock.runFor(1500);
       await page.waitForTimeout(150);
+      if (process.env.SHOTS) {
+        fs.mkdirSync(process.env.SHOTS, { recursive: true });
+        await page.screenshot({ path: path.join(process.env.SHOTS, `${String(TOUR.indexOf(step)).padStart(2, '0')}-${step.name.replace(/[^a-z0-9]+/gi, '_')}.png`) });
+      }
       const html = normalize(await page.evaluate(() => document.body.innerHTML));
       const text = await page.evaluate(() => document.body.innerText);
       const strings = fake ? await visibleStrings(page) : [];
@@ -132,7 +145,8 @@ const dataWords = new Set(['kg', 'kcal', 'L', 'l', 'g', 'ml', 'EN', 'DE', 'Build
 const words = (v) => v.match(/[A-Za-zÄÖÜäöüß]{2,}/g) || [];
 (function collect(v) { if (typeof v === 'string') [v, v.replace(/<[^>]+>/g, '')].forEach((x) => words(x).forEach((w) => dataWords.add(w))); else if (v && typeof v === 'object') Object.values(v).forEach(collect); })(FIXTURES);
 'zwei Dosen Thunfisch und eine Packung Bulgur, eine Tafel Schokolade raus'.split(' ').forEach((w) => dataWords.add(w.replace(/,/, '')));
-const isLeft = (s) => !s.includes('§') && words(s.replace(/^\[[a-z-]+\] /, '')).some((w) => !dataWords.has(w));
+// German unit abbreviations with single letters (g/P/T = per person per day) count too.
+const isLeft = (s) => !s.includes('§') && (words(s.replace(/^\[[a-z-]+\] /, '')).some((w) => !dataWords.has(w)) || /\bP\/T\b/.test(s));
 
 async function visibleStrings(page) {
   return page.evaluate(() => {

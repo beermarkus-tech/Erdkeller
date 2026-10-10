@@ -22,14 +22,14 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=196';
+import { db } from './firebase-init.js?v=197';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=196';
-import { openAtSubcategory } from './stock-checkin.js?v=196';
-import { openMaintenanceDue } from './checklists.js?v=196';
-import { t, getLocale } from './i18n.js?v=196';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=197';
+import { openAtSubcategory } from './stock-checkin.js?v=197';
+import { openMaintenanceDue } from './checklists.js?v=197';
+import { t, getLocale } from './i18n.js?v=197';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -586,13 +586,13 @@ function formatAmount(kg, kcalPerKg) {
   const people = peopleCount();
   const days = autonomyDaysVal();
   if (displayUnit === 'kgpd') {
-    return people > 0 && days > 0 ? `${Math.round((kg / people / days) * 1000)} g/P/T` : `${round1(kg)} kg`;
+    return people > 0 && days > 0 ? `${Math.round((kg / people / days) * 1000)} ${t('dashboard.unit_g_pt')}` : `${round1(kg)} kg`;
   }
   if (displayUnit === 'kcal' || displayUnit === 'kcalpd') {
     if (kcalPerKg == null) return t('dashboard.nicht_verfuegbar');
     const kcal = kg * kcalPerKg;
     if (displayUnit === 'kcal') return `${Math.round(kcal).toLocaleString(getLocale())} kcal`;
-    return people > 0 && days > 0 ? `${Math.round(kcal / people / days)} kcal/P/T` : `${round1(kg)} kg`;
+    return people > 0 && days > 0 ? `${Math.round(kcal / people / days)} ${t('dashboard.unit_kcal_pt')}` : `${round1(kg)} kg`;
   }
   return `${round1(kg)} kg`;
 }
@@ -676,7 +676,7 @@ function renderHero(rows) {
     targetText = `/ ${round1(target)} kg`;
   } else if (displayUnit === 'kgpd') {
     currentText = people > 0 && days > 0 ? `${Math.round((current / people / days) * 1000)}` : `${round1(current)}`;
-    targetText = people > 0 && days > 0 ? `/ ${Math.round((target / people / days) * 1000)} g/P/T` : `/ ${round1(target)} kg`;
+    targetText = people > 0 && days > 0 ? `/ ${Math.round((target / people / days) * 1000)} ${t('dashboard.unit_g_pt')}` : `/ ${round1(target)} kg`;
   } else if (displayUnit === 'kcal') {
     currentText = Math.round(current).toLocaleString(getLocale());
     targetText = t('dashboard.kcal', { value: Math.round(target).toLocaleString(getLocale()) });
@@ -732,7 +732,7 @@ function renderHeroWater(current, target) {
   let targetText;
   if (displayUnit === 'kgpd' && people > 0 && days > 0) {
     currentText = `${Math.round((current / people / days) * 1000)}`;
-    targetText = `/ ${Math.round((target / people / days) * 1000)} ml/P/T`;
+    targetText = `/ ${Math.round((target / people / days) * 1000)} ${t('dashboard.unit_ml_pt')}`;
   } else {
     currentText = `${round1(current)}`;
     targetText = `/ ${round1(target)} L`;
