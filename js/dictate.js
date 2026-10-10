@@ -15,11 +15,12 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=193';
+import { db, functions } from './firebase-init.js?v=194';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
+import { t } from './i18n.js?v=194';
 
 const startBtn = document.getElementById('start-dictate-btn');
 const modal = document.getElementById('dictate-modal');
@@ -120,7 +121,7 @@ function normalizeContent(raw) {
 }
 
 function productName(productId) {
-  return (productIndex.get(productId) || {}).name || '(unbekanntes Produkt)';
+  return (productIndex.get(productId) || {}).name || t('dictate.unbekanntes_produkt');
 }
 
 function clampQty(n, max) {
@@ -131,7 +132,7 @@ function clampQty(n, max) {
 function batchMetaLine(batch) {
   const parts = [`${batch.quantity}×`];
   if (batch.content) parts.push(batch.content);
-  if (batch.bestBefore) parts.push('MHD ' + batch.bestBefore);
+  if (batch.bestBefore) parts.push(t('dictate.mhd') + batch.bestBefore);
   if (batch.storage) parts.push(batch.storage);
   return parts.join(' · ');
 }
@@ -173,7 +174,7 @@ function openDictateModal() {
   chatEl.innerHTML = '';
   liveEl.classList.add('hidden');
   liveEl.textContent = '';
-  setHint('Zum Sprechen tippen');
+  setHint(t('dictate.zum_sprechen_tippen'));
   modal.classList.add('show');
 }
 
@@ -269,7 +270,7 @@ function runRecognitionSession() {
     if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
       stopRequested = true;
       resetMicUi();
-      appendErrorBubbleSimple('Mikrofon-Zugriff wurde verweigert — bitte in den Browser-Einstellungen erlauben.');
+      appendErrorBubbleSimple(t('dictate.mikrofon_zugriff_wurde_verweigert_bitte'));
     }
     // Other errors (e.g. no-speech during a pause between items) are left
     // to onend, which restarts the next session automatically.
@@ -300,7 +301,7 @@ function runRecognitionSession() {
 
 function startRecording() {
   if (!SpeechRecognitionCtor) {
-    appendErrorBubbleSimple('Spracherkennung wird auf diesem Gerät/Browser nicht unterstützt.');
+    appendErrorBubbleSimple(t('dictate.spracherkennung_wird_auf_diesem_geraet'));
     return;
   }
   if (recording || analysisPending) return;
@@ -310,7 +311,7 @@ function startRecording() {
   accumulatedTranscript = '';
   micBtn.classList.add('recording');
   photoBtn.disabled = true;
-  setHint('Höre zu… nochmal tippen zum Beenden');
+  setHint(t('dictate.hoere_zu_nochmal_tippen_zum'));
   liveEl.classList.remove('hidden');
   liveEl.textContent = '';
 
@@ -322,7 +323,7 @@ function resetMicUi() {
   micBtn.classList.remove('recording');
   photoBtn.disabled = analysisPending;
   liveEl.classList.add('hidden');
-  setHint('Zum Sprechen tippen');
+  setHint(t('dictate.zum_sprechen_tippen'));
 }
 
 function stopRecording() {
@@ -374,10 +375,10 @@ function compressImage(file) {
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
         resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
       };
-      img.onerror = () => reject(new Error('Bild konnte nicht gelesen werden.'));
+      img.onerror = () => reject(new Error(t('dictate.bild_konnte_nicht_gelesen_werden')));
       img.src = reader.result;
     };
-    reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.'));
+    reader.onerror = () => reject(new Error(t('dictate.datei_konnte_nicht_gelesen_werden')));
     reader.readAsDataURL(file);
   });
 }
@@ -392,7 +393,7 @@ photoInput.addEventListener('change', async () => {
   photoInput.value = ''; // reset so re-picking the same file still fires change
   if (!file) return;
   if (!file.type.startsWith('image/')) {
-    appendErrorBubbleSimple('Bitte ein Foto auswählen.');
+    appendErrorBubbleSimple(t('dictate.bitte_ein_foto_auswaehlen'));
     return;
   }
   let dataUri;
@@ -400,11 +401,11 @@ photoInput.addEventListener('change', async () => {
     dataUri = await compressImage(file);
   } catch (err) {
     console.error(err);
-    appendErrorBubbleSimple('Foto konnte nicht verarbeitet werden: ' + err.message);
+    appendErrorBubbleSimple(t('dictate.foto_konnte_nicht_verarbeitet_werden') + err.message);
     return;
   }
   if (dataUri.length > MAX_PHOTO_BASE64_CHARS) {
-    appendErrorBubbleSimple('Das Foto ist zu groß. Bitte ein anderes wählen.');
+    appendErrorBubbleSimple(t('dictate.das_foto_ist_zu_gross'));
     return;
   }
   handlePhoto(dataUri);
@@ -478,7 +479,7 @@ function resolveLine(item) {
       return {
         direction: 'out',
         unresolved: true,
-        name: (item.attemptedName && String(item.attemptedName).trim()) || 'Unbekanntes Produkt',
+        name: (item.attemptedName && String(item.attemptedName).trim()) || t('dictate.unbekanntes_produkt_2'),
       };
     }
     const product = productIndex.get(batch.productId);
@@ -646,8 +647,8 @@ function processParsedItems(items, retry) {
     // to the console AND shown right in the bubble (Build 137, temporary),
     // since a browser console isn't practically reachable on a phone/tablet.
     console.warn('Diktieren: no lines resolved from parseDictation items', items);
-    const debugDetail = items.length ? JSON.stringify(items, null, 1) : '(leeres items-Array)';
-    appendErrorBubble('Das habe ich nicht verstanden.', retry, debugDetail);
+    const debugDetail = items.length ? JSON.stringify(items, null, 1) : t('dictate.leeres_items_array');
+    appendErrorBubble(t('dictate.das_habe_ich_nicht_verstanden'), retry, debugDetail);
     return;
   }
   appendProposalBubble(lines);
@@ -655,7 +656,7 @@ function processParsedItems(items, retry) {
 
 async function handleTranscript(transcript) {
   appendUserBubble(transcript);
-  const pendingBubble = appendPendingBubble('Analysiere…');
+  const pendingBubble = appendPendingBubble(t('dictate.analysiere'));
   setBusy(true);
 
   let items = [];
@@ -666,7 +667,7 @@ async function handleTranscript(transcript) {
     console.error(err);
     setBusy(false);
     pendingBubble.remove();
-    appendErrorBubble('Verbindung zur Erkennung fehlgeschlagen.', () => handleTranscript(transcript));
+    appendErrorBubble(t('dictate.verbindung_zur_erkennung_fehlgeschlagen'), () => handleTranscript(transcript));
     return;
   }
 
@@ -677,7 +678,7 @@ async function handleTranscript(transcript) {
 
 async function handlePhoto(dataUri) {
   appendPhotoBubble(dataUri);
-  const pendingBubble = appendPendingBubble('Analysiere Foto…');
+  const pendingBubble = appendPendingBubble(t('dictate.analysiere_foto'));
   setBusy(true);
   const imageBase64 = dataUri.slice(dataUri.indexOf(',') + 1);
 
@@ -689,7 +690,7 @@ async function handlePhoto(dataUri) {
     console.error(err);
     setBusy(false);
     pendingBubble.remove();
-    appendErrorBubble('Verbindung zur Erkennung fehlgeschlagen.', () => handlePhoto(dataUri));
+    appendErrorBubble(t('dictate.verbindung_zur_erkennung_fehlgeschlagen'), () => handlePhoto(dataUri));
     return;
   }
 
@@ -713,7 +714,7 @@ function appendPhotoBubble(dataUri) {
   div.className = 'dictate-bubble user photo';
   const img = document.createElement('img');
   img.src = dataUri;
-  img.alt = 'Aufgenommenes Foto';
+  img.alt = t('dictate.aufgenommenes_foto');
   div.appendChild(img);
   chatEl.appendChild(div);
   scrollChatToBottom();
@@ -755,7 +756,7 @@ function appendErrorBubble(message, retry, debugDetail) {
   const retryBtn = document.createElement('button');
   retryBtn.type = 'button';
   retryBtn.className = 'select-mode-btn dictate-retry-btn';
-  retryBtn.textContent = 'Nochmal versuchen';
+  retryBtn.textContent = t('dictate.nochmal_versuchen');
   retryBtn.addEventListener('click', () => {
     retryBtn.disabled = true;
     retry();
@@ -782,7 +783,7 @@ function appendConfirmationBubble(result) {
   div.className = 'dictate-bubble app confirmation';
 
   if (!result.inSummaries.length && !result.outSummaries.length) {
-    div.textContent = 'Nichts zu registrieren — alle Zeilen waren nicht auflösbar.';
+    div.textContent = t('dictate.nichts_zu_registrieren_alle_zeilen');
     chatEl.appendChild(div);
     scrollChatToBottom();
     return;
@@ -791,30 +792,30 @@ function appendConfirmationBubble(result) {
   if (result.inSummaries.length) {
     const p = document.createElement('div');
     p.className = 'dictate-confirmation-line';
-    p.textContent = '✅ Eingelagert: ' + result.inSummaries.join(', ');
+    p.textContent = t('dictate.eingelagert') + result.inSummaries.join(', ');
     div.appendChild(p);
   }
   if (result.outSummaries.length) {
     const p = document.createElement('div');
     p.className = 'dictate-confirmation-line';
-    p.textContent = '➖ Entnommen: ' + result.outSummaries.join(', ');
+    p.textContent = t('dictate.entnommen') + result.outSummaries.join(', ');
     div.appendChild(p);
   }
   if (result.undoRecords.length) {
     const undoBtn = document.createElement('button');
     undoBtn.type = 'button';
     undoBtn.className = 'dictate-undo-btn';
-    undoBtn.textContent = '↩ Rückgängig';
+    undoBtn.textContent = t('dictate.rueckgaengig');
     undoBtn.addEventListener('click', async () => {
       undoBtn.disabled = true;
       try {
         await undoTurn(result.undoRecords);
-        undoBtn.textContent = 'Rückgängig gemacht';
+        undoBtn.textContent = t('dictate.rueckgaengig_gemacht');
       } catch (err) {
         console.error(err);
         undoBtn.disabled = false;
-        undoBtn.textContent = '↩ Rückgängig';
-        appendErrorBubbleSimple('Rückgängig machen fehlgeschlagen: ' + err.message);
+        undoBtn.textContent = t('dictate.rueckgaengig');
+        appendErrorBubbleSimple(t('dictate.rueckgaengig_machen_fehlgeschlagen') + err.message);
       }
     });
     div.appendChild(undoBtn);
@@ -847,8 +848,8 @@ function renderProposalLine(line, onTap, onToggle) {
     const toggleDisabled = line.direction === 'in' && !canToggleDirection(line);
     toggleBtn.disabled = toggleDisabled;
     toggleBtn.title = toggleDisabled
-      ? 'Kein Bestand dieses Produkts vorhanden'
-      : (line.direction === 'out' ? 'Entnehmen — antippen für Einlagern' : 'Einlagern — antippen für Entnehmen');
+      ? t('dictate.kein_bestand_dieses_produkts_vorhanden')
+      : (line.direction === 'out' ? t('dictate.entnehmen_antippen_fuer_einlagern') : t('dictate.einlagern_antippen_fuer_entnehmen'));
     toggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       onToggle();
@@ -863,7 +864,7 @@ function renderProposalLine(line, onTap, onToggle) {
   if (line.unresolved) {
     const mainEl = document.createElement('div');
     mainEl.className = 'dictate-line-main';
-    mainEl.textContent = `❌ „${line.name}“ nicht im Bestand gefunden`;
+    mainEl.textContent = t('dictate.nicht_im_bestand_gefunden', { name: line.name });
     content.appendChild(mainEl);
     return row; // nothing to tap into or toggle — informational only
   }
@@ -872,7 +873,7 @@ function renderProposalLine(line, onTap, onToggle) {
     const pathEl = document.createElement('div');
     pathEl.className = 'dictate-line-path';
     const sym = line.subcategorySym || line.categorySym || line.typeSym || '';
-    pathEl.textContent = (sym ? sym + ' ' : '') + (lineBreadcrumb(line) || 'Kategorie unbekannt');
+    pathEl.textContent = (sym ? sym + ' ' : '') + (lineBreadcrumb(line) || t('dictate.kategorie_unbekannt'));
     content.appendChild(pathEl);
 
     const mainEl = document.createElement('div');
@@ -882,7 +883,7 @@ function renderProposalLine(line, onTap, onToggle) {
       const confEl = document.createElement('span');
       confEl.className = 'dictate-line-confidence';
       confEl.textContent = '?';
-      confEl.title = 'Unsichere Chargen-Zuordnung — bitte prüfen';
+      confEl.title = t('dictate.unsichere_chargen_zuordnung_bitte_pruefen');
       mainEl.appendChild(confEl);
     }
     content.appendChild(mainEl);
@@ -895,7 +896,7 @@ function renderProposalLine(line, onTap, onToggle) {
     const pathEl = document.createElement('div');
     pathEl.className = 'dictate-line-path' + (line.subcategoryId ? '' : ' missing');
     const sym = line.subcategorySym || line.categorySym || line.typeSym || '';
-    pathEl.textContent = (sym ? sym + ' ' : '') + (lineBreadcrumb(line) || '⚠ Kategorie fehlt — antippen');
+    pathEl.textContent = (sym ? sym + ' ' : '') + (lineBreadcrumb(line) || t('dictate.kategorie_fehlt_antippen'));
     content.appendChild(pathEl);
 
     const mainEl = document.createElement('div');
@@ -911,15 +912,15 @@ function renderProposalLine(line, onTap, onToggle) {
       const confEl = document.createElement('span');
       confEl.className = 'dictate-line-confidence';
       confEl.textContent = '?';
-      confEl.title = 'Unsichere Erkennung — bitte prüfen';
+      confEl.title = t('dictate.unsichere_erkennung_bitte_pruefen');
       mainEl.appendChild(confEl);
     }
     content.appendChild(mainEl);
 
     const meta2Parts = [];
-    if (line.bestBefore) meta2Parts.push('MHD ' + line.bestBefore);
-    meta2Parts.push(line.storage || '⚠ Lagerort fehlt');
-    if (line.isNew) meta2Parts.push('neues Produkt');
+    if (line.bestBefore) meta2Parts.push(t('dictate.mhd') + line.bestBefore);
+    meta2Parts.push(line.storage || t('dictate.lagerort_fehlt'));
+    if (line.isNew) meta2Parts.push(t('dictate.neues_produkt'));
     const meta2El = document.createElement('div');
     meta2El.className = 'dictate-line-meta2' + (line.storage ? '' : ' missing');
     meta2El.textContent = meta2Parts.join(' · ');
@@ -949,13 +950,13 @@ function appendProposalBubble(lines) {
   const discardBtn = document.createElement('button');
   discardBtn.type = 'button';
   discardBtn.className = 'dictate-discard-btn';
-  discardBtn.textContent = '✕ Verwerfen';
+  discardBtn.textContent = t('dictate.verwerfen');
   discardBtn.addEventListener('click', () => div.remove());
 
   const confirmBtn = document.createElement('button');
   confirmBtn.type = 'button';
   confirmBtn.className = 'confirm-btn';
-  confirmBtn.textContent = '✅ Registrieren';
+  confirmBtn.textContent = t('dictate.registrieren');
   confirmBtn.addEventListener('click', async () => {
     confirmBtn.disabled = true;
     discardBtn.disabled = true;
@@ -968,13 +969,13 @@ function appendProposalBubble(lines) {
       console.error(err);
       confirmBtn.disabled = false;
       discardBtn.disabled = false;
-      appendErrorBubbleSimple('Registrieren fehlgeschlagen: ' + err.message);
+      appendErrorBubbleSimple(t('dictate.registrieren_fehlgeschlagen') + err.message);
     }
   });
 
   const hintEl = document.createElement('div');
   hintEl.className = 'dictate-proposal-hint';
-  hintEl.textContent = '⚠ Bitte fehlende Kategorie/Lagerort antippen und ausfüllen';
+  hintEl.textContent = t('dictate.bitte_fehlende_kategorie_lagerort_antippen');
 
   function rerender() {
     linesWrap.innerHTML = '';
@@ -1085,7 +1086,7 @@ function populateEditStorageSelect(selected) {
     // look like the first storage location was already chosen.
     const placeholder = document.createElement('option');
     placeholder.value = '';
-    placeholder.textContent = '— Lagerort wählen —';
+    placeholder.textContent = t('dictate.lagerort_waehlen');
     editStorageSelect.appendChild(placeholder);
   }
   storageLocations.forEach((loc) => {
@@ -1125,8 +1126,8 @@ function openEditSheet(lines, index, onApply) {
 
   const isOut = line.direction === 'out';
   editSheetEl.classList.toggle('out-mode', isOut);
-  editTitleEl.textContent = isOut ? 'Entnahme bearbeiten' : 'Charge bearbeiten';
-  editQtyLabel.textContent = isOut ? 'Menge zum Entnehmen' : 'Menge';
+  editTitleEl.textContent = isOut ? t('dictate.entnahme_bearbeiten') : t('dictate.charge_bearbeiten');
+  editQtyLabel.textContent = isOut ? t('dictate.menge_zum_entnehmen') : t('dictate.menge');
 
   if (isOut) {
     populateEditBatchSelect(line.productId, line.batchId);
@@ -1231,7 +1232,7 @@ async function registerLines(lines) {
       // per-turn bookkeeping needed.
       const batch = batchIndex.get(line.batchId);
       if (!batch || batch.quantity <= 0) {
-        throw new Error(`"${line.name}" ist nicht mehr im Bestand — bitte Vorschlag verwerfen und erneut diktieren.`);
+        throw new Error(t('dictate.ist_nicht_mehr_im_bestand', { name: line.name }));
       }
       const removeQty = clampQty(line.removeQty, batch.quantity);
 
@@ -1318,11 +1319,11 @@ async function registerLines(lines) {
     }
 
     if (!line.subcategoryId) {
-      throw new Error(`Kategorie für "${line.name}" fehlt — bitte antippen und auswählen.`);
+      throw new Error(t('dictate.kategorie_fuer_fehlt_bitte_antippen', { name: line.name }));
     }
     const ctx = subcategoryIndex.get(line.subcategoryId);
     if (!ctx) {
-      throw new Error(`Unbekannte Kategorie für "${line.name}".`);
+      throw new Error(t('dictate.unbekannte_kategorie_fuer', { name: line.name }));
     }
 
     const isFractional = line.unitType === 'kg' || line.unitType === 'l';
