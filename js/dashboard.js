@@ -22,13 +22,14 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=191';
+import { db } from './firebase-init.js?v=192';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=191';
-import { openAtSubcategory } from './stock-checkin.js?v=191';
-import { openMaintenanceDue } from './checklists.js?v=191';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=192';
+import { openAtSubcategory } from './stock-checkin.js?v=192';
+import { openMaintenanceDue } from './checklists.js?v=192';
+import { t, getLocale } from './i18n.js?v=192';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -215,7 +216,7 @@ function renderChecklistWarning() {
   const count = openChecklistItemsCount();
   checklistWarningBtn.classList.toggle('hidden', count === 0);
   checklistWarningCountEl.textContent = String(count);
-  checklistWarningBtn.title = `${count} offene Checklisten-Einträge`;
+  checklistWarningBtn.title = t('dashboard.offene_checklisten_eintraege', { count });
 }
 
 checklistWarningBtn.addEventListener('click', openMaintenanceDue);
@@ -534,7 +535,7 @@ function computeShoppingList(subStock, rows) {
       // deliberately carries no symbol at all (neither a group symbol nor
       // a per-row one).
       items.push({
-        kind: 'product', name: product.name, group: 'Produktziele', groupSym: '', need: targetAmount - current, unit: target.unit, subcategoryId: product.subcategoryId,
+        kind: 'product', name: product.name, group: t('dashboard.produktziele'), groupSym: '', need: targetAmount - current, unit: target.unit, subcategoryId: product.subcategoryId,
       });
     }
   });
@@ -543,7 +544,7 @@ function computeShoppingList(subStock, rows) {
   const waterCurrent = waterCurrentLiters(subStock);
   if (waterTarget != null && waterCurrent < waterTarget) {
     items.push({
-      kind: 'water', name: 'Wasser', group: 'Produktziele', groupSym: '', need: waterTarget - waterCurrent, unit: 'L', subcategoryId: firstWaterSubcategoryId(),
+      kind: 'water', name: t('dashboard.wasser'), group: t('dashboard.produktziele'), groupSym: '', need: waterTarget - waterCurrent, unit: 'L', subcategoryId: firstWaterSubcategoryId(),
     });
   }
 
@@ -558,7 +559,7 @@ function formatShoppingNeed(item) {
   if (item.unit === 'kg') return `${round1(item.need)} kg`;
   if (item.unit === 'l') return `${round1(item.need)} l`;
   if (item.unit === 'L') return `${round1(item.need)} L`; // the synthetic Wasser-global entry, not a real product unit
-  if (item.unit === 'stueck') return `${Math.ceil(item.need)} Stk`; // legacy value
+  if (item.unit === 'stueck') return t('dashboard.stk', { value: Math.ceil(item.need) }); // legacy value
   return `${Math.ceil(item.need)} ${item.unit}`; // open Sonstiges units: Stück, Flaschen, Dosen, Säcke, custom
 }
 
@@ -581,9 +582,9 @@ function formatAmount(kg, kcalPerKg) {
     return people > 0 && days > 0 ? `${Math.round((kg / people / days) * 1000)} g/P/T` : `${round1(kg)} kg`;
   }
   if (displayUnit === 'kcal' || displayUnit === 'kcalpd') {
-    if (kcalPerKg == null) return 'nicht verfügbar';
+    if (kcalPerKg == null) return t('dashboard.nicht_verfuegbar');
     const kcal = kg * kcalPerKg;
-    if (displayUnit === 'kcal') return `${Math.round(kcal).toLocaleString('de-DE')} kcal`;
+    if (displayUnit === 'kcal') return `${Math.round(kcal).toLocaleString(getLocale())} kcal`;
     return people > 0 && days > 0 ? `${Math.round(kcal / people / days)} kcal/P/T` : `${round1(kg)} kg`;
   }
   return `${round1(kg)} kg`;
@@ -643,8 +644,8 @@ function renderHero(rows) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
     p.textContent = loadOk
-      ? 'Noch keine Lebensmittel-Ziele gesetzt (Settings → Ziele, oder Haushalt/Autonomiedauer in Planung eingeben).'
-      : 'Fehler beim Laden der Übersicht.';
+      ? t('dashboard.noch_keine_lebensmittel_ziele_gesetzt')
+      : t('dashboard.fehler_beim_laden_der_uebersicht');
     heroEl.appendChild(p);
     return;
   }
@@ -670,11 +671,11 @@ function renderHero(rows) {
     currentText = people > 0 && days > 0 ? `${Math.round((current / people / days) * 1000)}` : `${round1(current)}`;
     targetText = people > 0 && days > 0 ? `/ ${Math.round((target / people / days) * 1000)} g/P/T` : `/ ${round1(target)} kg`;
   } else if (displayUnit === 'kcal') {
-    currentText = Math.round(current).toLocaleString('de-DE');
-    targetText = `/ ${Math.round(target).toLocaleString('de-DE')} kcal`;
+    currentText = Math.round(current).toLocaleString(getLocale());
+    targetText = t('dashboard.kcal', { value: Math.round(target).toLocaleString(getLocale()) });
   } else {
-    currentText = people > 0 && days > 0 ? Math.round(current / people / days).toLocaleString('de-DE') : Math.round(current).toLocaleString('de-DE');
-    targetText = people > 0 && days > 0 ? `/ ${Math.round(target / people / days).toLocaleString('de-DE')} kcal/P/T` : `/ ${Math.round(target).toLocaleString('de-DE')} kcal`;
+    currentText = people > 0 && days > 0 ? Math.round(current / people / days).toLocaleString(getLocale()) : Math.round(current).toLocaleString(getLocale());
+    targetText = people > 0 && days > 0 ? t('dashboard.kcal_p_t_2', { value: Math.round(target / people / days).toLocaleString(getLocale()) }) : t('dashboard.kcal', { value: Math.round(target).toLocaleString(getLocale()) });
   }
 
   const weeks = weeksOfCoverage(currentKgAll, targetKgAll);
@@ -683,15 +684,15 @@ function renderHero(rows) {
   const hero = document.createElement('div');
   hero.className = 'dash-hero';
   hero.innerHTML = `
-    <div class="dash-hero-label">Lebensmittel gesamt</div>
+    <div class="dash-hero-label">${t('dashboard.lebensmittel_gesamt')}</div>
     <div class="dash-hero-figures">
       <span class="dash-hero-current">${currentText}</span>
       <span class="dash-hero-target">${targetText}</span>
     </div>
     <div class="dash-hero-bar-track"><div class="dash-hero-bar-fill" style="width:${Math.min(100, p)}%"></div></div>
     <div class="dash-hero-meta">
-      <span>${Math.round(p)} % gedeckt</span>
-      <span>${weeks != null && weeksTarget != null ? `reicht ca. <b>${round1(Math.min(weeks, 999))}</b> von ${round1(weeksTarget)} Wochen` : ''}</span>
+      <span>${t('dashboard.prozent_gedeckt', { percent: Math.round(p) })}</span>
+      <span>${weeks != null && weeksTarget != null ? t('dashboard.reicht_ca_wochen_html', { weeks: round1(Math.min(weeks, 999)), total: round1(weeksTarget) }) : ''}</span>
     </div>
   `;
   heroEl.appendChild(hero);
@@ -709,7 +710,7 @@ function renderHeroWater(current, target) {
   if (target == null) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = 'Haushalt und Autonomiedauer in Planung eingeben, um das Wasserziel zu sehen.';
+    p.textContent = t('dashboard.haushalt_und_autonomiedauer_in_planung');
     heroWaterEl.appendChild(p);
     return;
   }
@@ -733,15 +734,15 @@ function renderHeroWater(current, target) {
   const hero = document.createElement('div');
   hero.className = 'dash-hero water';
   hero.innerHTML = `
-    <div class="dash-hero-label">Wasser gesamt</div>
+    <div class="dash-hero-label">${t('dashboard.wasser_gesamt')}</div>
     <div class="dash-hero-figures">
       <span class="dash-hero-current">${currentText}</span>
       <span class="dash-hero-target">${targetText}</span>
     </div>
     <div class="dash-hero-bar-track"><div class="dash-hero-bar-fill" style="width:${Math.min(100, p)}%"></div></div>
     <div class="dash-hero-meta">
-      <span>${Math.round(p)} % gedeckt</span>
-      <span>${weeks != null && weeksTarget != null ? `reicht ca. <b>${round1(Math.min(weeks, 999))}</b> von ${round1(weeksTarget)} Wochen` : ''}</span>
+      <span>${t('dashboard.prozent_gedeckt', { percent: Math.round(p) })}</span>
+      <span>${weeks != null && weeksTarget != null ? t('dashboard.reicht_ca_wochen_html', { weeks: round1(Math.min(weeks, 999)), total: round1(weeksTarget) }) : ''}</span>
     </div>
   `;
   heroWaterEl.appendChild(hero);
@@ -769,12 +770,12 @@ function renderCategoryList(rows) {
         </div>
         <div class="dash-cat-figures">
           <div class="dash-cat-current ${s}">${formatAmount(currentKg, row.kcalPerKg)}</div>
-          <div class="dash-cat-target">von ${formatAmount(targetKg, row.kcalPerKg)}</div>
+          <div class="dash-cat-target">${t('dashboard.von', { amount: formatAmount(targetKg, row.kcalPerKg) })}</div>
         </div>
         <div class="dash-cat-chevron">▾</div>
       </div>
       <div class="dash-cat-footer">
-        <span class="dash-coverage-chip ${s}">${weeks != null ? `reicht ${round1(Math.min(weeks, 999))} Wo.` : 'reicht — Wo.'}</span>
+        <span class="dash-coverage-chip ${s}">${weeks != null ? t('dashboard.reicht_wo', { round1: round1(Math.min(weeks, 999)) }) : t('dashboard.reicht_wo_2')}</span>
       </div>
       <div class="dash-sub-list"></div>
     `;
@@ -794,7 +795,7 @@ function renderCategoryList(rows) {
         ${isAdmin ? '<div class="dash-sub-arrow">›</div>' : ''}
       `;
       if (isAdmin) {
-        subRow.title = 'In Bestandsliste öffnen';
+        subRow.title = t('dashboard.in_bestandsliste_oeffnen');
         subRow.addEventListener('click', () => openFilteredBySubcategory(sub.id, sub.name));
       }
       subListEl.appendChild(subRow);
@@ -840,7 +841,7 @@ function renderAlertsList(horizon) {
   if (alerts.length === 0) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = 'Nichts läuft in diesem Zeitraum ab.';
+    p.textContent = t('dashboard.nichts_laeuft_in_diesem_zeitraum');
     alertsFullListEl.appendChild(p);
     return;
   }
@@ -873,7 +874,7 @@ function renderShoppingList(items) {
   if (items.length === 0) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = 'Nichts fehlt gerade.';
+    p.textContent = t('dashboard.nichts_fehlt_gerade');
     shoppingFullListEl.appendChild(p);
     return;
   }

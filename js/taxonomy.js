@@ -1,5 +1,6 @@
-import { db } from './firebase-init.js?v=191';
+import { db } from './firebase-init.js?v=192';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=192';
 
 const editorEl = document.getElementById('taxonomy-editor');
 const addTypeBtn = document.getElementById('add-type-btn');
@@ -124,7 +125,7 @@ async function loadTaxonomy() {
     taxonomy = snap.exists() && Array.isArray(snap.data().types) ? snap.data() : { types: [] };
     loadOk = true;
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message + ' — Bearbeiten deaktiviert, bis der Ladevorgang erfolgreich war.';
+    statusEl.textContent = t('taxonomy.fehler_beim_laden') + err.message + t('taxonomy.bearbeiten_deaktiviert_bis_der_ladevorgang');
     console.error(err);
     // Only blank the tree if we never had real data to show. A failed
     // *re*load (e.g. via the refresh button) keeps showing the last-known-
@@ -139,10 +140,10 @@ async function loadTaxonomy() {
 
 async function saveTaxonomy() {
   if (!loadOk) {
-    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden, bevor du änderst.';
+    statusEl.textContent = t('taxonomy.speichern_blockiert_die_daten_wurden');
     return;
   }
-  statusEl.textContent = 'Speichere…';
+  statusEl.textContent = t('taxonomy.speichere');
   try {
     taxonomy.updatedAt = new Date().toISOString();
     await setDoc(ref, taxonomy);
@@ -155,7 +156,7 @@ async function saveTaxonomy() {
     // stock-checkin/-checkout/-table fix; see their write handlers).
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    statusEl.textContent = t('taxonomy.fehler_beim_speichern') + err.message;
     console.error(err);
   }
 }
@@ -251,8 +252,8 @@ function renderType(type) {
   head.innerHTML = `
     <span class="drag-handle">☰</span>
     <input class="tax-sym-input" value="${escapeAttr(type.sym || '')}" placeholder="🗂️">
-    <input class="tax-name-input" value="${escapeAttr(type.name || '')}" placeholder="Typname">
-    <button class="tax-del" title="Typ löschen">✕</button>
+    <input class="tax-name-input" value="${escapeAttr(type.name || '')}" placeholder="${escapeAttr(t('taxonomy.typname'))}">
+    <button class="tax-del" title="${escapeAttr(t('taxonomy.typ_loeschen'))}">✕</button>
     <button class="tax-toggle">${openTypes.has(type.id) ? '▴' : '▾'}</button>
   `;
   wrap.appendChild(head);
@@ -270,7 +271,7 @@ function renderType(type) {
     saveTaxonomy();
   });
   head.querySelector('.tax-del').addEventListener('click', () => {
-    if (!confirm(`Typ "${type.name}" inkl. aller Kategorien und Unterkategorien löschen?`)) return;
+    if (!confirm(t('taxonomy.typ_inkl_aller_kategorien_und', { name: type.name }))) return;
     taxonomy.types = taxonomy.types.filter((t) => t.id !== type.id);
     saveTaxonomy();
     render();
@@ -292,9 +293,9 @@ function renderType(type) {
   const classToggle = document.createElement('div');
   classToggle.className = 'tax-expand-row tax-planning-toggle';
   classToggle.innerHTML = `
-    <button type="button" class="select-mode-btn${cls === 'food' ? ' active' : ''}" data-class="food">Lebensmittel</button>
-    <button type="button" class="select-mode-btn${cls === 'water' ? ' active' : ''}" data-class="water">Wasser</button>
-    <button type="button" class="select-mode-btn${cls === 'other' ? ' active' : ''}" data-class="other">Sonstiges</button>
+    <button type="button" class="select-mode-btn${cls === 'food' ? ' active' : ''}" data-class="food">${escapeAttr(t('taxonomy.lebensmittel'))}</button>
+    <button type="button" class="select-mode-btn${cls === 'water' ? ' active' : ''}" data-class="water">${escapeAttr(t('taxonomy.wasser'))}</button>
+    <button type="button" class="select-mode-btn${cls === 'other' ? ' active' : ''}" data-class="other">${escapeAttr(t('taxonomy.sonstiges'))}</button>
   `;
   body.appendChild(classToggle);
 
@@ -314,10 +315,10 @@ function renderType(type) {
 
   const addCatBtn = document.createElement('button');
   addCatBtn.className = 'add-row-btn small';
-  addCatBtn.textContent = '+ Kategorie hinzufügen';
+  addCatBtn.textContent = t('taxonomy.kategorie_hinzufuegen');
   addCatBtn.addEventListener('click', () => {
     if (!type.categories) type.categories = [];
-    const newCat = { id: genId(), name: 'Neue Kategorie', sym: '', subcategories: [] };
+    const newCat = { id: genId(), name: t('taxonomy.neue_kategorie'), sym: '', subcategories: [] };
     type.categories.push(newCat);
     openTypes.add(type.id);
     openCats.add(newCat.id);
@@ -355,8 +356,8 @@ function renderCategory(type, cat) {
   head.innerHTML = `
     <span class="drag-handle">☰</span>
     <input class="tax-sym-input" value="${escapeAttr(cat.sym || '')}" placeholder="•">
-    <input class="tax-name-input" value="${escapeAttr(cat.name || '')}" placeholder="Kategoriename">
-    <button class="tax-del" title="Kategorie löschen">✕</button>
+    <input class="tax-name-input" value="${escapeAttr(cat.name || '')}" placeholder="${escapeAttr(t('taxonomy.kategoriename'))}">
+    <button class="tax-del" title="${escapeAttr(t('taxonomy.kategorie_loeschen'))}">✕</button>
     ${emptyBody ? '' : `<button class="tax-toggle">${openCats.has(cat.id) ? '▴' : '▾'}</button>`}
   `;
   wrap.appendChild(head);
@@ -374,7 +375,7 @@ function renderCategory(type, cat) {
     saveTaxonomy();
   });
   head.querySelector('.tax-del').addEventListener('click', () => {
-    if (!confirm(`Kategorie "${cat.name}" inkl. aller Unterkategorien löschen?`)) return;
+    if (!confirm(t('taxonomy.kategorie_inkl_aller_unterkategorien_loeschen', { name: cat.name }))) return;
     type.categories = type.categories.filter((c) => c.id !== cat.id);
     saveTaxonomy();
     render();
@@ -404,9 +405,9 @@ function renderCategory(type, cat) {
     modeToggle.className = 'tax-expand-row tax-mode-toggle';
     const mode = categoryPlanningMode(type, cat);
     modeToggle.innerHTML = `
-      <button type="button" class="select-mode-btn${mode === 'off' ? ' active' : ''}" data-mode="off">Nicht genutzt</button>
-      <button type="button" class="select-mode-btn${mode === 'calorie' ? ' active' : ''}" data-mode="calorie">Kalorien</button>
-      <button type="button" class="select-mode-btn${mode === 'diversity' ? ' active' : ''}" data-mode="diversity">Diversität</button>
+      <button type="button" class="select-mode-btn${mode === 'off' ? ' active' : ''}" data-mode="off">${escapeAttr(t('taxonomy.nicht_genutzt'))}</button>
+      <button type="button" class="select-mode-btn${mode === 'calorie' ? ' active' : ''}" data-mode="calorie">${escapeAttr(t('taxonomy.kalorien'))}</button>
+      <button type="button" class="select-mode-btn${mode === 'diversity' ? ' active' : ''}" data-mode="diversity">${escapeAttr(t('taxonomy.diversitaet'))}</button>
     `;
     body.appendChild(modeToggle);
 
@@ -424,15 +425,15 @@ function renderCategory(type, cat) {
       planningRow.innerHTML = `
         <div class="tax-planning-field">
           <label>kcal/kg</label>
-          <input type="number" class="tax-kcal-input" value="${cat.kcalPerKg ?? ''}" placeholder="z.B. 7000">
+          <input type="number" class="tax-kcal-input" value="${cat.kcalPerKg ?? ''}" placeholder="${escapeAttr(t('taxonomy.z_b_7000'))}">
         </div>
         <div class="tax-planning-field">
-          <label>Makro</label>
+          <label>${escapeAttr(t('taxonomy.makro'))}</label>
           <select class="tax-macro-select">
             <option value=""${!cat.macroType ? ' selected' : ''}>–</option>
-            <option value="kohlenhydrat"${cat.macroType === 'kohlenhydrat' ? ' selected' : ''}>Kohlenhydrat</option>
-            <option value="protein"${cat.macroType === 'protein' ? ' selected' : ''}>Protein</option>
-            <option value="fett"${cat.macroType === 'fett' ? ' selected' : ''}>Fett</option>
+            <option value="kohlenhydrat"${cat.macroType === 'kohlenhydrat' ? ' selected' : ''}>${escapeAttr(t('taxonomy.kohlenhydrat'))}</option>
+            <option value="protein"${cat.macroType === 'protein' ? ' selected' : ''}>${escapeAttr(t('taxonomy.protein'))}</option>
+            <option value="fett"${cat.macroType === 'fett' ? ' selected' : ''}>${escapeAttr(t('taxonomy.fett'))}</option>
           </select>
         </div>
       `;
@@ -453,8 +454,8 @@ function renderCategory(type, cat) {
       planningRow.className = 'tax-planning-row';
       planningRow.innerHTML = `
         <div class="tax-planning-field">
-          <label>Diversität (g/Pers./Tag)</label>
-          <input type="number" class="tax-diversity-input" value="${cat.diversityFloorGramsPerPersonDay ?? ''}" placeholder="z.B. 50">
+          <label>${escapeAttr(t('taxonomy.diversitaet_g_pers_tag'))}</label>
+          <input type="number" class="tax-diversity-input" value="${cat.diversityFloorGramsPerPersonDay ?? ''}" placeholder="${escapeAttr(t('taxonomy.z_b_50'))}">
         </div>
       `;
       body.appendChild(planningRow);
@@ -479,10 +480,10 @@ function renderCategory(type, cat) {
 
     const addSubBtn = document.createElement('div');
     addSubBtn.className = 'add-sub-row';
-    addSubBtn.textContent = '+ Unterkategorie hinzufügen';
+    addSubBtn.textContent = t('taxonomy.unterkategorie_hinzufuegen');
     addSubBtn.addEventListener('click', () => {
       if (!cat.subcategories) cat.subcategories = [];
-      const newSub = { id: genId(), name: 'Neue Unterkategorie', sym: '' };
+      const newSub = { id: genId(), name: t('taxonomy.neue_unterkategorie'), sym: '' };
       cat.subcategories.push(newSub);
       openCats.add(cat.id);
       saveTaxonomy();
@@ -507,8 +508,8 @@ function renderSubcategory(cat, sub) {
   row.innerHTML = `
     <span class="drag-handle">☰</span>
     <input class="tax-sym-input" value="${escapeAttr(sub.sym || '')}" placeholder="•">
-    <input class="tax-name-input" value="${escapeAttr(sub.name || '')}" placeholder="Unterkategoriename">
-    <button class="tax-del" title="Unterkategorie löschen">✕</button>
+    <input class="tax-name-input" value="${escapeAttr(sub.name || '')}" placeholder="${escapeAttr(t('taxonomy.unterkategoriename'))}">
+    <button class="tax-del" title="${escapeAttr(t('taxonomy.unterkategorie_loeschen_title'))}">✕</button>
   `;
   row.querySelector('.tax-sym-input').addEventListener('change', (e) => {
     sub.sym = e.target.value.trim();
@@ -519,7 +520,7 @@ function renderSubcategory(cat, sub) {
     saveTaxonomy();
   });
   row.querySelector('.tax-del').addEventListener('click', () => {
-    if (!confirm(`Unterkategorie "${sub.name}" löschen?`)) return;
+    if (!confirm(t('taxonomy.unterkategorie_loeschen', { name: sub.name }))) return;
     cat.subcategories = cat.subcategories.filter((s) => s.id !== sub.id);
     saveTaxonomy();
     render();
@@ -528,7 +529,7 @@ function renderSubcategory(cat, sub) {
 }
 
 addTypeBtn.addEventListener('click', () => {
-  const type = { id: genId(), name: 'Neuer Typ', sym: '', categories: [] };
+  const type = { id: genId(), name: t('taxonomy.neuer_typ'), sym: '', categories: [] };
   taxonomy.types.push(type);
   openTypes.add(type.id);
   saveTaxonomy();

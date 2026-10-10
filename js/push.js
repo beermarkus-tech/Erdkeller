@@ -4,13 +4,13 @@
 // and calls into the functions exported here, same split as e.g. the
 // checklist boundary math (js/checklists.js) living apart from the screen
 // that configures its inputs (js/notifications.js) already does.
-import { app, auth, db, functions } from './firebase-init.js?v=191';
+import { app, auth, db, functions } from './firebase-init.js?v=192';
 import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging.js";
 import {
   collection, doc, getDocs, setDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { t } from './i18n.js?v=191';
+import { t } from './i18n.js?v=192';
 
 // Generated once in the Firebase console (Project Settings → Cloud
 // Messaging → Web Push certificates — see SPEC.md Section 18). Public by

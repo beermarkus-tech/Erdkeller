@@ -1,7 +1,8 @@
 // Static consistency check for the i18n dictionaries:
 // - every t('key') in js/*.js and every data-i18n* key in index.html exists in de.js
 // - every de.js key is used somewhere (no dead entries)
-// - en.js has no keys that de.js lacks, and keeps the same {placeholders}
+// - en.js has no keys that de.js lacks, keeps the same {placeholders}, and
+//   has no markup characters outside *_html keys
 //   node tools/i18n-test/check-keys.mjs
 import fs from 'fs';
 import path from 'path';
@@ -33,6 +34,12 @@ const ph = (v) => JSON.stringify((typeof v === 'string' ? v : Object.values(v).j
 for (const [k, v] of Object.entries(en)) {
   if (!(k in de)) report(`en.js key not in de.js: ${k}`);
   else if (ph(v) !== ph(de[k])) report(`placeholder mismatch ${k}: de ${ph(de[k])} en ${ph(v)}`);
+  // Many values are interpolated into innerHTML templates; only *_html keys
+  // (and data-i18n-html keys, whose German already contains markup) may
+  // carry markup or entities.
+  const markupOk = k.endsWith('_html') || /[<&]/.test(typeof de[k] === 'string' ? de[k] : '');
+  const flat = typeof v === 'string' ? v : Object.values(v).join(' ');
+  if (!markupOk && /[<>&]/.test(flat)) report(`en ${k}: contains < > or & — use plain text or an *_html key`);
 }
 const enCount = Object.keys(en).length;
 console.log(`${Object.keys(de).length} de keys, ${used.size} used, ${enCount} translated to en; ${problems} problem(s)`);

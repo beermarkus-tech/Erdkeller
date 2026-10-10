@@ -7,8 +7,9 @@
 // category picker: which stock counts as water is now a whole Taxonomie
 // type tagged Wasser (js/taxonomy.js), summed globally in the Übersicht
 // (js/dashboard.js) rather than assigned to one hand-picked category here.
-import { db } from './firebase-init.js?v=191';
+import { db } from './firebase-init.js?v=192';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t, getLocale } from './i18n.js?v=192';
 
 const planningCard = document.querySelector('.settings-card[data-target="planning"]');
 const panelEl = document.getElementById('settings-panel-planning');
@@ -24,7 +25,7 @@ const waterRateInput = document.getElementById('planning-water-rate');
 const statusEl = document.getElementById('planning-status');
 const computedEl = document.getElementById('planning-computed');
 
-const MACRO_LABELS = { kohlenhydrat: 'Kohlenhydrate', protein: 'Protein', fett: 'Fett' };
+const MACRO_LABELS = { kohlenhydrat: t('planning.kohlenhydrate'), protein: t('planning.protein'), fett: t('planning.fett') };
 
 let taxonomy = { types: [] };
 let household = { members: [] };
@@ -67,7 +68,7 @@ async function loadAll() {
     loadOk = true;
   } catch (err) {
     loadOk = false;
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message;
+    statusEl.textContent = t('planning.fehler_beim_laden') + err.message;
     console.error(err);
   }
   render();
@@ -75,10 +76,10 @@ async function loadAll() {
 
 async function saveHousehold() {
   if (!loadOk) {
-    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
+    statusEl.textContent = t('planning.speichern_blockiert_die_daten_wurden');
     return;
   }
-  statusEl.textContent = 'Speichere…';
+  statusEl.textContent = t('planning.speichere');
   try {
     household.updatedAt = new Date().toISOString();
     await setDoc(doc(db, 'config', 'household'), household);
@@ -88,24 +89,24 @@ async function saveHousehold() {
     // and the full rationale (this is the same bug class).
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    statusEl.textContent = t('planning.fehler_beim_speichern') + err.message;
     console.error(err);
   }
 }
 
 async function savePlanning() {
   if (!loadOk) {
-    statusEl.textContent = 'Speichern blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
+    statusEl.textContent = t('planning.speichern_blockiert_die_daten_wurden');
     return;
   }
-  statusEl.textContent = 'Speichere…';
+  statusEl.textContent = t('planning.speichere');
   try {
     planning.updatedAt = new Date().toISOString();
     await setDoc(doc(db, 'config', 'planning'), planning);
     statusEl.textContent = '';
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    statusEl.textContent = 'Fehler beim Speichern: ' + err.message;
+    statusEl.textContent = t('planning.fehler_beim_speichern') + err.message;
     console.error(err);
   }
 }
@@ -125,19 +126,19 @@ function renderHousehold() {
 
     const nameInput = document.createElement('input');
     nameInput.className = 'tax-name-input';
-    nameInput.placeholder = 'Name';
+    nameInput.placeholder = t('planning.name');
     nameInput.value = member.name || '';
 
     const kcalInput = document.createElement('input');
     kcalInput.type = 'number';
     kcalInput.className = 'household-kcal-input';
-    kcalInput.placeholder = 'kcal/Tag';
+    kcalInput.placeholder = t('planning.kcal_tag');
     kcalInput.value = member.kcalPerDay ?? '';
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'tax-del';
-    delBtn.title = 'Person entfernen';
+    delBtn.title = t('planning.person_entfernen');
     delBtn.textContent = '✕';
 
     nameInput.addEventListener('change', (e) => {
@@ -150,7 +151,7 @@ function renderHousehold() {
       renderComputedOutput();
     });
     delBtn.addEventListener('click', () => {
-      if (!confirm(`"${member.name || 'Person'}" entfernen?`)) return;
+      if (!confirm(t('planning.entfernen', { value: member.name || t('planning.person') }))) return;
       household.members = household.members.filter((m) => m.id !== member.id);
       saveHousehold();
       render();
@@ -165,7 +166,7 @@ function renderHousehold() {
 }
 
 addHouseholdBtn.addEventListener('click', () => {
-  const member = { id: genId(), name: 'Neue Person', kcalPerDay: null };
+  const member = { id: genId(), name: t('planning.neue_person'), kcalPerDay: null };
   household.members.push(member);
   saveHousehold();
   render();
@@ -262,8 +263,8 @@ function renderComputedOutput() {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
     empty.textContent = people === 0
-      ? 'Bitte zuerst Haushaltsmitglieder hinzufügen.'
-      : 'Bitte eine Autonomiedauer (Tage) eingeben.';
+      ? t('planning.bitte_zuerst_haushaltsmitglieder_hinzufuegen')
+      : t('planning.bitte_eine_autonomiedauer_tage_eingeben');
     computedEl.appendChild(empty);
     return;
   }
@@ -272,11 +273,11 @@ function renderComputedOutput() {
   const split = currentMacroSplit();
   ['kohlenhydrat', 'protein', 'fett'].forEach((macro) => {
     const macroKcal = totalKcal * (split[macro] || 0) / 100;
-    computedEl.appendChild(makeComputedRow(MACRO_LABELS[macro], `${Math.round(macroKcal).toLocaleString('de-DE')} kcal`));
+    computedEl.appendChild(makeComputedRow(MACRO_LABELS[macro], `${Math.round(macroKcal).toLocaleString(getLocale())} kcal`));
   });
 
   const waterLiters = currentWaterRate() * people * days;
-  const waterLabel = hasWaterType() ? 'Wasser' : 'Wasser (kein Wasser-Typ in der Taxonomie markiert)';
+  const waterLabel = hasWaterType() ? t('planning.wasser') : t('planning.wasser_kein_wasser_typ_in');
   computedEl.appendChild(makeComputedRow(waterLabel, `${Math.round(waterLiters * 100) / 100} L`));
 }
 

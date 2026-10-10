@@ -1,6 +1,6 @@
-import { db } from './firebase-init.js?v=191';
+import { db } from './firebase-init.js?v=192';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=191';
+import { t } from './i18n.js?v=192';
 
 const listEl = document.getElementById('year-color-list');
 const addBtn = document.getElementById('add-year-btn');

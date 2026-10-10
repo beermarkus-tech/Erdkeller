@@ -1,10 +1,11 @@
-import { db } from './firebase-init.js?v=191';
-import { PALETTE } from './year-colors.js?v=191';
-import { openAddFlow } from './stock-checkin.js?v=191';
-import { switchTabWithoutReset } from './app-shell.js?v=191';
+import { db } from './firebase-init.js?v=192';
+import { PALETTE } from './year-colors.js?v=192';
+import { openAddFlow } from './stock-checkin.js?v=192';
+import { switchTabWithoutReset } from './app-shell.js?v=192';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=192';
 
 const stocktableCard = document.querySelector('.settings-card[data-target="stocktable"]');
 const settingsPanelStocktable = document.getElementById('settings-panel-stocktable');
@@ -65,10 +66,10 @@ const dateModalConfirmBtn = document.getElementById('table-date-modal-confirm');
 // can pick as the *explicit* sort column; the multi-key fallback sort when
 // none is picked is unaffected.
 const COLUMNS = [
-  { key: 'product', label: 'Produkt' },
-  { key: 'quantity', label: 'Menge' },
-  { key: 'content', label: 'Inhalt' },
-  { key: 'bestBefore', label: 'MHD' },
+  { key: 'product', label: t('stockTable.produkt') },
+  { key: 'quantity', label: t('stockTable.menge') },
+  { key: 'content', label: t('stockTable.inhalt') },
+  { key: 'bestBefore', label: t('stockTable.mhd') },
 ];
 
 const COLOR_HEX = Object.fromEntries(PALETTE.map((c) => [c.name, c.hex]));
@@ -140,14 +141,14 @@ async function loadConfig() {
 
 function productName(productId) {
   const p = productIndex.get(productId);
-  return p ? p.name : '(unbekanntes Produkt)';
+  return p ? p.name : t('stockTable.unbekanntes_produkt');
 }
 
 function batchMetaLine(batch) {
   const parts = [`${batch.quantity}×`];
   if (batch.details) parts.push(batch.details);
   if (batch.content) parts.push(batch.content);
-  if (batch.bestBefore) parts.push(`MHD ${batch.bestBefore}`);
+  if (batch.bestBefore) parts.push(t('stockTable.mhd_2', { bestBefore: batch.bestBefore }));
   if (batch.storage) parts.push(batch.storage);
   return parts.join(' · ');
 }
@@ -241,7 +242,7 @@ function rowBreadcrumb(batch) {
 // exists shows that honestly instead of silently defaulting somewhere.
 function unitLabelForTarget(unit) {
   if (unit === 'kg' || unit === 'l') return unit;
-  if (unit === 'stueck') return 'Stk';
+  if (unit === 'stueck') return t('stockTable.stk');
   return unit || 'kg';
 }
 
@@ -265,7 +266,7 @@ function phantomBatchFor(product) {
     storage: '',
     type: ctx ? ctx.type.name : '',
     category: ctx ? ctx.cat.name : '',
-    subcategory: ctx ? ctx.sub.name : (product.subcategoryId ? '⚠️ Unterkategorie fehlt' : ''),
+    subcategory: ctx ? ctx.sub.name : (product.subcategoryId ? t('stockTable.unterkategorie_fehlt') : ''),
     target: targets.products[product.id] || null,
   };
 }
@@ -532,7 +533,7 @@ function renderRow(batch) {
   const metaEl = document.createElement('span');
   metaEl.className = 'pmeta';
   metaEl.textContent = isPhantom
-    ? (batch.target ? `Kein Bestand · Ziel: ${targetLabel(batch.target)}` : 'Kein Bestand')
+    ? (batch.target ? t('stockTable.kein_bestand_ziel', { targetLabel: targetLabel(batch.target) }) : t('stockTable.kein_bestand'))
     : batchMetaLine(batch);
 
   const subEl = document.createElement('span');
@@ -560,7 +561,7 @@ function renderRow(batch) {
 
 function renderSubcatFilterBanner() {
   if (activeSubcategoryFilter) {
-    subcatFilterLabel.textContent = `Unterkategorie: ${activeSubcategoryFilterName}`;
+    subcatFilterLabel.textContent = t('stockTable.unterkategorie', { activeSubcategoryFilterName });
     subcatFilterBanner.classList.remove('hidden');
   } else {
     subcatFilterBanner.classList.add('hidden');
@@ -612,7 +613,7 @@ function renderRows() {
   if (rows.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'screen-placeholder';
-    empty.textContent = 'Keine Treffer.';
+    empty.textContent = t('stockTable.keine_treffer');
     rowListEl.appendChild(empty);
   } else {
     rows.forEach((batch) => rowListEl.appendChild(renderRow(batch)));
@@ -632,7 +633,7 @@ addBtn.addEventListener('click', () => openAddFlow());
 selectModeBtn.addEventListener('click', () => {
   selectMode = !selectMode;
   selectModeBtn.classList.toggle('active', selectMode);
-  selectModeBtn.textContent = selectMode ? 'Fertig' : 'Auswählen';
+  selectModeBtn.textContent = selectMode ? t('stockTable.fertig') : t('stockTable.auswaehlen');
   if (!selectMode) selectedIds.clear();
   renderRows();
 });
@@ -643,7 +644,7 @@ function updateBulkBar() {
     return;
   }
   bulkBar.classList.remove('hidden');
-  bulkCountEl.textContent = `${selectedIds.size} ausgewählt`;
+  bulkCountEl.textContent = t('stockTable.ausgewaehlt', { size: selectedIds.size });
 }
 
 bulkCancelBtn.addEventListener('click', () => {
@@ -653,7 +654,7 @@ bulkCancelBtn.addEventListener('click', () => {
 
 bulkDeleteBtn.addEventListener('click', async () => {
   if (selectedIds.size === 0) return;
-  if (!confirm(`${selectedIds.size} Bestandseinträge löschen?`)) return;
+  if (!confirm(t('stockTable.bestandseintraege_loeschen', { size: selectedIds.size }))) return;
   const ids = Array.from(selectedIds);
   bulkDeleteBtn.disabled = true;
   try {
@@ -666,7 +667,7 @@ bulkDeleteBtn.addEventListener('click', async () => {
     // until a manual refresh or full reload.
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Löschen fehlgeschlagen: ' + err.message);
+    alert(t('stockTable.loeschen_fehlgeschlagen') + err.message);
     console.error(err);
   } finally {
     bulkDeleteBtn.disabled = false;
@@ -682,7 +683,7 @@ function openEditModal(batch) {
   const product = productIndex.get(batch.productId);
   const isPhantom = batch.id === null;
 
-  editTitleEl.textContent = isPhantom ? 'Produkt (kein Bestand)' : 'Bestand bearbeiten';
+  editTitleEl.textContent = isPhantom ? t('stockTable.produkt_kein_bestand') : t('stockTable.bestand_bearbeiten');
   editNameInput.value = productName(batch.productId);
 
   editSubcategorySelect.innerHTML = '';
@@ -703,7 +704,7 @@ function openEditModal(batch) {
 
   editBatchFieldsEl.classList.toggle('hidden', isPhantom);
   editNoStockNoteEl.classList.toggle('hidden', !isPhantom);
-  editDeleteBtn.textContent = isPhantom ? 'Produkt löschen' : 'Löschen';
+  editDeleteBtn.textContent = isPhantom ? t('stockTable.produkt_loeschen') : t('stockTable.loeschen');
 
   if (!isPhantom) {
     editQty = batch.quantity;
@@ -808,7 +809,7 @@ async function applyCategoryChange(productId) {
   const existingTarget = targets.products[productId];
   const movesToWater = typeClass(ctx.type) === 'water';
   if (movesToWater && existingTarget) {
-    const ok = confirm(`"${productName(productId)}" hat einen Ziele-Zielwert (${targetLabel(existingTarget)}). Wasser-Produkte unterstützen keine einzelnen Zielwerte — beim Verschieben wird dieser Zielwert entfernt. Fortfahren?`);
+    const ok = confirm(t('stockTable.hat_einen_ziele_zielwert_wasser', { productName: productName(productId), targetLabel: targetLabel(existingTarget) }));
     if (!ok) {
       editSubcategorySelect.value = product.subcategoryId;
       return;
@@ -862,7 +863,7 @@ editSaveBtn.addEventListener('click', async () => {
       closeEdit();
       window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
     } catch (err) {
-      alert('Speichern fehlgeschlagen: ' + err.message);
+      alert(t('stockTable.speichern_fehlgeschlagen') + err.message);
       console.error(err);
     } finally {
       editSaveBtn.disabled = false;
@@ -898,7 +899,7 @@ editSaveBtn.addEventListener('click', async () => {
     closeEdit();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Speichern fehlgeschlagen: ' + err.message);
+    alert(t('stockTable.speichern_fehlgeschlagen') + err.message);
     console.error(err);
   } finally {
     editSaveBtn.disabled = false;
@@ -918,7 +919,7 @@ editDeleteBtn.addEventListener('click', async () => {
   // in /config/targets pointing at a product that no longer exists, same
   // shape as the "Aus"/clearBtn path in js/targets.js itself.
   if (editingBatch.id === null) {
-    if (!confirm(`Produkt "${productName(editingBatch.productId)}" endgültig aus dem Katalog löschen?`)) return;
+    if (!confirm(t('stockTable.produkt_endgueltig_aus_dem_katalog', { productName: productName(editingBatch.productId) }))) return;
     try {
       await deleteDoc(doc(db, 'products', editingBatch.productId));
       if (targets.products[editingBatch.productId]) {
@@ -930,20 +931,20 @@ editDeleteBtn.addEventListener('click', async () => {
       closeEdit();
       window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
     } catch (err) {
-      alert('Löschen fehlgeschlagen: ' + err.message);
+      alert(t('stockTable.loeschen_fehlgeschlagen') + err.message);
       console.error(err);
     }
     return;
   }
 
-  if (!confirm(`"${productName(editingBatch.productId)}" wirklich löschen?`)) return;
+  if (!confirm(t('stockTable.wirklich_loeschen', { productName: productName(editingBatch.productId) }))) return;
   try {
     await deleteDoc(doc(db, 'stockItems', editingBatch.id));
     allBatches = allBatches.filter((b) => b.id !== editingBatch.id);
     closeEdit();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Löschen fehlgeschlagen: ' + err.message);
+    alert(t('stockTable.loeschen_fehlgeschlagen') + err.message);
     console.error(err);
   }
 });
@@ -1054,7 +1055,7 @@ stocktableCard.addEventListener('click', () => {
   selectMode = false;
   selectedIds.clear();
   selectModeBtn.classList.remove('active');
-  selectModeBtn.textContent = 'Auswählen';
+  selectModeBtn.textContent = t('stockTable.auswaehlen');
   activeSubcategoryFilter = null;
   activeSubcategoryFilterName = '';
   returnTarget = null;

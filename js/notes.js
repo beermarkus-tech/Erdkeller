@@ -22,10 +22,11 @@
 // note with more than one photo just shows photos[0] as its hero until
 // next edited, same as everywhere else in this app that reads a narrowed
 // field defensively instead of needing a migration.
-import { db } from './firebase-init.js?v=191';
+import { db } from './firebase-init.js?v=192';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { t } from './i18n.js?v=192';
 
 const MAX_PHOTO_DIMENSION = 1000;
 const JPEG_QUALITY = 0.6;
@@ -85,7 +86,7 @@ let viewMode = 'cards';
 // meaningful keys.
 const SORT_COLUMNS = [
   { key: 'title', label: 'A–Z' },
-  { key: 'created', label: 'Erstellt' },
+  { key: 'created', label: t('notes.erstellt') },
 ];
 let sortColumn = 'title';
 let sortDir = 'asc';
@@ -111,7 +112,7 @@ async function loadNotes() {
     loadOk = true;
   } catch (err) {
     loadOk = false;
-    statusEl.textContent = 'Fehler beim Laden: ' + err.message;
+    statusEl.textContent = t('notes.fehler_beim_laden') + err.message;
     console.error(err);
     return;
   }
@@ -142,10 +143,10 @@ function compressImage(file) {
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
         resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
       };
-      img.onerror = () => reject(new Error('Bild konnte nicht gelesen werden.'));
+      img.onerror = () => reject(new Error(t('notes.bild_konnte_nicht_gelesen_werden')));
       img.src = reader.result;
     };
-    reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.'));
+    reader.onerror = () => reject(new Error(t('notes.datei_konnte_nicht_gelesen_werden')));
     reader.readAsDataURL(file);
   });
 }
@@ -168,14 +169,14 @@ photoInput.addEventListener('change', async () => {
   try {
     const dataUri = await compressImage(file);
     if (dataUri.length > MAX_TOTAL_PHOTO_CHARS) {
-      alert('Das Foto ist zu groß. Bitte ein anderes wählen.');
+      alert(t('notes.das_foto_ist_zu_gross'));
       return;
     }
     pendingPhotos = [dataUri];
     updatePhotoRemoveBadge();
     scheduleSave();
   } catch (err) {
-    alert('Foto konnte nicht verarbeitet werden: ' + err.message);
+    alert(t('notes.foto_konnte_nicht_verarbeitet_werden') + err.message);
     console.error(err);
   }
 });
@@ -299,7 +300,7 @@ function makeNoteCard(note) {
 
   const titleEl = document.createElement('div');
   titleEl.className = 'note-card-title';
-  titleEl.textContent = note.title || '(ohne Titel)';
+  titleEl.textContent = note.title || t('notes.ohne_titel');
   body.appendChild(titleEl);
 
   // Truncated here in JS rather than via CSS -webkit-line-clamp, which
@@ -323,7 +324,7 @@ function makeNoteCard(note) {
     editIcon.type = 'button';
     editIcon.className = 'note-card-icon-btn';
     editIcon.textContent = '✏️';
-    editIcon.title = 'Bearbeiten';
+    editIcon.title = t('notes.bearbeiten');
     editIcon.addEventListener('click', (e) => {
       e.stopPropagation();
       openEditScreen(note);
@@ -338,7 +339,7 @@ function makeNoteCard(note) {
     // Bestandsliste shortcut elsewhere (unrelated screen, no ambiguity)
     // and has solid support on Android.
     duplicateIcon.textContent = '📋';
-    duplicateIcon.title = 'Duplizieren';
+    duplicateIcon.title = t('notes.duplizieren');
     duplicateIcon.addEventListener('click', (e) => {
       e.stopPropagation();
       duplicateNote(note);
@@ -349,7 +350,7 @@ function makeNoteCard(note) {
     deleteIcon.type = 'button';
     deleteIcon.className = 'note-card-icon-btn';
     deleteIcon.textContent = '🗑️';
-    deleteIcon.title = 'Löschen';
+    deleteIcon.title = t('notes.loeschen');
     deleteIcon.addEventListener('click', (e) => {
       e.stopPropagation();
       deleteNote(note);
@@ -364,14 +365,14 @@ function makeNoteCard(note) {
 }
 
 async function deleteNote(note) {
-  if (!confirm(`"${note.title || 'Notiz'}" wirklich löschen?`)) return;
+  if (!confirm(t('notes.wirklich_loeschen', { value: note.title || t('notes.notiz') }))) return;
   try {
     await deleteDoc(doc(db, 'notes', note.id));
     notes = notes.filter((n) => n.id !== note.id);
     renderNotes();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Löschen fehlgeschlagen: ' + err.message);
+    alert(t('notes.loeschen_fehlgeschlagen') + err.message);
     console.error(err);
   }
 }
@@ -382,7 +383,7 @@ async function deleteNote(note) {
 async function duplicateNote(note) {
   const nowIso = new Date().toISOString();
   const data = {
-    title: note.title ? `${note.title} (Kopie)` : '',
+    title: note.title ? t('notes.kopie', { title: note.title }) : '',
     body: note.body || '',
     photos: note.photos || [],
   };
@@ -392,7 +393,7 @@ async function duplicateNote(note) {
     renderNotes();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
-    alert('Duplizieren fehlgeschlagen: ' + err.message);
+    alert(t('notes.duplizieren_fehlgeschlagen') + err.message);
     console.error(err);
   }
 }
@@ -447,7 +448,7 @@ function renderNotes() {
   if (sorted.length === 0) {
     const p = document.createElement('p');
     p.className = 'screen-placeholder';
-    p.textContent = notes.length === 0 ? 'Noch keine Notizen.' : 'Keine Treffer.';
+    p.textContent = notes.length === 0 ? t('notes.noch_keine_notizen') : t('notes.keine_treffer');
     notesListEl.appendChild(p);
   } else {
     sorted.forEach((n) => notesListEl.appendChild(makeNoteCard(n)));
@@ -480,7 +481,7 @@ viewToggleEl.querySelectorAll('button[data-view]').forEach((btn) => {
 
 function openViewScreen(note) {
   viewingNote = note;
-  viewTitleEl.textContent = note.title || '(ohne Titel)';
+  viewTitleEl.textContent = note.title || t('notes.ohne_titel');
   const photo = (note.photos || [])[0];
   if (photo) {
     viewHeroImgEl.src = photo;
@@ -560,7 +561,7 @@ if (window.visualViewport) {
 
 function openEditScreen(note) {
   if (!note && !loadOk) {
-    statusEl.textContent = 'Hinzufügen blockiert: Die Daten wurden zuletzt nicht erfolgreich geladen. Bitte Seite neu laden.';
+    statusEl.textContent = t('notes.hinzufuegen_blockiert_die_daten_wurden');
     return;
   }
   editingNoteId = note ? note.id : null;
@@ -569,7 +570,7 @@ function openEditScreen(note) {
   editBodyInput.innerHTML = note ? bodyToHtml(note.body || '') : '';
   pendingPhotos = note ? (note.photos || []).slice(0, 1) : [];
   updatePhotoRemoveBadge();
-  setEditStatus('Gespeichert');
+  setEditStatus(t('notes.gespeichert'));
   updateViewportHeight();
   editModal.classList.add('show');
   if (!note) editTitleInput.focus();
@@ -602,7 +603,7 @@ editBodyInput.addEventListener('input', scheduleSave);
 
 function scheduleSave() {
   dirty = true;
-  setEditStatus('Nicht gespeichert');
+  setEditStatus(t('notes.nicht_gespeichert'));
   clearTimeout(saveTimer);
   saveTimer = setTimeout(persistNow, SAVE_DEBOUNCE_MS);
 }
@@ -618,7 +619,7 @@ async function persistNow() {
   clearTimeout(saveTimer);
   if (!dirty || !loadOk) return false;
   dirty = false;
-  setEditStatus('Speichert…');
+  setEditStatus(t('notes.speichert'));
   const data = {
     title: editTitleInput.value.trim(),
     body: editBodyInput.textContent.trim() ? sanitizeBodyHtml(editBodyInput.innerHTML.trim()) : '',
@@ -629,14 +630,14 @@ async function persistNow() {
   try {
     if (!hasContent) {
       if (!editingNoteId) {
-        setEditStatus('Gespeichert');
+        setEditStatus(t('notes.gespeichert'));
         return false;
       }
       await deleteDoc(doc(db, 'notes', editingNoteId));
       notes = notes.filter((n) => n.id !== editingNoteId);
       editingNoteId = null;
       renderNotes();
-      setEditStatus('Gespeichert');
+      setEditStatus(t('notes.gespeichert'));
       return true;
     }
     if (!editingNoteId) {
@@ -648,12 +649,12 @@ async function persistNow() {
       const idx = notes.findIndex((n) => n.id === editingNoteId);
       if (idx >= 0) notes[idx] = { ...notes[idx], ...data, updatedAt: nowIso };
     }
-    setEditStatus('Gespeichert');
+    setEditStatus(t('notes.gespeichert'));
     renderNotes();
     return true;
   } catch (err) {
     console.error(err);
-    setEditStatus('Speichern fehlgeschlagen: ' + err.message, true);
+    setEditStatus(t('notes.speichern_fehlgeschlagen') + err.message, true);
     dirty = true; // retried on the next keystroke/close instead of silently dropping the change
     return false;
   }
