@@ -19,11 +19,11 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=195';
+import { db } from './firebase-init.js?v=196';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=195';
+import { t, getLocale } from './i18n.js?v=196';
 
 const targetsCard = document.querySelector('.settings-card[data-target="targets"]');
 const panelEl = document.getElementById('settings-panel-targets');

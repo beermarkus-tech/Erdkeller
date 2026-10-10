@@ -61,11 +61,11 @@
 // or triggers a render — never a manual optimistic flip in the same tick,
 // which would be a second writer to the same state and risk a visible
 // flicker if a slightly-lagged snapshot event arrived after it.
-import { db } from './firebase-init.js?v=195';
+import { db } from './firebase-init.js?v=196';
 import {
   collection, doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=195';
+import { t } from './i18n.js?v=196';
 
 // --- DOM refs: main screen ------------------------------------------------
 //
@@ -249,6 +249,11 @@ function subscribeChecklists() {
     if (!listsReady || !itemsReady) return;
     rebuildMaintenance();
     render();
+    // Build 196 — Übersicht's open-items badge (js/dashboard.js) reads the
+    // same items. A tick deliberately doesn't dispatch erdkeller:refresh (see
+    // the writers below), so hand the badge the live items directly: cheap,
+    // and it only re-renders the badge, not the whole dashboard.
+    window.dispatchEvent(new CustomEvent('erdkeller:checklistitems', { detail: { items: [...itemsById.values()] } }));
   };
   onSnapshot(collection(db, 'checklists'), (snap) => {
     snap.docChanges().forEach((change) => {
@@ -278,8 +283,10 @@ function subscribeChecklists() {
 //
 // Replaces the old saveMaintenance() (one whole-document setDoc on every
 // edit). Ticking (toggleItemDone, further down) never dispatches
-// erdkeller:refresh — nothing outside this screen reads checklist state,
-// and this is the one high-frequency write path in the app (17 other
+// erdkeller:refresh — the one other reader of checklist state, Übersicht's
+// open-items badge, is kept current by the erdkeller:checklistitems event
+// from the live listeners above instead — and this is the one
+// high-frequency write path in the app (17 other
 // modules listen for that event and would otherwise reload their own
 // unrelated screens on every single tick). Structural edits below DO keep
 // dispatching it, matching today's existing behaviour for the rare case.
