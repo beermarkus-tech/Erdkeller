@@ -104,6 +104,13 @@ body.app-ready {
   margin: 0 auto;
   height: 100vh;
   height: 100dvh;
+  /* Build 189 — never taller than the window actually is (--app-height,
+     measured in js/app.js). Android Chrome was seen resolving 100dvh to
+     more than the visible area after an in-app reload (the language
+     switch), pushing the sidebar's bottom account row under the system
+     navigation bar. min() means this can only ever shrink the shell to
+     the measured height, never grow it, so a healthy dvh is unaffected. */
+  height: min(100dvh, var(--app-height, 100dvh));
   background: var(--paper);
   display: flex;
   flex-direction: column;
@@ -3123,7 +3130,7 @@ nav.bottomnav button .icon {
     width: 220px;
     background: var(--cellar);
     color: var(--paper);
-    padding: 24px 14px;
+    padding: 24px 14px calc(24px + env(safe-area-inset-bottom));
     display: flex;
     flex-direction: column;
     gap: 4px;
