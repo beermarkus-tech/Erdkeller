@@ -11,7 +11,7 @@
 Everything suggested so far, in order. Tick it off as it gets done.
 
 **Right now (Build 201 follow-up)**
-- [ ] **Markus: deploy Build 201** from Cloud Shell: `cd ~/Erdkeller && git checkout claude/project-onboarding-mdzoen && git pull && cd functions && npm install && cd .. && firebase deploy --only firestore:rules,functions --project erdkeller-cdbb9`. Until this runs, the old rules still let strangers in.
+- [x] **Markus: deploy Build 201** — done 2026-10-11. from Cloud Shell: `cd ~/Erdkeller && git checkout claude/project-onboarding-mdzoen && git pull && cd functions && npm install && cd .. && firebase deploy --only firestore:rules,functions --project erdkeller-cdbb9`. Until this runs, the old rules still let strangers in.
 - [ ] **Markus: open Admin → Personen and remove any account you don't recognise.** Anyone who signed in before the fix is still a full member.
 
 **Before posting on Reddit**
