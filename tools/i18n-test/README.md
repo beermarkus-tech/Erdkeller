@@ -31,7 +31,8 @@ node tools/i18n-test/run.cjs --live .
 **Other switches (environment variables):**
 - `HARNESS_USER=<uid>` signs in as another account (no cached identity).
 - `HARNESS_TOUR=signup` runs `tour-signup.cjs`: a stranger's sign-up, the waiting screen, then approval.
-- `HARNESS_HOUSEHOLD=households/h1` runs with all household data under that path, proving every access goes through `hcol()` / `hdoc()`.
+- `HARNESS_HOUSEHOLD=h1` runs in household mode: all fixture data under `households/h1/`, every approved account with `householdId: 'h1'`. The app must find the household from the account itself, so identical screens prove every access goes through `hcol()` / `hdoc()` and the household is set before any screen loads.
+- `HARNESS_TOUR=switch` simulates the household move finishing while the app is open: the app must store the new household, reload once, and not loop.
 - `--calls` prints the server calls the tour made, plus every Firestore write path.
 
 Playwright is preinstalled in the Claude Code cloud container. If `require('playwright')` fails, set `PW=/opt/node-tools/node_modules/playwright`.

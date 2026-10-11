@@ -17,16 +17,17 @@ const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const { migrateRootToHousehold } = require('./migrate');
 
 initializeApp();
 const db = getFirestore();
 
-// Household-scoped paths (MULTI_HOUSEHOLD.md, step 1, Build 202) — mirrors
-// hcol()/hdoc() in js/firebase-init.js. The one household lives at the
-// database root today, so this returns the path unchanged; step 3 makes it
-// per household (/households/{id}/…). Per-user paths (users/…) don't use it.
-const HOUSEHOLD_PATH = '';
-const hpath = (path) => (HOUSEHOLD_PATH ? `${HOUSEHOLD_PATH}/${path}` : path);
+// Household-scoped paths (MULTI_HOUSEHOLD.md) — mirrors hcol()/hdoc() in
+// js/firebase-init.js. `base` is '' for the legacy household still at the
+// database root, or 'households/{id}' (Build 203). Per-user paths
+// (users/…) never use it.
+const hpath = (base, path) => (base ? `${base}/${path}` : path);
+const householdBase = (householdId) => (householdId ? `households/${householdId}` : '');
 const messaging = getMessaging();
 
 // Set via: firebase functions:secrets:set ANTHROPIC_API_KEY
@@ -226,6 +227,8 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
   if (!caller || caller.removed === true || !['admin', 'member'].includes(caller.role)) {
     throw new HttpsError('permission-denied', st(lang, 'noAccess'));
   }
+  // The caller's own household (Build 203).
+  const base = householdBase(caller.householdId);
   const data = request.data || {};
   const transcript = typeof data.transcript === 'string' ? data.transcript.trim() : '';
   const imageBase64 = typeof data.imageBase64 === 'string' ? data.imageBase64.trim() : '';
@@ -247,8 +250,8 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
   }
 
   const [taxSnap, productsSnap] = await Promise.all([
-    db.doc(hpath('config/taxonomy')).get(),
-    db.collection(hpath('products')).get(),
+    db.doc(hpath(base, 'config/taxonomy')).get(),
+    db.collection(hpath(base, 'products')).get(),
   ]);
   const taxonomy = taxSnap.exists && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
   const products = productsSnap.docs.map((d) => {
@@ -262,7 +265,7 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
     // Only text-dictation lines can be "out" (a photo just shows what's
     // physically present), so the current-stock batch context is only
     // ever needed here.
-    const batchesSnap = await db.collection(hpath('stockItems')).get();
+    const batchesSnap = await db.collection(hpath(base, 'stockItems')).get();
     const batches = batchesSnap.docs.map((d) => {
       const b = d.data();
       return {
@@ -562,13 +565,13 @@ function isItemDoneThisPeriod(item, frequency, cfg, nowParts) {
 // before. Once migrated, the legacy document is no longer touched by this
 // function at all — only Firestore rules (see firestore.rules) keep it
 // legally writable in the meantime.
-async function loadMaintenance() {
-  const listsSnap = await db.collection(hpath('checklists')).get();
+async function loadMaintenance(base) {
+  const listsSnap = await db.collection(hpath(base, 'checklists')).get();
   if (listsSnap.empty) {
-    const maintSnap = await db.doc(hpath('config/checklists')).get();
+    const maintSnap = await db.doc(hpath(base, 'config/checklists')).get();
     return maintSnap.exists && Array.isArray(maintSnap.data().lists) ? maintSnap.data() : { lists: [] };
   }
-  const itemsSnap = await db.collection(hpath('checklistItems')).get();
+  const itemsSnap = await db.collection(hpath(base, 'checklistItems')).get();
   const itemsByList = new Map();
   itemsSnap.docs.forEach((d) => {
     const data = d.data();
@@ -630,10 +633,15 @@ function buildNotificationText(frequency, breakdown, lang = 'de') {
 // Personen). A slug nobody has claimed yet simply resolves to zero tokens
 // and is silently skipped, same as a recipient with no due items.
 
-async function resolveRecipientTokens(slug) {
+// Build 203: only accounts of the household being processed (householdId
+// null = the legacy root household) — slugs are per household.
+const inHousehold = (userData, householdId) => (userData.householdId || null) === (householdId || null);
+
+async function resolveRecipientTokens(slug, householdId) {
   const usersSnap = await db.collection('users').where('recipientSlug', '==', slug).get();
   const entries = [];
   for (const userDoc of usersSnap.docs) {
+    if (!inHousehold(userDoc.data(), householdId)) continue;
     const devicesSnap = await db.collection('users').doc(userDoc.id).collection('devices').get();
     const lang = normLang(userDoc.data().lang);
     devicesSnap.docs.forEach((deviceDoc) => {
@@ -646,9 +654,10 @@ async function resolveRecipientTokens(slug) {
 
 // The language a recipient slug's reminders are written in, for the admin
 // preview: the first linked account's language (normally there is one).
-async function slugLang(slug) {
-  const usersSnap = await db.collection('users').where('recipientSlug', '==', slug).limit(1).get();
-  return usersSnap.empty ? 'de' : normLang(usersSnap.docs[0].data().lang);
+async function slugLang(slug, householdId) {
+  const usersSnap = await db.collection('users').where('recipientSlug', '==', slug).get();
+  const first = usersSnap.docs.find((d) => inHousehold(d.data(), householdId));
+  return first ? normLang(first.data().lang) : 'de';
 }
 
 // Deletes device docs FCM reports as dead, so a phone that was reset or had
@@ -689,9 +698,26 @@ async function sendToTokens(tokenEntries, title, body, data) {
 // function — each tick is a near-free early exit unless it's actually the
 // right Paris-local hour.
 exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: CHECKLIST_TZ }, async () => {
+  // Build 203: every household under /households; the legacy root one
+  // only while none exists yet (i.e. before the step 2 migration ran).
+  // Per-household send hour/timezone come in step 3.
+  const householdsSnap = await db.collection('households').get();
+  const householdIds = householdsSnap.empty ? [null] : householdsSnap.docs.map((d) => d.id);
+  for (const householdId of householdIds) {
+    try {
+      await sendRemindersFor(householdId);
+    } catch (err) {
+      // One household's broken data must not stop everyone else's reminders.
+      console.error('sendReminders failed for household', householdId, err);
+    }
+  }
+});
+
+async function sendRemindersFor(householdId) {
+  const base = householdBase(householdId);
   const [notifSnap, stateSnap] = await Promise.all([
-    db.doc(hpath('config/notifications')).get(),
-    db.doc(hpath('config/notificationState')).get(),
+    db.doc(hpath(base, 'config/notifications')).get(),
+    db.doc(hpath(base, 'config/notificationState')).get(),
   ]);
 
   const notifications = notifSnap.exists ? notifSnap.data() : {};
@@ -707,7 +733,7 @@ exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: CHECKL
   // read rather than one document, so doing it unconditionally on every
   // hourly tick (as the single old /config/checklists doc read used to,
   // harmlessly) would turn one wasted read/hour into ~123 wasted reads/hour.
-  const maintenance = await loadMaintenance();
+  const maintenance = await loadMaintenance(base);
   const stateChecklists = (stateSnap.exists && stateSnap.data().checklists) || {};
 
   // Both this write and the client's dismiss-action write use targeted
@@ -738,7 +764,7 @@ exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: CHECKL
     for (const slug of RECIPIENT_SLUGS) {
       const breakdown = recipientBreakdown(perList, slug);
       if (!breakdown.total) continue;
-      const tokens = await resolveRecipientTokens(slug);
+      const tokens = await resolveRecipientTokens(slug, householdId);
       if (!tokens.length) continue;
       // One send per language, in case a slug's linked accounts differ.
       for (const lang of SERVER_LANGS) {
@@ -756,9 +782,9 @@ exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: CHECKL
   }
 
   if (Object.keys(stateUpdates).length) {
-    await db.doc(hpath('config/notificationState')).set(stateUpdates, { merge: true });
+    await db.doc(hpath(base, 'config/notificationState')).set(stateUpdates, { merge: true });
   }
-});
+}
 
 // Admin-only dry run: computes exactly what sendReminders would compute,
 // per frequency per recipient, WITHOUT sending anything or writing state —
@@ -769,16 +795,18 @@ exports.previewReminders = onCall(async (request) => {
   const lang = callerLang(request);
   if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
   const callerSnap = await db.doc(`users/${request.auth.uid}`).get();
-  if (!callerSnap.exists || callerSnap.data().role !== 'admin') {
+  if (!callerSnap.exists || callerSnap.data().role !== 'admin' || callerSnap.data().removed === true) {
     throw new HttpsError('permission-denied', st(lang, 'adminsOnly'));
   }
+  const householdId = callerSnap.data().householdId || null;
+  const base = householdBase(householdId);
   // Each recipient's preview text in the language they'd actually get it in.
-  const slugLangs = Object.fromEntries(await Promise.all(RECIPIENT_SLUGS.map(async (slug) => [slug, await slugLang(slug)])));
+  const slugLangs = Object.fromEntries(await Promise.all(RECIPIENT_SLUGS.map(async (slug) => [slug, await slugLang(slug, householdId)])));
 
   const [notifSnap, stateSnap, maintenance] = await Promise.all([
-    db.doc(hpath('config/notifications')).get(),
-    db.doc(hpath('config/notificationState')).get(),
-    loadMaintenance(),
+    db.doc(hpath(base, 'config/notifications')).get(),
+    db.doc(hpath(base, 'config/notificationState')).get(),
+    loadMaintenance(base),
   ]);
   const notifications = notifSnap.exists ? notifSnap.data() : {};
   const cfg = mergeNotificationsChecklists(notifications.checklists);
@@ -833,4 +861,35 @@ exports.sendTestNotification = onCall(async (request) => {
   const succeeded = results.filter((r) => r.success).length;
   const failed = results.filter((r) => !r.success).map((r) => ({ label: r.label, error: r.errorCode }));
   return { total: results.length, succeeded, failed };
+});
+
+// Build 203 (MULTI_HOUSEHOLD.md step 2): the one-time move of the original
+// household from the database root to /households/{id}. Admin-only,
+// started from Settings → Sicherung after the app has downloaded a safety
+// backup. All the care (copy-not-move, count check before anyone is
+// switched, safe re-run) lives in migrate.js.
+exports.migrateToHousehold = onCall({ timeoutSeconds: 540, memory: '512MiB' }, async (request) => {
+  const lang = callerLang(request);
+  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
+  const callerSnap = await db.doc(`users/${request.auth.uid}`).get();
+  const caller = callerSnap.exists ? callerSnap.data() : null;
+  if (!caller || caller.role !== 'admin' || caller.removed === true) {
+    throw new HttpsError('permission-denied', st(lang, 'adminsOnly'));
+  }
+  const name = typeof (request.data && request.data.name) === 'string' ? request.data.name.trim().slice(0, 80) : '';
+  try {
+    const result = await migrateRootToHousehold(db, {
+      callerUid: request.auth.uid,
+      household: { name, lang: 'de', country: 'DE', timezone: CHECKLIST_TZ },
+    });
+    return {
+      householdId: result.householdId,
+      alreadyDone: result.alreadyDone,
+      users: result.users,
+      collections: result.collections.map((c) => ({ path: c.src, count: c.count, copied: c.copied })),
+    };
+  } catch (err) {
+    console.error('migrateToHousehold failed', err);
+    throw new HttpsError(err.code === 'count-mismatch' ? 'aborted' : 'internal', err.message);
+  }
 });

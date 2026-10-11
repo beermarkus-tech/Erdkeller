@@ -1,12 +1,12 @@
-import { db, hdoc, hcol } from './firebase-init.js?v=202';
-import { PALETTE } from './year-colors.js?v=202';
-import { renderRecentLog } from './stock-log.js?v=202';
-import { renderResultLines } from './format-batch.js?v=202';
+import { db, hdoc, hcol } from './firebase-init.js?v=203';
+import { PALETTE } from './year-colors.js?v=203';
+import { renderRecentLog } from './stock-log.js?v=203';
+import { renderResultLines } from './format-batch.js?v=203';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=202';
-import { setHeader } from './app-shell.js?v=202';
+import { t } from './i18n.js?v=203';
+import { setHeader } from './app-shell.js?v=203';
 
 const stockHomeEl = document.getElementById('stock-home');
 const stockFlowEl = document.getElementById('stock-flow-checkout');

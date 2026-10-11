@@ -7,12 +7,15 @@ These dev tools are not part of the app. `rules.test.mjs` runs the repo's `fires
 - a removed member;
 - a member, including a pre-Build-180 one;
 - an admin;
-- an anonymous visitor.
+- an anonymous visitor;
+- (Build 203) members and admins of two separate households: nobody sees or changes another household's data or people, and a moved account can no longer touch the old root data.
+
+`migrate.test.mjs` runs `functions/migrate.js` (the one-time move of the root data into `/households/{id}`) against the emulator with `firebase-admin`: complete copy, counts verified, nothing deleted, accounts switched last, safe re-run and crash resume.
 
 ```
 cd tools/rules-test
-npm install          # firebase-tools, @firebase/rules-unit-testing, firebase
-npm test             # starts the emulator (needs Java) and runs the tests
+npm install          # firebase-tools, @firebase/rules-unit-testing, firebase, firebase-admin
+npm test             # starts the emulator (needs Java) and runs both test files
 ```
 
-Run it after every change to `firestore.rules`, before deploying with `firebase deploy --only firestore:rules`.
+Run it after every change to `firestore.rules` or `functions/migrate.js`, before deploying with `firebase deploy --only firestore:rules`.

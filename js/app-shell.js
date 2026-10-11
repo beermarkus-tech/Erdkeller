@@ -1,4 +1,4 @@
-import { t } from './i18n.js?v=202';
+import { t } from './i18n.js?v=203';
 // Looked up when shown, not at load, so they follow a language switch.
 const TAB_LABEL_KEYS = {
   dashboard: 'nav.uebersicht',

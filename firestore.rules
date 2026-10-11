@@ -16,31 +16,62 @@ service cloud.firestore {
     // an actual, immediately server-enforced revocation rather than a
     // cosmetic removal from a list — see the tombstone comment on
     // /users/{userId} below for why a removed doc is kept, not deleted.
-    function isSignedIn() {
+    // The caller's own /users doc. Repeated get()s of the same document
+    // within one evaluation are served once, so these helpers are cheap.
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // "Approved" means more than a valid Firebase session — it means an
+    // ACTIVE, non-removed, approved account:
+    // - (Build 180) not removed. .get('removed', false), not .data.removed —
+    //   accounts from before Build 180 have no removed field at all, and
+    //   Security Rules THROW on a missing map key (unlike JS's undefined);
+    //   that throw denies the whole rule, which once locked every existing
+    //   account out within minutes of shipping.
+    // - (Build 201) role admin or member. A brand-new sign-in
+    //   self-provisions as 'pending' (see /users below) and gets nothing
+    //   until an admin approves it.
+    function approved() {
       return hasAuth()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        // .get('removed', false), not .data.removed — every account that
-        // existed before Build 180 has no removed field at all, and
-        // Firestore Security Rules THROWS on accessing a map key that
-        // doesn't exist (unlike JS, where it's just undefined). That
-        // throw denies the whole rule, which is exactly the bug that
-        // locked every pre-existing account (including admin) out of the
-        // entire app within minutes of this shipping — .get() with a
-        // default avoids it.
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('removed', false) != true
-        // Build 201: and APPROVED. A brand-new sign-in self-provisions as
-        // role 'pending' (see /users below) and gets no access to anything
-        // until an admin approves it in Settings → Personen. Before this,
-        // any Google account that found the (public) app URL could create
-        // itself as 'member' and read/write the whole household — Build
-        // 180's "requires an existing /users doc" didn't stop that, since
-        // the same create rule let anyone make that doc.
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['admin', 'member'];
+        && me().get('removed', false) != true
+        && me().get('role', '') in ['admin', 'member'];
+    }
+
+    // Build 203 (MULTI_HOUSEHOLD.md step 2) — which household's data the
+    // caller may touch: the one named by `householdId` on their own /users
+    // doc. null (field absent) is the LEGACY household — the data still
+    // at the database root, from before the move to /households/{hid}.
+    // Once an account carries a householdId it loses access to the root
+    // data automatically, so after the one-time migration
+    // (functions/migrate.js) the old copy is frozen as a fallback without
+    // any further rules change.
+    function myHousehold() {
+      return me().get('householdId', null);
+    }
+
+    function isMember(hid) {
+      return approved() && myHousehold() == hid;
+    }
+
+    function isHouseholdAdmin(hid) {
+      return isMember(hid) && me().role == 'admin';
+    }
+
+    // Legacy (root) data: unchanged semantics for accounts not yet moved.
+    function isSignedIn() {
+      return isMember(null);
     }
 
     function isAdmin() {
-      return isSignedIn() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isHouseholdAdmin(null);
+    }
+
+    // Admin of whichever household the caller belongs to (legacy included)
+    // — for managing /users docs, which live outside any household.
+    function isAnyAdmin() {
+      return approved() && me().role == 'admin';
     }
 
     // Was the Step 1 connectivity check (retired; nothing reads or writes
@@ -75,14 +106,38 @@ service cloud.firestore {
     // silently let a removed person re-join as a fresh member the next
     // time they open the app.
     match /users/{userId} {
-      allow read: if (hasAuth() && request.auth.uid == userId) || isSignedIn();
+      // Build 203: the roster is per household — you read the people of
+      // your own household (legacy accounts, all without householdId, read
+      // each other exactly as before), and admins additionally see
+      // accounts waiting for approval. A pending account never has a
+      // householdId (the create rule below forbids one, the self-update
+      // rule can't add one, and only an admin's approval sets it), so
+      // "role == pending" alone is the scope.
+      allow read: if (hasAuth() && request.auth.uid == userId)
+        || (approved() && myHousehold() == null)
+        || (approved() && resource.data.get('householdId', null) == myHousehold())
+        || (isAnyAdmin() && resource.data.get('role', '') == 'pending');
       allow create: if hasAuth() && request.auth.uid == userId
-        && request.resource.data.role == 'pending';
-      allow update: if isAdmin() || (
+        && request.resource.data.role == 'pending'
+        && request.resource.data.get('householdId', null) == null;
+      // Admins manage the accounts of their own household, and approve
+      // pending ones INTO it (approval sets role and householdId in one
+      // write). Nobody can move an account to another household or strip
+      // it out of one. Self-updates (name/photo/lang sync in js/auth.js)
+      // may change neither role, removed nor householdId.
+      allow update: if (
+        isAnyAdmin()
+        && (resource.data.get('householdId', null) == myHousehold()
+            || resource.data.get('role', '') == 'pending')
+        && (request.resource.data.get('householdId', null) == resource.data.get('householdId', null)
+            || (resource.data.get('householdId', null) == null
+                && request.resource.data.get('householdId', null) == myHousehold()))
+      ) || (
         hasAuth() && request.auth.uid == userId
         && resource.data.get('removed', false) != true
         && request.resource.data.get('role', '') == resource.data.get('role', '')
         && request.resource.data.get('removed', false) == resource.data.get('removed', false)
+        && request.resource.data.get('householdId', null) == resource.data.get('householdId', null)
       );
     }
 
@@ -215,8 +270,9 @@ service cloud.firestore {
     // admins can read (not write) everyone's, for a future "who's actually
     // registered" view in Settings.
     match /users/{userId}/devices/{deviceId} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
-      allow read: if isAdmin();
+      allow read, write: if approved() && request.auth.uid == userId;
+      allow read: if isAnyAdmin()
+        && get(/databases/$(database)/documents/users/$(userId)).data.get('householdId', null) == myHousehold();
     }
 
     // Step 17: send-tracking + per-period dismissal state for the reminder
@@ -230,6 +286,63 @@ service cloud.firestore {
     // tier as ticking a checklist item itself (/config/checklists above).
     match /config/notificationState {
       allow read, write: if isSignedIn();
+    }
+
+    // Build 203 (MULTI_HOUSEHOLD.md step 2): each household's data lives
+    // under /households/{hid}/... with EXACTLY the per-collection rules of
+    // the legacy root blocks above (see their comments for the reasoning),
+    // scoped to members of that one household. Creating a household is
+    // server-only (functions/migrate.js now; invitations/onboarding later).
+    match /households/{hid} {
+      allow read: if isMember(hid);
+      allow update: if isHouseholdAdmin(hid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'lang', 'country', 'timezone']);
+      match /config/{docId} {
+        allow read: if isMember(hid);
+        allow write: if isHouseholdAdmin(hid);
+      }
+      match /config/checklists {
+        allow read, write: if isMember(hid);
+      }
+      match /checklists/{listId} {
+        allow read: if isMember(hid);
+        allow create, update, delete: if isHouseholdAdmin(hid);
+      }
+      match /checklistItems/{itemId} {
+        allow read: if isMember(hid);
+        allow create, delete: if isHouseholdAdmin(hid);
+        allow update: if isHouseholdAdmin(hid)
+          || (isMember(hid)
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['lastCompletedAt', 'updatedAt']));
+      }
+      match /products/{productId} {
+        allow read: if isMember(hid);
+        allow create: if isMember(hid);
+        allow update, delete: if isHouseholdAdmin(hid);
+      }
+      match /stockItems/{itemId} {
+        allow read, create, update, delete: if isMember(hid);
+      }
+      match /stockLog/{logId} {
+        allow read, create, delete: if isMember(hid);
+      }
+      match /contacts/{contactId} {
+        allow read: if isMember(hid);
+        allow create, update, delete: if isHouseholdAdmin(hid);
+      }
+      match /notes/{noteId} {
+        allow read: if isMember(hid);
+        allow create, update, delete: if isHouseholdAdmin(hid);
+      }
+      match /recipes/{recipeId} {
+        allow read: if isMember(hid);
+        allow create, update, delete: if isHouseholdAdmin(hid);
+      }
+      match /config/notificationState {
+        allow read, write: if isMember(hid);
+      }
     }
 
     // Everything else stays locked down until its own build step wires up

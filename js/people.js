@@ -1,8 +1,8 @@
-import { auth, db } from './firebase-init.js?v=202';
+import { auth, db, getHouseholdId } from './firebase-init.js?v=203';
 import {
   collection, getDocs, doc, updateDoc, query, where,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=202';
+import { t, getLocale } from './i18n.js?v=203';
 
 const peopleCard = document.querySelector('.settings-card[data-target="people"]');
 const peopleListEl = document.getElementById('people-list');
@@ -161,7 +161,11 @@ async function setRole(id, data, newRole) {
   if (newRole === data.role) return;
   if (newRole === 'admin' && !confirm(t('people.zum_admin_machen_admins_haben', { value: data.name || t('people.diese_person') }))) return;
   try {
-    await updateDoc(doc(db, 'users', id), { role: newRole });
+    // Approving a pending account (Build 203) also puts it into this
+    // admin's household — firestore.rules allow exactly that one move.
+    const patch = { role: newRole };
+    if (data.role === 'pending' && getHouseholdId()) patch.householdId = getHouseholdId();
+    await updateDoc(doc(db, 'users', id), patch);
     await loadPeople();
   } catch (err) {
     console.error(err);
@@ -193,13 +197,27 @@ async function setRecipientSlug(id, slug) {
   }
 }
 
+// Build 203 — in a household, the roster is that household's accounts plus
+// (for admins) the ones waiting for approval: two queries, since
+// firestore.rules only allow reads that are provably scoped. The legacy
+// root household still reads the whole collection, as before.
+async function loadRoster() {
+  const hid = getHouseholdId();
+  if (!hid) return (await getDocs(collection(db, 'users'))).docs;
+  const [members, pending] = await Promise.all([
+    getDocs(query(collection(db, 'users'), where('householdId', '==', hid))),
+    getDocs(query(collection(db, 'users'), where('role', '==', 'pending'))),
+  ]);
+  return [...members.docs, ...pending.docs];
+}
+
 async function loadPeople() {
   peopleListEl.innerHTML = '';
   try {
-    const snap = await getDocs(collection(db, 'users'));
+    const docs = await loadRoster();
     // Pending first (they need action), removed last.
     const rank = (data) => (data.removed ? 2 : data.role === 'pending' ? 0 : 1);
-    const people = snap.docs
+    const people = docs
       .map((d) => ({ id: d.id, data: d.data() }))
       .sort((a, b) => (rank(a.data) - rank(b.data)) || (a.data.name || '').localeCompare(b.data.name || ''));
     people.forEach(({ id, data }) => peopleListEl.appendChild(makePersonRow(id, data)));

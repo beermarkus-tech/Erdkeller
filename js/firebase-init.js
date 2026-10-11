@@ -8,7 +8,7 @@ import {
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { firebaseConfig } from './firebase-config.js?v=202';
+import { firebaseConfig } from './firebase-config.js?v=203';
 
 // Step 16b (SPEC.md Section 13.5) — Funkstille/Sync are deliberately
 // per-device localStorage flags (js/verbindung.js owns writing them), not
@@ -59,10 +59,25 @@ export const db = initializeFirestore(app, {
 //
 // Call these when the reference is needed, never once at module load: the
 // household is only known after sign-in.
+//
+// Build 203 (step 2): js/auth.js calls setHousehold() with the
+// `householdId` from the signed-in account's /users doc, before any screen
+// starts loading (erdkeller:signedin). No householdId = the legacy household
+// still at the root, exactly as before the migration.
 let householdPath = '';
+let householdId = null;
 
 export function setHouseholdPath(path) {
   householdPath = path || '';
+}
+
+export function setHousehold(id) {
+  householdId = id || null;
+  setHouseholdPath(householdId ? `households/${householdId}` : '');
+}
+
+export function getHouseholdId() {
+  return householdId;
 }
 
 export function hcol(...segments) {
