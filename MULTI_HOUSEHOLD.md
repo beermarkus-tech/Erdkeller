@@ -16,10 +16,10 @@ Everything suggested so far, in order. Tick it off as it gets done.
 
 **Before posting on Reddit**
 - [ ] **Clean up the categories and data.** This blocks the starter templates (step 5 in Section 9).
-- [ ] **Answer the open questions in Section 10:** cloud region, dictation for testers, contact address.
+- [x] **Answer the open questions in Section 10:** cloud region, dictation for testers, contact address. Answered 2026-10-11 (Section 10).
 - [ ] **Build steps 1–6 of Section 9.**
 - [ ] **Write a privacy notice and test disclaimer, shown at sign-up and linked in the app** (Section 7).
-- [ ] **Limit AI dictation per household per day** (e.g. 20), or turn it off for test households.
+- [ ] **Limit AI dictation to 20 per household per day** (decided 2026-10-11). Enforce it server-side in `parseDictation` with a per-household daily counter, and show a friendly "daily limit reached" message in DE/EN.
 - [ ] **Add a Google Cloud budget alert** (Billing → Budgets & alerts).
 - [ ] **Enable Cloud Data Access audit logs** for Firestore, so any console look at data is recorded (Section 8).
 - [ ] **Let testers delete their household and their account** themselves (GDPR, and it's fair).
@@ -170,6 +170,6 @@ Each step is its own build, with the harness and rules tests.
 ## 10. Open questions
 
 - **Template cleanup:** when will Markus's data cleanup be done? It blocks step 5, not steps 1–4.
-- **Cloud region** of the Firestore database. Check it in the console; it belongs in the privacy notice.
-- **Dictation for testers:** on with a daily limit, or off?
-- **Operator contact address** for the privacy notice.
+- **Cloud region:** answered, **`eur3`**. That's Firestore's EU multi-region (data stored in Belgium and the Netherlands), for the privacy notice.
+- **Dictation for testers:** answered, **on, limited to 20 dictations per household per day**.
+- **Operator contact address** for the privacy notice and data-deletion requests: answered, **contact@solidcutlist.com**.
