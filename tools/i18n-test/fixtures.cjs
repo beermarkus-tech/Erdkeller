@@ -119,7 +119,6 @@ const config = {
   },
   'config/notifications': { enabled: true },
   'config/notificationState': { checklists: {} },
-  'config/checklistsMigration': { migratedAt: iso('2026-06-01T09:30:00'), listCount: 2, itemCount: 5 },
 };
 
 const info = {
