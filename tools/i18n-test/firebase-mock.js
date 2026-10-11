@@ -19,7 +19,7 @@ export const initializeAuth = () => ({ currentUser: user });
 export const getAuth = initializeAuth;
 export const indexedDBLocalPersistence = {}, browserLocalPersistence = {}, browserSessionPersistence = {};
 export const browserPopupRedirectResolver = {};
-export class GoogleAuthProvider {}
+export class GoogleAuthProvider { setCustomParameters(p) { window.__AUTH_PARAMS__ = p; } }
 export function onAuthStateChanged(auth, cb) { setTimeout(() => cb(user), 0); return () => {}; }
 export const signInWithPopup = async () => ({ user });
 export const signInWithRedirect = async () => {};

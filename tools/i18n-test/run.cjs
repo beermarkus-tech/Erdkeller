@@ -135,6 +135,14 @@ async function runTour(dir, lang, only, fake, afterStep) {
           await fb.updateDoc(fb.doc({}, 'users', window.__USER__.uid), hh ? { role: 'member', householdId: hh } : { role: 'member' });
           return { householdId: hh || null, role: 'member' };
         },
+        removeMember: async (p) => {
+          const fb = await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');
+          const ref = fb.doc({}, 'users', p.uid);
+          const data = (await fb.getDoc(ref)).data();
+          const { householdId, removed, removedAt, recipientSlug, joinedAt, ...rest } = data;
+          await fb.setDoc(ref, { ...rest, role: 'pending' });
+          return { ok: true };
+        },
         createHousehold: async (p) => {
           const fb = await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');
           await fb.setDoc(fb.doc({}, 'households', 'hNew'), { name: p.name, country: p.country, timezone: p.timezone, lang: p.dataLang, createdBy: window.__USER__.uid });
@@ -161,7 +169,8 @@ async function runTour(dir, lang, only, fake, afterStep) {
     page.on('dialog', async (d) => { dialogs.push(`${d.type()}: ${d.message()}`); await d.dismiss(); });
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error' || /i18n/.test(m.text())) errors.push('console: ' + m.text()); });
-    await page.goto(base + '/index.html');
+    // HARNESS_QUERY='?login=…' opens the app as an invitation link does.
+    await page.goto(base + '/index.html' + (process.env.HARNESS_QUERY || ''));
     await page.clock.runFor(3000);
     await page.waitForTimeout(300);
     for (const step of TOUR) {

@@ -26,7 +26,6 @@ const daysAgo = (d) => new Date(Date.now() - d * 86400000).toISOString();
   await inv('old', { createdAt: daysAgo(20) });
   await inv('other', { email: 'someone@x.com' });
   await inv('adm', { role: 'admin', createdAt: daysAgo(2) });
-  await inv('forgone', { email: 'gone@x.com' });
 
   // myInvites
   const mine = (await call('myInvites', as('new', 'New@X.com'))).invites;
@@ -39,7 +38,6 @@ const daysAgo = (d) => new Date(Date.now() - d * 86400000).toISOString();
   check('someone else cannot accept it', (await code(call('acceptInvite', as('intruder', 'evil@x.com'), { inviteId: 'i1' }))) === 'permission-denied');
   check('expired invitation is refused', (await code(call('acceptInvite', as('new', 'new@x.com'), { inviteId: 'old' }))) === 'failed-precondition');
   check('unknown invitation is refused', (await code(call('acceptInvite', as('new', 'new@x.com'), { inviteId: 'nope' }))) === 'not-found');
-  check('removed account cannot accept one', (await code(call('acceptInvite', as('gone', 'gone@x.com'), { inviteId: 'forgone' }))) === 'failed-precondition');
   const res = await call('acceptInvite', as('new', 'new@x.com'), { inviteId: 'i1' });
   const u = (await db.doc('users/new').get()).data();
   check('accepting puts the account into the household as member', res.householdId === 'h1' && u.householdId === 'h1' && u.role === 'member' && u.email === 'new@x.com');
@@ -58,6 +56,38 @@ const daysAgo = (d) => new Date(Date.now() - d * 86400000).toISOString();
   check('someone else cannot decline it', (await code(call('declineInvite', as('x', 'x@x.com'), { inviteId: 'd1' }))) === 'permission-denied');
   await call('declineInvite', as('dec', 'dec@x.com'), { inviteId: 'd1' });
   check('declining marks it declined', (await db.doc('invites/d1').get()).data().status === 'declined');
+
+  // Build 207: Gmail spelling variants
+  await inv('g1', { email: 'mar.kus+erdkeller@googlemail.com', emailKey: 'markus@gmail.com' });
+  const gm = (await call('myInvites', as('mk', 'Markus@gmail.com'))).invites.map((i) => i.id);
+  check('Gmail dots/+tag/googlemail variants find the invitation', gm.includes('g1'), gm.join(','));
+  await call('acceptInvite', as('mk', 'markus@gmail.com'), { inviteId: 'g1' });
+  check('…and can accept it', (await db.doc('users/mk').get()).data().householdId === 'h1');
+  await inv('g2', { email: 'other.person@gmail.com', emailKey: 'markus@gmail.com' });
+  check('a wrong emailKey cannot hand the invitation to someone else', (await code(call('acceptInvite', as('mk2', 'markus@gmail.com'), { inviteId: 'g2' }))) === 'permission-denied');
+
+  // Build 207: an account removed the old way (tombstone) is free to join again
+  await inv('back', { email: 'gone@x.com', createdAt: daysAgo(0) });
+  check('old removed account sees its new invitation', (await call('myInvites', as('gone', 'gone@x.com'))).invites.some((i) => i.id === 'back'));
+  await call('acceptInvite', as('gone', 'gone@x.com'), { inviteId: 'back' });
+  const back = (await db.doc('users/gone').get()).data();
+  check('…accepts it: back in, tombstone cleared', back.householdId === 'h1' && back.role === 'member' && back.removed === undefined);
+
+  // Build 207: removeMember
+  await db.doc('users/mk/devices/d').set({ token: 't' });
+  await db.doc('users/m2').set({ name: 'M2', role: 'member', householdId: 'h1' });
+  await db.doc('households/h9').set({ name: 'Other' });
+  await db.doc('users/o9').set({ name: 'O9', role: 'admin', householdId: 'h9' });
+  check('a member cannot remove anyone', (await code(call('removeMember', as('m2', 'm2@x.com'), { uid: 'mk' }))) === 'permission-denied');
+  check('an admin of another household cannot', (await code(call('removeMember', as('o9', 'o9@x.com'), { uid: 'mk' }))) === 'permission-denied');
+  check('an admin cannot remove themselves', (await code(call('removeMember', as('boss', 'b@x.com'), { uid: 'boss' }))) === 'failed-precondition');
+  await call('removeMember', as('boss', 'b@x.com'), { uid: 'mk' });
+  const gone2 = (await db.doc('users/mk').get()).data();
+  check('removing takes the account out of the household', gone2.householdId === undefined && gone2.role === 'pending' && gone2.removed === undefined);
+  check('…and deletes its devices', (await db.collection('users/mk/devices').get()).empty);
+  await inv('again', { email: 'markus@gmail.com', emailKey: 'markus@gmail.com', createdAt: daysAgo(0) });
+  await call('acceptInvite', as('mk', 'markus@gmail.com'), { inviteId: 'again' });
+  check('…and the person can be invited again', (await db.doc('users/mk').get()).data().householdId === 'h1');
 
   // createHousehold
   await db.doc('users/solo').set({ name: 'Solo', role: 'pending' });

@@ -15,7 +15,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 
 initializeApp();
@@ -106,7 +106,8 @@ const SERVER_TEXT = {
     inviteExpired: 'Diese Einladung ist abgelaufen — bitte um eine neue.',
     inviteWrongEmail: 'Diese Einladung gilt für eine andere E-Mail-Adresse.',
     alreadyInHousehold: 'Dein Konto gehört schon zu einem Haushalt.',
-    accountRemoved: 'Dieses Konto wurde aus seinem Haushalt entfernt.',
+    notInYourHousehold: 'Diese Person gehört nicht zu deinem Haushalt.',
+    notYourself: 'Du kannst dich nicht selbst entfernen.',
     signupClosed: 'Neue Haushalte können gerade noch nicht angelegt werden. Bitte um eine Einladung.',
     nameRequired: 'Bitte einen Namen für den Haushalt eingeben.',
   },
@@ -128,7 +129,8 @@ const SERVER_TEXT = {
     inviteExpired: 'This invitation has expired — please ask for a new one.',
     inviteWrongEmail: 'This invitation is for a different e-mail address.',
     alreadyInHousehold: 'Your account already belongs to a household.',
-    accountRemoved: 'This account was removed from its household.',
+    notInYourHousehold: 'This person isn\'t in your household.',
+    notYourself: 'You can\'t remove yourself.',
     signupClosed: 'New households can\'t be created yet. Please ask for an invitation.',
     nameRequired: 'Please enter a name for the household.',
   },
@@ -962,16 +964,41 @@ function verifiedEmail(request, lang) {
   return String(token.email).toLowerCase();
 }
 
+// Build 207 — Gmail ignores dots and "+anything" in the name part, and
+// googlemail.com is the same as gmail.com, so "Mar.Kus+x@googlemail.com" is
+// markus@gmail.com. Invitations are matched on this key; every other
+// domain is matched exactly (lower-cased). Mirrored in js/people.js.
+function emailKey(email) {
+  const e = String(email || '').trim().toLowerCase();
+  const at = e.lastIndexOf('@');
+  if (at < 1) return e;
+  let local = e.slice(0, at);
+  let domain = e.slice(at + 1);
+  if (domain === 'googlemail.com') domain = 'gmail.com';
+  if (domain === 'gmail.com') local = local.split('+')[0].replace(/\./g, '');
+  return `${local}@${domain}`;
+}
+
 function inviteExpired(invite, now = Date.now()) {
   const created = Date.parse(invite.createdAt || '');
   return !Number.isFinite(created) || now - created > INVITE_DAYS * 86400000 || created - now > 3600000;
 }
 
-// The caller may join/create only while not in any household yet.
+// The caller may join/create only while not in a household. An account an
+// admin removed before Build 207 (removed:true, still carrying its old
+// householdId) counts as free: it isn't in that household any more.
 function assertFreeAccount(user, lang) {
-  if (user && user.removed === true) throw new HttpsError('failed-precondition', st(lang, 'accountRemoved'));
-  if (user && user.householdId) throw new HttpsError('failed-precondition', st(lang, 'alreadyInHousehold'));
+  if (user && user.householdId && user.removed !== true) {
+    throw new HttpsError('failed-precondition', st(lang, 'alreadyInHousehold'));
+  }
 }
+
+// Fields that make an account a household member, cleared together when it
+// leaves one (removeMember) and overwritten when it joins one.
+const CLEAR_MEMBERSHIP = () => ({
+  householdId: FieldValue.delete(), removed: FieldValue.delete(), removedAt: FieldValue.delete(),
+  recipientSlug: FieldValue.delete(), joinedAt: FieldValue.delete(),
+});
 
 function newUserFields(request) {
   const token = request.auth.token || {};
@@ -984,9 +1011,16 @@ exports.myInvites = onCall(async (request) => {
   const lang = callerLang(request);
   if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
   const email = verifiedEmail(request, lang);
-  const snap = await db.collection('invites').where('email', '==', email).where('status', '==', 'open').get();
+  // By key (Gmail spelling variants), and by plain address for invitations
+  // created before Build 207 had a key.
+  const [byKey, byEmail] = await Promise.all([
+    db.collection('invites').where('emailKey', '==', emailKey(email)).where('status', '==', 'open').get(),
+    db.collection('invites').where('email', '==', email).where('status', '==', 'open').get(),
+  ]);
+  const docs = [...new Map([...byKey.docs, ...byEmail.docs].map((d) => [d.id, d])).values()]
+    .filter((d) => emailKey(d.data().email) === emailKey(email));
   const invites = [];
-  for (const d of snap.docs) {
+  for (const d of docs) {
     const inv = d.data();
     if (inviteExpired(inv)) continue;
     const [hh, by] = await Promise.all([
@@ -1019,7 +1053,7 @@ exports.acceptInvite = onCall(async (request) => {
     const [inviteSnap, userSnap] = await Promise.all([tx.get(inviteRef), tx.get(userRef)]);
     if (!inviteSnap.exists) throw new HttpsError('not-found', st(lang, 'inviteNotFound'));
     const inv = inviteSnap.data();
-    if (inv.email !== email) throw new HttpsError('permission-denied', st(lang, 'inviteWrongEmail'));
+    if (emailKey(inv.email) !== emailKey(email)) throw new HttpsError('permission-denied', st(lang, 'inviteWrongEmail'));
     if (inv.status !== 'open') throw new HttpsError('failed-precondition', st(lang, 'inviteNotOpen'));
     if (inviteExpired(inv)) throw new HttpsError('failed-precondition', st(lang, 'inviteExpired'));
     const user = userSnap.exists ? userSnap.data() : null;
@@ -1029,7 +1063,7 @@ exports.acceptInvite = onCall(async (request) => {
     const nowIso = new Date().toISOString();
     const role = inv.role === 'admin' ? 'admin' : 'member';
     if (user) {
-      tx.update(userRef, { role, householdId: inv.householdId, joinedAt: nowIso, email });
+      tx.update(userRef, { ...CLEAR_MEMBERSHIP(), role, householdId: inv.householdId, joinedAt: nowIso, email });
     } else {
       tx.set(userRef, { ...newUserFields(request), lang, role, householdId: inv.householdId, joinedAt: nowIso, email });
     }
@@ -1047,7 +1081,7 @@ exports.declineInvite = onCall(async (request) => {
   const ref = db.doc(`invites/${inviteId}`);
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError('not-found', st(lang, 'inviteNotFound'));
-  if (snap.data().email !== email) throw new HttpsError('permission-denied', st(lang, 'inviteWrongEmail'));
+  if (emailKey(snap.data().email) !== emailKey(email)) throw new HttpsError('permission-denied', st(lang, 'inviteWrongEmail'));
   if (snap.data().status !== 'open') return { ok: true };
   await ref.update({ status: 'declined', declinedAt: new Date().toISOString() });
   return { ok: true };
@@ -1088,10 +1122,41 @@ exports.createHousehold = onCall(async (request) => {
       name, createdAt: nowIso, createdBy: uid, lang: dataLang, country, timezone,
     });
     if (user) {
-      tx.update(userRef, { role: 'admin', householdId: householdRef.id, joinedAt: nowIso, email });
+      tx.update(userRef, { ...CLEAR_MEMBERSHIP(), role: 'admin', householdId: householdRef.id, joinedAt: nowIso, email });
     } else {
       tx.set(userRef, { ...newUserFields(request), lang, role: 'admin', householdId: householdRef.id, joinedAt: nowIso, email });
     }
     return { householdId: householdRef.id };
   });
+});
+
+// Build 207: removing someone from a household (Admin → Personen, 🗑️) takes
+// the account OUT of it, rather than leaving a "removed" tombstone inside
+// it: the account goes back to having no household — so that person sees
+// the onboarding screen and can be invited again (or start their own
+// household), instead of being "blocked" for good. Access ends at once
+// (firestore.rules need role admin/member AND the household id), their
+// devices stop getting reminders, and their name stays on nothing but past
+// stock-log entries. Also cleans up tombstones left by the old removal.
+exports.removeMember = onCall(async (request) => {
+  const lang = callerLang(request);
+  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
+  const targetUid = String((request.data && request.data.uid) || '');
+  if (!targetUid || targetUid.includes('/')) throw new HttpsError('invalid-argument', st(lang, 'notInYourHousehold'));
+  if (targetUid === request.auth.uid) throw new HttpsError('failed-precondition', st(lang, 'notYourself'));
+  const [callerSnap, targetSnap] = await Promise.all([
+    db.doc(`users/${request.auth.uid}`).get(),
+    db.doc(`users/${targetUid}`).get(),
+  ]);
+  const caller = callerSnap.exists ? callerSnap.data() : null;
+  if (!caller || caller.role !== 'admin' || caller.removed === true || !caller.householdId) {
+    throw new HttpsError('permission-denied', st(lang, 'adminsOnly'));
+  }
+  if (!targetSnap.exists || targetSnap.data().householdId !== caller.householdId) {
+    throw new HttpsError('permission-denied', st(lang, 'notInYourHousehold'));
+  }
+  await targetSnap.ref.update({ ...CLEAR_MEMBERSHIP(), role: 'pending', leftAt: new Date().toISOString() });
+  const devices = await targetSnap.ref.collection('devices').get();
+  await Promise.all(devices.docs.map((d) => d.ref.delete()));
+  return { ok: true };
 });
