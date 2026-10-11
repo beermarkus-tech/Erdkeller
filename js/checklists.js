@@ -61,11 +61,11 @@
 // or triggers a render — never a manual optimistic flip in the same tick,
 // which would be a second writer to the same state and risk a visible
 // flicker if a slightly-lagged snapshot event arrived after it.
-import { db, hdoc, hcol } from './firebase-init.js?v=204';
+import { auth, db, hdoc, hcol, getHouseholdId } from './firebase-init.js?v=205';
 import {
-  collection, doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot, query, where,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=204';
+import { t } from './i18n.js?v=205';
 
 // --- DOM refs: main screen ------------------------------------------------
 //
@@ -115,11 +115,58 @@ const notificationsRef = () => hdoc('config', 'notifications');
 // clobbered on the next unrelated save.
 const notificationStateRef = () => hdoc('config', 'notificationState');
 
-const RECIPIENT_OPTIONS = [
-  { id: 'markus', label: 'Markus' },
-  { id: 'julia', label: 'Julia' },
-  { id: 'sophia', label: 'Sophia' },
-];
+// --- Reminder recipients = the household's members (Build 205) -----------
+// list.recipients holds member uids (MULTI_HOUSEHOLD step 3). Lists saved
+// before hold the old hardcoded slugs ('markus'|'julia'|'sophia'), which
+// map to whoever carries that `recipientSlug` on their /users doc —
+// convertSlugRecipients() below rewrites them to uids the first time an
+// admin opens the app; until then functions/index.js matches both.
+let members = []; // [{ uid, name, recipientSlug }], approved + not removed
+let membersLoaded = false;
+let listsLoaded = false;
+let isAdminUser = false;
+let slugsConverted = false;
+
+async function loadMembers() {
+  const hid = getHouseholdId();
+  const snap = await getDocs(hid
+    ? query(collection(db, 'users'), where('householdId', '==', hid))
+    : collection(db, 'users'));
+  members = snap.docs
+    .map((d) => ({ uid: d.id, ...d.data() }))
+    .filter((u) => u.removed !== true && ['admin', 'member'].includes(u.role))
+    .map((u) => ({ uid: u.uid, name: u.name || '', recipientSlug: u.recipientSlug || null }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  membersLoaded = true;
+}
+
+// Old slug entries → the uid of the member who claimed that slug; anything
+// else (uids, unclaimed slugs) is kept as it is — nothing is ever dropped.
+function normalizeRecipients(recipients) {
+  return [...new Set((recipients || []).map((r) => {
+    const m = members.find((x) => x.recipientSlug === r);
+    return m ? m.uid : r;
+  }))];
+}
+
+function isListRecipient(list, member) {
+  const r = list.recipients || [];
+  return r.includes(member.uid) || (!!member.recipientSlug && r.includes(member.recipientSlug));
+}
+
+async function convertSlugRecipients() {
+  if (slugsConverted || !isAdminUser || !membersLoaded || !listsLoaded) return;
+  slugsConverted = true;
+  for (const list of listsById.values()) {
+    const next = normalizeRecipients(list.recipients);
+    if (JSON.stringify(next) === JSON.stringify(list.recipients || [])) continue;
+    try {
+      await updateDoc(hdoc('checklists', list.id), { recipients: next });
+    } catch (err) {
+      console.error('Empfänger konnten nicht umgestellt werden', err);
+    }
+  }
+}
 
 const FREQ_LABELS = {
   get weekly() { return t('checklists.woechentlich'); },
@@ -261,7 +308,9 @@ function subscribeChecklists() {
       else listsById.set(change.doc.id, { id: change.doc.id, ...change.doc.data() });
     });
     listsReady = true;
+    listsLoaded = true;
     maybeRender();
+    convertSlugRecipients();
   }, (err) => {
     statusEl.textContent = t('checklists.fehler_beim_laden_der_checklisten') + err.message;
     console.error(err);
@@ -305,7 +354,7 @@ async function createList() {
   const nowIso = new Date().toISOString();
   try {
     await setDoc(hdoc('checklists', genId()), {
-      name: t('checklists.neue_checkliste'), recipients: ['markus'], createdAt: nowIso, updatedAt: nowIso,
+      name: t('checklists.neue_checkliste'), recipients: auth.currentUser ? [auth.currentUser.uid] : [], createdAt: nowIso, updatedAt: nowIso,
     });
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
@@ -395,6 +444,26 @@ async function saveCrisis() {
 // explicit rather than leaving a same-named function that quietly does
 // less than it used to.
 
+// Build 205 — until now both writers (this file's dismissPeriod and the
+// server's sendReminders) used setDoc/set with "checklists.<freq>.<field>"
+// keys, which those calls store as LITERAL field names, not nested paths
+// (only update() reads dots as paths). So nothing ever read them back: a
+// dismissal didn't survive a reload or stop reminders, and "remind again
+// after N days" was ignored. Writes are nested objects now; this also
+// reads the old literal keys so dismissals already stored still count.
+function readStateChecklists(data) {
+  const out = {};
+  Object.entries((data && data.checklists) || {}).forEach(([freq, v]) => { out[freq] = { ...(v || {}) }; });
+  Object.entries(data || {}).forEach(([key, value]) => {
+    const m = key.match(/^checklists\.(\w+)\.(\w+)$/);
+    if (!m) return;
+    const [, freq, field] = m;
+    out[freq] = out[freq] || {};
+    if (out[freq][field] === undefined || String(value) > String(out[freq][field])) out[freq][field] = value;
+  });
+  return out;
+}
+
 async function loadRest() {
   try {
     const [cSnap, nSnap, nsSnap] = await Promise.all([
@@ -403,15 +472,20 @@ async function loadRest() {
     crisis = cSnap.exists() && Array.isArray(cSnap.data().types) ? cSnap.data() : { types: [] };
     notifications = nSnap.exists() ? nSnap.data() : { checklists: defaultNotificationsChecklists() };
     if (!notifications.checklists) notifications.checklists = defaultNotificationsChecklists();
-    notificationState = nsSnap.exists() ? nsSnap.data() : { checklists: {} };
-    if (!notificationState.checklists) notificationState.checklists = {};
+    notificationState = { checklists: readStateChecklists(nsSnap.exists() ? nsSnap.data() : {}) };
     loadOk = true;
   } catch (err) {
     loadOk = false;
     statusEl.textContent = t('checklists.fehler_beim_laden') + err.message;
     console.error(err);
   }
+  try {
+    await loadMembers();
+  } catch (err) {
+    console.error('Personen konnten nicht geladen werden', err);
+  }
   render();
+  convertSlugRecipients();
 }
 
 // --- Reset-boundary completion model ---------------------------------------
@@ -491,8 +565,10 @@ function isDoneThisPeriod(item) {
 
 // 'YYYY-MM-DD' identity for a frequency's current period — same format as
 // functions/index.js's own occurrenceKey(), both describing the same real
-// Europe/Paris calendar day (the household's devices are always on that
-// timezone, same assumption the rest of this boundary math already makes).
+// household calendar day — this boundary math runs in the DEVICE's local
+// time, assumed to be the household's timezone (Settings → Erinnerungen;
+// the server uses that setting, Build 205). A device travelling in another
+// zone can disagree with the reminders by a day around a reset.
 // This is what "Für diesen Zeitraum erledigt" writes into
 // /config/notificationState, and it's why a dismissal self-expires with no
 // cleanup action needed — the moment the boundary rolls to the next
@@ -667,13 +743,14 @@ async function dismissCurrentPeriod() {
   if (!freq || !occKey) return;
   maintenanceDismissBtn.disabled = true;
   try {
-    // Targeted dot-path field write, not a whole-document setDoc — this doc
-    // is also written by functions/index.js's sendReminders, and a
-    // whole-object write from either side would clobber whatever the other
-    // just wrote to a different frequency's fields. setDoc+merge (not
+    // A merge write of just this one nested field, not a whole-document
+    // write — this doc is also written by functions/index.js's
+    // sendReminders, and merge deep-merges maps, so the other frequencies'
+    // fields (and this one's occurrence/lastSentAt) stay. setDoc+merge (not
     // updateDoc) since the doc may not exist yet if no reminder has ever
-    // sent.
-    await setDoc(notificationStateRef(), { [`checklists.${freq}.dismissedOccurrence`]: occKey }, { merge: true });
+    // sent. (Nested object, NOT a "checklists.x.y" key — see
+    // readStateChecklists above.)
+    await setDoc(notificationStateRef(), { checklists: { [freq]: { dismissedOccurrence: occKey } } }, { merge: true });
     if (!notificationState.checklists) notificationState.checklists = {};
     notificationState.checklists[freq] = { ...(notificationState.checklists[freq] || {}), dismissedOccurrence: occKey };
     renderDismissPeriodButton();
@@ -779,16 +856,20 @@ function renderMaintenanceManageList() {
 
     const recipients = document.createElement('div');
     recipients.className = 'checklist-recipients';
-    recipients.innerHTML = RECIPIENT_OPTIONS.map((r) => `
-      <label><input type="checkbox" data-recipient="${r.id}"${(list.recipients || []).includes(r.id) ? ' checked' : ''}> ${r.label}</label>
-    `).join('');
-    recipients.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    // One checkbox per member of the household (names are their own data,
+    // so built with textContent, not markup).
+    members.forEach((member) => {
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = isListRecipient(list, member);
       cb.addEventListener('change', () => {
-        const current = list.recipients || [];
-        const id = cb.dataset.recipient;
-        const next = cb.checked ? [...new Set([...current, id])] : current.filter((r) => r !== id);
+        const current = normalizeRecipients(list.recipients);
+        const next = cb.checked ? [...new Set([...current, member.uid])] : current.filter((r) => r !== member.uid);
         saveList(list, { recipients: next });
       });
+      label.append(cb, ` ${member.name}`);
+      recipients.appendChild(label);
     });
     group.appendChild(recipients);
 
@@ -1156,7 +1237,8 @@ export function openMaintenanceDue() {
   renderDismissPeriodButton();
 }
 
-window.addEventListener('erdkeller:signedin', async () => {
+window.addEventListener('erdkeller:signedin', async (e) => {
+  isAdminUser = e.detail.role === 'admin';
   subscribeChecklists();
   await loadRest();
   applyDeepLinkFromHash();});

@@ -4,11 +4,11 @@
 // submenu — this is content you'd add while browsing, unlike structural
 // config). Same loadOk guard + erdkeller:refresh dispatch convention as
 // every other admin-editable module.
-import { db, hcol, hdoc } from './firebase-init.js?v=204';
+import { db, hcol, hdoc } from './firebase-init.js?v=205';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=204';
+import { t } from './i18n.js?v=205';
 
 const addContactBtn = document.getElementById('add-contact-btn');
 const emergencySectionEl = document.getElementById('contacts-emergency-section');

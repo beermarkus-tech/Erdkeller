@@ -1,5 +1,5 @@
-import { t } from './i18n.js?v=204';
-import { setHeader } from './app-shell.js?v=204';
+import { t } from './i18n.js?v=205';
+import { setHeader } from './app-shell.js?v=205';
 const settingsMain = document.getElementById('settings-main');
 const panels = document.querySelectorAll('.settings-panel');
 

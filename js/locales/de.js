@@ -534,13 +534,11 @@ export default {
   // people.js
   "people.admin": "Admin",
   "people.mitglied": "Mitglied",
-  "people.kein_empfaenger": "— kein Empfänger —",
   "people.ohne_namen": "(ohne Namen)",
   "people.entfernt_am": "Entfernt am {removedSince}",
   "people.entfernt": "Entfernt",
   "people.mitglied_seit": "Mitglied seit {since}",
   "people.wiederherstellen": "Wiederherstellen",
-  "people.empfaenger_fuer_checklisten_erinnerungen": "Empfänger für Checklisten-Erinnerungen",
   "people.du": "{roleLabel} (Du)",
   "people.entfernen": "Entfernen",
   "people.diese_person": "Diese Person",
@@ -549,7 +547,6 @@ export default {
   "people.entfernen_diese_person_verliert_sofort": "{value} entfernen? Diese Person verliert sofort den Zugriff auf die App und alle Daten.",
   "people.entfernen_fehlgeschlagen": "Entfernen fehlgeschlagen: ",
   "people.wiederherstellen_fehlgeschlagen": "Wiederherstellen fehlgeschlagen: ",
-  "people.empfaenger_konnte_nicht_geaendert_werden": "Empfänger konnte nicht geändert werden: ",
   "people.fehler_beim_laden": "Fehler beim Laden: ",
   // taxonomy.js
   "taxonomy.fehler_beim_laden": "Fehler beim Laden: ",
@@ -679,7 +676,6 @@ export default {
   "notifications.vierteljaehrlich": "Vierteljährlich",
   "notifications.halbjaehrlich": "Halbjährlich",
   "notifications.jaehrlich": "Jährlich",
-  "notifications.aktuelle_uhrzeit_europe_paris_00": "Aktuelle Uhrzeit (Europe/Paris): {currentParisHour}:00 — konfiguriert: {configuredHour}:00",
   "notifications.als_erledigt_markiert": ", als erledigt markiert",
   "notifications.zeitraum_wuerde_jetzt_senden": "{frequency} (Zeitraum {occurrence}{dismissed}) — würde jetzt senden: {wouldSend}",
   "notifications.laedt": "Lädt…",
@@ -958,4 +954,6 @@ export default {
   "people.ablehnen": "Ablehnen",
   "people.ablehnen_confirm": "{value} ablehnen? Die Person bekommt keinen Zugriff auf die App.",
   "people.warten_auf_freigabe_count": { "one": "{count} Person wartet auf Freigabe", "other": "{count} Personen warten auf Freigabe" },
+  "settings.notifications.zeitzone": "Zeitzone",
+  "notifications.aktuelle_uhrzeit_tz": "Aktuelle Uhrzeit ({timezone}): {currentHour}:00 \u2014 konfiguriert: {configuredHour}:00",
 };

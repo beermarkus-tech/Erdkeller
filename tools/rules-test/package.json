@@ -2,13 +2,15 @@
   "name": "erdkeller-rules-test",
   "private": true,
   "type": "module",
-  "description": "Firestore security-rules tests (see rules.test.mjs). Dev only.",
+  "description": "Firestore security-rules tests (rules.test.mjs) and the reminder scheduler test (reminders.test.cjs). Dev only.",
   "scripts": {
-    "test": "firebase emulators:exec --only firestore --project demo-erdkeller \"node rules.test.mjs\""
+    "test": "NODE_PATH=node_modules firebase emulators:exec --only firestore --project demo-erdkeller \"node rules.test.mjs && node reminders.test.cjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.0",
     "firebase": "^10.0.0",
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.1.1",
     "firebase-tools": "^13.0.0"
   }
 }
