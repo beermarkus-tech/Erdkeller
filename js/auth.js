@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=200';
+import { auth, db } from './firebase-init.js?v=201';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -11,7 +11,7 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLang } from './i18n.js?v=200';
+import { t, getLang } from './i18n.js?v=201';
 
 const provider = new GoogleAuthProvider();
 
@@ -30,7 +30,12 @@ const authError = document.getElementById('auth-error');
 const signoutButtons = [
   document.getElementById('signout-btn-sidebar'),
   document.getElementById('signout-btn-topbar'),
+  document.getElementById('auth-pending-signout'),
 ];
+// Build 201 — shown instead of the app while an account waits for an
+// admin's approval (role 'pending', firestore.rules).
+const pendingEl = document.getElementById('auth-pending');
+const pendingSignoutBtn = document.getElementById('auth-pending-signout');
 const avatarEls = [
   document.getElementById('user-avatar-sidebar'),
   document.getElementById('user-avatar-topbar'),
@@ -205,18 +210,20 @@ async function ensureUserDoc(user) {
   // client that could be racing this device's own offline read anyway
   // (see the Build 185 comment at this function's call site for why this
   // call is awaited — bounded to 3s — everywhere else).
-  if (!navigator.onLine) return;
+  if (!navigator.onLine) return null;
   const ref = doc(db, 'users', user.uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
+    // Build 201 — a new account starts as 'pending' (firestore.rules only
+    // allows that) and has no access until an admin approves it.
     await setDoc(ref, {
       name: user.displayName || '',
       photoURL: user.photoURL || '',
-      role: 'member',
+      role: 'pending',
       createdAt: new Date().toISOString(),
       lang: getLang(),
     });
-    return;
+    return 'pending';
   }
   const data = snap.data();
   const patch = {};
@@ -226,6 +233,7 @@ async function ensureUserDoc(user) {
   // in each recipient's language, read from here.
   if (data.lang !== getLang()) patch.lang = getLang();
   if (Object.keys(patch).length) await updateDoc(ref, patch);
+  return data.role || null;
 }
 
 // The role currently reflected in the UI, or null while signed out. Used to
@@ -234,9 +242,20 @@ async function ensureUserDoc(user) {
 // screen in the app would reload its data a second time on every startup.
 let renderedRole = null;
 
+// Waiting for approval (Build 201): the sign-in screen, with an explanation
+// and a sign-out button instead of the Google button. No erdkeller:signedin
+// is dispatched, so no screen tries to read data it isn't allowed to; the
+// profile listener re-renders the moment an admin approves.
+function showPendingGate(pending) {
+  signinBtn.classList.toggle('hidden', pending);
+  pendingEl.classList.toggle('hidden', !pending);
+  pendingSignoutBtn.classList.toggle('hidden', !pending);
+}
+
 function renderSignedOut() {
   renderedRole = null;
   paintedIdentity = null;
+  showPendingGate(false);
   authGate.classList.remove('hidden');
   appShell.classList.add('hidden');
   window.dispatchEvent(new CustomEvent('erdkeller:signedout'));
@@ -256,6 +275,13 @@ let paintedIdentity = null;
 
 function paintSignedIn(identity) {
   paintedIdentity = identity;
+  if (identity.role === 'pending') {
+    showPendingGate(true);
+    authGate.classList.remove('hidden');
+    appShell.classList.add('hidden');
+    return;
+  }
+  showPendingGate(false);
   authGate.classList.add('hidden');
   appShell.classList.remove('hidden');
 
@@ -286,6 +312,7 @@ function renderSignedIn(identity) {
 
   if (renderedRole !== identity.role) {
     renderedRole = identity.role;
+    if (identity.role === 'pending') return;
     window.dispatchEvent(new CustomEvent('erdkeller:signedin', { detail: { role: identity.role } }));
   }
 }
@@ -366,13 +393,19 @@ onAuthStateChanged(auth, async (user) => {
     // Skips itself immediately while offline (see its own comment), so
     // this adds no delay at all to the offline cold-start path that
     // Section 13.8 spent three builds getting fast.
-    await Promise.race([
+    const verifiedRole = await Promise.race([
       ensureUserDoc(user).catch((err) => {
         console.error('Nutzerprofil konnte nicht aktualisiert werden', err);
+        return null;
       }),
-      new Promise((resolve) => setTimeout(resolve, 3000)),
+      new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
     ]);
     if (myGeneration !== authGeneration) return;
+    // Build 201 — when the server told us the role (always the case for a
+    // brand-new account, which has no cached identity), use it, so a
+    // pending account goes straight to the waiting screen instead of
+    // briefly getting the app shell under the 'member' fallback above.
+    if (typeof verifiedRole === 'string') signedInIdentity = { ...signedInIdentity, role: verifiedRole };
 
     renderSignedIn(signedInIdentity);
 

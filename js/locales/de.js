@@ -978,4 +978,12 @@ export default {
   "pdf.bitte_mindestens_einen_abschnitt_auswaehlen": "Bitte mindestens einen Abschnitt auswählen.",
   "pdf.erstelle_pdf": "Erstelle PDF…",
   "pdf.pdf_erstellung_fehlgeschlagen": "PDF-Erstellung fehlgeschlagen: ",
+  "auth.konto_wartet_auf_freigabe": "Dein Konto wartet auf die Freigabe durch einen Admin. Sobald du freigegeben bist, öffnet sich die App automatisch.",
+  "auth.abmelden": "Abmelden",
+  "people.wartet_auf_freigabe": "Wartet auf Freigabe",
+  "people.wartet_auf_freigabe_seit": "Wartet auf Freigabe · seit {since}",
+  "people.freigeben": "Freigeben",
+  "people.ablehnen": "Ablehnen",
+  "people.ablehnen_confirm": "{value} ablehnen? Die Person bekommt keinen Zugriff auf die App.",
+  "people.warten_auf_freigabe_count": { "one": "{count} Person wartet auf Freigabe", "other": "{count} Personen warten auf Freigabe" },
 };

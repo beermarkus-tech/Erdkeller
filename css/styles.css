@@ -90,6 +90,13 @@ body.app-ready {
   cursor: pointer;
 }
 
+/* Build 201 — "waiting for approval" text on the sign-in screen. */
+.auth-gate p.auth-pending {
+  max-width: 320px;
+  color: var(--charcoal);
+  margin-top: 12px;
+}
+
 .auth-error {
   color: var(--danger);
   font-size: 13px;
@@ -2756,6 +2763,18 @@ nav.bottomnav button .icon {
 /* Übersicht's open-checklist-items warning — sits right-bound in the same
    row as the unit-toggle buttons, same "N offen" red badge convention as
    .checklist-group-badge. Tapping it jumps to Checklisten (js/dashboard.js). */
+/* Build 201 — "N waiting for approval" pill on the Personen card. */
+.sc-badge {
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 20px;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
 .dash-checklist-warning {
   margin-left: auto;
   display: flex;

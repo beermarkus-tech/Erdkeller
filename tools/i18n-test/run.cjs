@@ -23,7 +23,8 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require(process.env.PW || 'playwright');
 const FIXTURES = require('./fixtures.cjs');
-const TOUR = require('./tour.cjs');
+// HARNESS_TOUR=<name> runs tour-<name>.cjs instead (e.g. signup).
+const TOUR = require(process.env.HARNESS_TOUR ? `./tour-${process.env.HARNESS_TOUR}.cjs` : './tour.cjs');
 
 const MOCK = fs.readFileSync(path.join(__dirname, 'firebase-mock.js'), 'utf8');
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png' };
@@ -71,7 +72,7 @@ async function runTour(dir, lang, only, fake, afterStep) {
       const fakeEn = Object.fromEntries(Object.entries(de).map(([k, v]) => [k, mark(v)]));
       await ctx.route(/locales\/en\.js/, (r) => r.fulfill({ contentType: 'text/javascript', body: 'export default ' + JSON.stringify(fakeEn) }));
     }
-    await ctx.addInitScript(({ fixtures, lang }) => {
+    await ctx.addInitScript(({ fixtures, lang, user }) => {
       window.__FIXTURES__ = fixtures;
       // Deterministic ids/randomness so two runs produce identical DOM.
       let n = 0;
@@ -103,9 +104,12 @@ async function runTour(dir, lang, only, fake, afterStep) {
         previewReminders: () => ({ enabled: true, currentParisHour: 12, configuredHour: 9, frequencies: {} }),
         sendTestNotification: () => ({ total: 1, succeeded: 1, failures: [] }),
       };
-      localStorage.setItem('erdkeller-last-user', JSON.stringify({ uid: 'u-admin', name: 'Test Admin', photoURL: '', role: 'admin' }));
+      // HARNESS_USER=<uid> signs in as another fixture account (no cached
+      // identity, like a first sign-in on a new device); default: the admin.
+      if (user) window.__USER__ = { uid: user, displayName: user, photoURL: '' };
+      else localStorage.setItem('erdkeller-last-user', JSON.stringify({ uid: 'u-admin', name: 'Test Admin', photoURL: '', role: 'admin' }));
       localStorage.setItem('erdkeller-lang', lang);
-    }, { fixtures: FIXTURES, lang });
+    }, { fixtures: FIXTURES, lang, user: process.env.HARNESS_USER || null });
     const page = await ctx.newPage();
     page.on('download', async (d) => {
       if (!process.env.PDF_OUT) return;
