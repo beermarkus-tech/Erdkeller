@@ -21,7 +21,7 @@ Everything suggested so far, in order. Tick it off as it gets done.
 - [x] **4. Check** a few screens (stock, checklists, contacts, recipes). The old data stays untouched at the database root as a fallback.
 - [x] **Build 204: migration code and buttons removed** (household move and the old checklist migration). Deploy once more (same command) — Firebase asks whether to delete the function `migrateToHousehold`: answer **y**.
 - [x] **Build 205 (step 3): deploy** (same command), then open the app once as admin — that converts the checklists' old recipient names to real accounts. Check Admin → Checklisten (edit) that each list has the right people ticked, and Admin → Erinnerungen → Zeitzone. Done 2026-10-11.
-- [ ] **Build 206 (step 4): deploy** (same command). Then try it: Admin → Personen → invite a second Google address of yours → sign in with that account on another browser/device → "Beitreten".
+- [x] **Build 206/207 (step 4): deploy** (same command) — done; invitation tested successfully 2026-10-11. Then try it: Admin → Personen → invite a second Google address of yours → sign in with that account on another browser/device → "Beitreten".
 - [ ] **Creating households is closed until step 6** (privacy notice, dictation limit, budget). To try it yourself before then: Firebase console → Firestore → collection `_system` → document `config` → field `allowEmails` (array) with your test address. To open it for everyone later: field `openSignup` = true.
 - [ ] **5. A few weeks later:** delete the old root data (ask Claude for the exact steps then). Until then the rules' legacy root blocks and the app's "no household" path stay, harmlessly — they go with the data.
 
