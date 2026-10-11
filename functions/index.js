@@ -86,6 +86,7 @@ const SERVER_TEXT = {
     noAnswer: 'Keine Antwort erhalten.',
     unreadableAnswer: 'Antwort konnte nicht gelesen werden.',
     adminsOnly: 'Nur für Admins.',
+    noAccess: 'Kein Zugriff — das Konto ist (noch) nicht freigegeben.',
     noDevice: 'Kein Gerät für diesen Account registriert.',
     testBody: 'Testbenachrichtigung — wenn du das siehst, funktioniert es.',
   },
@@ -98,6 +99,7 @@ const SERVER_TEXT = {
     noAnswer: 'No answer received.',
     unreadableAnswer: 'Couldn\'t read the answer.',
     adminsOnly: 'Admins only.',
+    noAccess: 'No access — this account hasn\'t been approved (yet).',
     noDevice: 'No device registered for this account.',
     testBody: 'Test notification — if you can see this, it works.',
   },
@@ -208,6 +210,14 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
   const lang = callerLang(request);
   if (!request.auth) {
     throw new HttpsError('unauthenticated', st(lang, 'signIn'));
+  }
+  // Build 201 — only approved, non-removed household members. This runs
+  // with admin privileges (firestore.rules don't apply) and calls a paid
+  // AI API, so "signed in with any Google account" is not enough.
+  const callerSnap = await db.doc(`users/${request.auth.uid}`).get();
+  const caller = callerSnap.exists ? callerSnap.data() : null;
+  if (!caller || caller.removed === true || !['admin', 'member'].includes(caller.role)) {
+    throw new HttpsError('permission-denied', st(lang, 'noAccess'));
   }
   const data = request.data || {};
   const transcript = typeof data.transcript === 'string' ? data.transcript.trim() : '';

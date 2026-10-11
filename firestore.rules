@@ -27,7 +27,15 @@ service cloud.firestore {
         // locked every pre-existing account (including admin) out of the
         // entire app within minutes of this shipping — .get() with a
         // default avoids it.
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('removed', false) != true;
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('removed', false) != true
+        // Build 201: and APPROVED. A brand-new sign-in self-provisions as
+        // role 'pending' (see /users below) and gets no access to anything
+        // until an admin approves it in Settings → Personen. Before this,
+        // any Google account that found the (public) app URL could create
+        // itself as 'member' and read/write the whole household — Build
+        // 180's "requires an existing /users doc" didn't stop that, since
+        // the same create rule let anyone make that doc.
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['admin', 'member'];
     }
 
     function isAdmin() {
@@ -35,10 +43,11 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Was the Step 1 connectivity check (now retired). Left open since no
-    // real data lives here — tighten this if/when it bothers you.
+    // Was the Step 1 connectivity check (retired; nothing reads or writes
+    // it). Closed in Build 201: it was writable by anyone on the internet,
+    // signed in or not — free storage for strangers, billed to this project.
     match /diagnostics/{docId} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
 
     // Step 2: any active member can read the full roster (needed for
@@ -52,9 +61,15 @@ service cloud.firestore {
     // (js/auth.js's profile listener) instead of permission-denied errors
     // scattered across every screen.
     //
-    // Self-provisioning on first sign-in always starts as "member" — you
-    // cannot create or edit your own doc into "admin"; only an existing
-    // admin can promote someone (Settings → People, built in Step 14).
+    // Self-provisioning on first sign-in always starts as "pending" (Build
+    // 201; was "member") — no access until an admin approves it in
+    // Settings → Personen, which sets "member". You cannot create or edit
+    // your own doc into any other role; only an existing admin can.
+    //
+    // Self-updates (name/photo/lang sync in js/auth.js) are allowed for any
+    // non-removed account incl. pending, but may never change `role` or
+    // `removed` — so neither a pending nor a removed person can let
+    // themselves in.
     // Removal (Build 180, Settings → Personen) sets removed:true rather
     // than deleting the doc — deleting it would let this same create rule
     // silently let a removed person re-join as a fresh member the next
@@ -62,10 +77,12 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if (hasAuth() && request.auth.uid == userId) || isSignedIn();
       allow create: if hasAuth() && request.auth.uid == userId
-        && request.resource.data.role == 'member';
-      allow update: if isSignedIn() && (
-        (request.auth.uid == userId && request.resource.data.role == resource.data.role)
-        || isAdmin()
+        && request.resource.data.role == 'pending';
+      allow update: if isAdmin() || (
+        hasAuth() && request.auth.uid == userId
+        && resource.data.get('removed', false) != true
+        && request.resource.data.get('role', '') == resource.data.get('role', '')
+        && request.resource.data.get('removed', false) == resource.data.get('removed', false)
       );
     }
 

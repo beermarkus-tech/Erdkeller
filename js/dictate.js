@@ -15,12 +15,12 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=200';
+import { db, functions } from './firebase-init.js?v=201';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { t, getLang, getLocale } from './i18n.js?v=200';
+import { t, getLang, getLocale } from './i18n.js?v=201';
 
 const startBtn = document.getElementById('start-dictate-btn');
 const modal = document.getElementById('dictate-modal');

@@ -10,11 +10,11 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=200';
+import { db } from './firebase-init.js?v=201';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=200';
+import { t, getLocale } from './i18n.js?v=201';
 
 const sectionChecks = document.querySelectorAll('.pdf-section-check');
 const selectAllBtn = document.getElementById('pdf-select-all-btn');

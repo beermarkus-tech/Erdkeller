@@ -134,6 +134,7 @@ const info = {
 const users = {
   'users/u-admin': { name: 'Test Admin', photoURL: '', role: 'admin', recipientSlug: 'markus', createdAt: iso('2026-01-01') },
   'users/u-member': { name: 'Julia', photoURL: '', role: 'member', recipientSlug: 'julia', createdAt: iso('2026-01-03') },
+  'users/u-pending': { name: 'Neuer Tester', photoURL: '', role: 'pending', recipientSlug: null, createdAt: iso('2026-10-09') },
   'users/u-gone': { name: 'Alter Account', photoURL: '', role: 'member', recipientSlug: null, removed: true, removedAt: iso('2026-05-01'), createdAt: iso('2026-01-04') },
 };
 

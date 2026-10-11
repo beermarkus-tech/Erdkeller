@@ -1,0 +1,14 @@
+{
+  "name": "erdkeller-rules-test",
+  "private": true,
+  "type": "module",
+  "description": "Firestore security-rules tests (see rules.test.mjs). Dev only.",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-erdkeller \"node rules.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.0",
+    "firebase": "^10.0.0",
+    "firebase-tools": "^13.0.0"
+  }
+}

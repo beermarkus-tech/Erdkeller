@@ -1,5 +1,5 @@
-import de from './locales/de.js?v=200';
-import en from './locales/en.js?v=200';
+import de from './locales/de.js?v=201';
+import en from './locales/en.js?v=201';
 
 // UI language (I18N.md). Plain dictionaries, no library: i18next & co. would
 // need a CDN fetch or a build step, and the app must boot fully offline —

@@ -1,12 +1,13 @@
-import { auth, db } from './firebase-init.js?v=200';
+import { auth, db } from './firebase-init.js?v=201';
 import {
-  collection, getDocs, doc, updateDoc,
+  collection, getDocs, doc, updateDoc, query, where,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=200';
+import { t, getLocale } from './i18n.js?v=201';
 
 const peopleCard = document.querySelector('.settings-card[data-target="people"]');
 const peopleListEl = document.getElementById('people-list');
 const peoplePanel = document.getElementById('settings-panel-people');
+const pendingBadge = document.getElementById('people-pending-badge');
 
 function roleLabel(role) {
   return role === 'admin' ? t('people.admin') : t('people.mitglied');
@@ -62,7 +63,9 @@ function makePersonRow(id, data) {
   const metaEl = document.createElement('span');
   metaEl.className = 'pmeta';
   const since = data.createdAt ? new Date(data.createdAt).toLocaleDateString(getLocale()) : '';
-  if (data.removed) {
+  if (data.role === 'pending' && !data.removed) {
+    metaEl.textContent = since ? t('people.wartet_auf_freigabe_seit', { since }) : t('people.wartet_auf_freigabe');
+  } else if (data.removed) {
     const removedSince = data.removedAt ? new Date(data.removedAt).toLocaleDateString(getLocale()) : '';
     metaEl.textContent = removedSince ? t('people.entfernt_am', { removedSince }) : t('people.entfernt');
   } else {
@@ -84,6 +87,26 @@ function makePersonRow(id, data) {
     restoreBtn.textContent = t('people.wiederherstellen');
     restoreBtn.addEventListener('click', () => setRemoved(id, data, false));
     row.appendChild(restoreBtn);
+    return row;
+  }
+
+  // Build 201 — a new account waiting for approval: approve (→ member) or
+  // reject (→ removed tombstone, same as Entfernen, so it can't re-apply
+  // by signing in again). No recipient picker or role toggle yet.
+  if (data.role === 'pending') {
+    const approveBtn = document.createElement('button');
+    approveBtn.type = 'button';
+    approveBtn.className = 'select-mode-btn active';
+    approveBtn.textContent = t('people.freigeben');
+    approveBtn.addEventListener('click', () => setRole(id, data, 'member'));
+    row.appendChild(approveBtn);
+
+    const rejectBtn = document.createElement('button');
+    rejectBtn.type = 'button';
+    rejectBtn.className = 'select-mode-btn';
+    rejectBtn.textContent = t('people.ablehnen');
+    rejectBtn.addEventListener('click', () => setRemoved(id, data, true, true));
+    row.appendChild(rejectBtn);
     return row;
   }
 
@@ -146,8 +169,9 @@ async function setRole(id, data, newRole) {
   }
 }
 
-async function setRemoved(id, data, removed) {
-  if (removed && !confirm(t('people.entfernen_diese_person_verliert_sofort', { value: data.name || t('people.diese_person') }))) return;
+async function setRemoved(id, data, removed, rejecting = false) {
+  const who = data.name || t('people.diese_person');
+  if (removed && !confirm(rejecting ? t('people.ablehnen_confirm', { value: who }) : t('people.entfernen_diese_person_verliert_sofort', { value: who }))) return;
   try {
     await updateDoc(doc(db, 'users', id), removed
       ? { removed: true, removedAt: new Date().toISOString(), recipientSlug: null }
@@ -173,10 +197,13 @@ async function loadPeople() {
   peopleListEl.innerHTML = '';
   try {
     const snap = await getDocs(collection(db, 'users'));
+    // Pending first (they need action), removed last.
+    const rank = (data) => (data.removed ? 2 : data.role === 'pending' ? 0 : 1);
     const people = snap.docs
       .map((d) => ({ id: d.id, data: d.data() }))
-      .sort((a, b) => (!!a.data.removed - !!b.data.removed) || (a.data.name || '').localeCompare(b.data.name || ''));
+      .sort((a, b) => (rank(a.data) - rank(b.data)) || (a.data.name || '').localeCompare(b.data.name || ''));
     people.forEach(({ id, data }) => peopleListEl.appendChild(makePersonRow(id, data)));
+    renderPendingBadge(people.filter(({ data }) => data.role === 'pending' && !data.removed).length);
   } catch (err) {
     console.error(err);
     const p = document.createElement('p');
@@ -188,6 +215,34 @@ async function loadPeople() {
 
 peopleCard.addEventListener('click', loadPeople);
 
+// Build 201 — the Personen card shows how many accounts wait for approval,
+// so an admin notices without opening the list.
+let pendingCount = 0;
+function renderPendingBadge(count) {
+  pendingCount = count;
+  pendingBadge.classList.toggle('hidden', count === 0);
+  pendingBadge.textContent = `⏳ ${count}`;
+  pendingBadge.title = t('people.warten_auf_freigabe_count', { count });
+}
+
+async function refreshPendingBadge() {
+  try {
+    const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'pending')));
+    renderPendingBadge(snap.docs.filter((d) => !d.data().removed).length);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+let isAdminUser = false;
+window.addEventListener('erdkeller:signedin', (e) => {
+  isAdminUser = e.detail.role === 'admin';
+  if (isAdminUser) refreshPendingBadge();
+});
+window.addEventListener('erdkeller:signedout', () => { isAdminUser = false; });
+window.addEventListener('erdkeller:langchange', () => renderPendingBadge(pendingCount));
+
 window.addEventListener('erdkeller:refresh', () => {
   if (!peoplePanel.classList.contains('hidden')) loadPeople();
+  else if (isAdminUser) refreshPendingBadge();
 });

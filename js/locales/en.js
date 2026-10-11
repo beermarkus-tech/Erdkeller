@@ -980,4 +980,13 @@ export default {
   "pdf.bitte_mindestens_einen_abschnitt_auswaehlen": "Please select at least one section.",
   "pdf.erstelle_pdf": "Creating PDF…",
   "pdf.pdf_erstellung_fehlgeschlagen": "Couldn't create the PDF: ",
+  // Build 201: account approval
+  "auth.konto_wartet_auf_freigabe": "Your account is waiting for approval by an admin. Once you're approved, the app opens automatically.",
+  "auth.abmelden": "Sign out",
+  "people.wartet_auf_freigabe": "Waiting for approval",
+  "people.wartet_auf_freigabe_seit": "Waiting for approval · since {since}",
+  "people.freigeben": "Approve",
+  "people.ablehnen": "Reject",
+  "people.ablehnen_confirm": "Reject {value}? This person won't get access to the app.",
+  "people.warten_auf_freigabe_count": {"one": "{count} person waiting for approval", "other": "{count} people waiting for approval"},
 };
