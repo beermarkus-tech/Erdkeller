@@ -1,8 +1,11 @@
-import { auth, db, getHouseholdId } from './firebase-init.js?v=206';
+import { auth, db, getHouseholdId, functions } from './firebase-init.js?v=207';
+import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
 import {
   collection, getDocs, doc, setDoc, updateDoc, query, where,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=206';
+import { t, getLocale, getLang } from './i18n.js?v=207';
+
+const removeMemberFn = httpsCallable(functions, 'removeMember');
 
 const peopleCard = document.querySelector('.settings-card[data-target="people"]');
 const peopleListEl = document.getElementById('people-list');
@@ -18,18 +21,13 @@ function roleLabel(role) {
   return role === 'admin' ? t('people.admin') : t('people.mitglied');
 }
 
-// Removal (Build 180) — tombstone, not delete. Deleting the /users/{uid}
-// doc would let the exact same self-provisioning rule that lets new
-// members join silently let a removed person re-join as a fresh member
-// the next time they open the app (firestore.rules' /users/{userId}
-// create rule fires whenever the doc doesn't exist). Setting removed:true
-// instead keeps the doc in place, so that create rule never fires again
-// for this uid — and firestore.rules' tightened isSignedIn() (Build 180)
-// means every OTHER rule in the database that gates on it now denies this
-// uid immediately, on its very next request — and the reminder scheduler
-// skips removed accounts (Build 205), so they stop getting reminders too.
-// (recipientSlug is still cleared in the same write: old lists may name
-// that slug until an admin's next visit converts them to uids.)
+// Removal (Build 207, functions/index.js removeMember): the person is taken
+// OUT of the household — their account goes back to having none, so they
+// see the onboarding screen and can be invited again. (Builds 180–206 kept
+// a removed:true "tombstone" in the household instead, which left the
+// person permanently "blocked"; the few left over are listed here as
+// removed and can be cleared with the same button.) Access ends at once:
+// firestore.rules need role admin/member and this household's id.
 
 // The whole Settings tab is already admin-only (app-shell.js), so anyone
 // who can even open this screen is an admin — no separate isAdmin gate
@@ -70,16 +68,9 @@ function makePersonRow(id, data) {
 
   const isSelf = id === auth.currentUser?.uid;
 
-  // A removed person's row skips the role toggle
-  // entirely (it is meaningless once they've lost access) and shows
-  // only a restore action.
+  // Left over from before Build 207 (see above): only "remove for good".
   if (data.removed) {
-    const restoreBtn = document.createElement('button');
-    restoreBtn.type = 'button';
-    restoreBtn.className = 'select-mode-btn';
-    restoreBtn.textContent = t('people.wiederherstellen');
-    restoreBtn.addEventListener('click', () => setRemoved(id, data, false));
-    row.appendChild(restoreBtn);
+    row.appendChild(removeButton(id, data));
     return row;
   }
 
@@ -105,16 +96,20 @@ function makePersonRow(id, data) {
     });
     row.appendChild(toggle);
 
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'people-remove-btn';
-    removeBtn.title = t('people.entfernen');
-    removeBtn.textContent = '🗑️';
-    removeBtn.addEventListener('click', () => setRemoved(id, data, true));
-    row.appendChild(removeBtn);
+    row.appendChild(removeButton(id, data));
   }
 
   return row;
+}
+
+function removeButton(id, data) {
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'people-remove-btn';
+  removeBtn.title = t('people.entfernen');
+  removeBtn.textContent = '🗑️';
+  removeBtn.addEventListener('click', () => removeMember(id, data));
+  return removeBtn;
 }
 
 async function setRole(id, data, newRole) {
@@ -129,17 +124,15 @@ async function setRole(id, data, newRole) {
   }
 }
 
-async function setRemoved(id, data, removed) {
+async function removeMember(id, data) {
   const who = data.name || t('people.diese_person');
-  if (removed && !confirm(t('people.entfernen_diese_person_verliert_sofort', { value: who }))) return;
+  if (!confirm(t('people.aus_haushalt_entfernen_confirm', { value: who }))) return;
   try {
-    await updateDoc(doc(db, 'users', id), removed
-      ? { removed: true, removedAt: new Date().toISOString(), recipientSlug: null }
-      : { removed: false, removedAt: null });
+    await removeMemberFn({ uid: id, lang: getLang() });
     await loadPeople();
   } catch (err) {
     console.error(err);
-    alert((removed ? t('people.entfernen_fehlgeschlagen') : t('people.wiederherstellen_fehlgeschlagen')) + err.message);
+    alert(t('people.entfernen_fehlgeschlagen') + err.message);
   }
 }
 
@@ -182,17 +175,40 @@ async function loadPeople() {
 const INVITE_DAYS = 14;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+// Gmail ignores dots and "+anything" in the name part, and googlemail.com is
+// gmail.com — invitations are matched on this key (mirrors emailKey() in
+// functions/index.js; the server re-checks it).
+function emailKey(email) {
+  const e = String(email || '').trim().toLowerCase();
+  const at = e.lastIndexOf('@');
+  if (at < 1) return e;
+  let local = e.slice(0, at);
+  let domain = e.slice(at + 1);
+  if (domain === 'googlemail.com') domain = 'gmail.com';
+  if (domain === 'gmail.com') local = local.split('+')[0].replace(/\./g, '');
+  return `${local}@${domain}`;
+}
+
+// Sign-in is with Google, which works for any address that is a Google
+// account — Gmail, but also Google Workspace (company) addresses and other
+// addresses someone registered a Google account with. So other domains are
+// allowed, with a check-back rather than a block.
+function isGmail(email) {
+  return /@(gmail|googlemail)\.com$/.test(email);
+}
+
 function inviteExpiry(invite) {
   return new Date(Date.parse(invite.createdAt) + INVITE_DAYS * 86400000);
 }
 
-function appUrl() {
-  return location.origin + location.pathname;
+// ?login= pre-fills that address in Google's sign-in window (js/auth.js).
+function appUrl(email) {
+  return `${location.origin}${location.pathname}?login=${encodeURIComponent(email)}`;
 }
 
 function mailtoFor(invite) {
   const subject = t('people.einladung_mail_betreff');
-  const body = t('people.einladung_mail_text', { url: appUrl(), email: invite.email });
+  const body = t('people.einladung_mail_text', { url: appUrl(invite.email), email: invite.email });
   return `mailto:${encodeURIComponent(invite.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
@@ -266,17 +282,19 @@ async function revokeInvite(id, invite) {
 inviteBtn.addEventListener('click', async () => {
   const hid = getHouseholdId();
   const email = inviteEmailEl.value.trim().toLowerCase();
+  inviteStatusEl.textContent = '';
   if (!hid) return;
   if (!EMAIL_RE.test(email)) {
     inviteStatusEl.textContent = t('people.einladung_ungueltige_email');
     inviteEmailEl.focus();
     return;
   }
+  if (!isGmail(email) && !confirm(t('people.einladung_keine_gmail_confirm', { email }))) return;
   inviteBtn.disabled = true;
   inviteStatusEl.textContent = '';
   try {
     const invite = {
-      householdId: hid, email, role: inviteRoleEl.value === 'admin' ? 'admin' : 'member',
+      householdId: hid, email, emailKey: emailKey(email), role: inviteRoleEl.value === 'admin' ? 'admin' : 'member',
       status: 'open', createdBy: auth.currentUser.uid, createdAt: new Date().toISOString(),
     };
     await setDoc(doc(collection(db, 'invites')), invite);

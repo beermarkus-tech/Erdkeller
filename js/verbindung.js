@@ -23,11 +23,11 @@
 // same lazy-load-on-shown convention already used everywhere else in
 // Settings, not a live listener, since the two are tabs in one screen and
 // only one is ever visible at a time.
-import { db, hdoc } from './firebase-init.js?v=206';
+import { db, hdoc } from './firebase-init.js?v=207';
 import {
   doc, getDoc, updateDoc, disableNetwork, enableNetwork,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=206';
+import { t } from './i18n.js?v=207';
 
 const panelEl = document.getElementById('settings-panel-notifications');
 const verbindungTabEl = document.querySelector('.reminders-tab[data-reminders-tab-panel="verbindung"]');

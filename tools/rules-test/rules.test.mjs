@@ -143,6 +143,7 @@ await check('invitation must start open', () => assertFails(setDoc(doc(as('hadmi
 await check('invitation role is member or admin only', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i5'), inv({ role: 'owner' }))));
 await check('invitation e-mail must be lower-case', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i6'), inv({ email: 'New@Example.com' }))));
 await check('invitation e-mail must look like one', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i7'), inv({ email: 'nope' }))));
+await check('invitation may carry the e-mail key', () => assertSucceeds(setDoc(doc(as('hadmin'), 'invites/ik'), inv({ email: 'a.b@gmail.com', emailKey: 'ab@gmail.com' }))));
 await check('invitation cannot carry extra fields', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i8'), inv({ householdName: 'Fake' }))));
 await check('invitation createdBy must be the admin', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i9'), inv({ createdBy: 'someoneelse' }))));
 await check('other household admin cannot read it', () => assertFails(getDoc(doc(as('oadmin'), 'invites/i1'))));

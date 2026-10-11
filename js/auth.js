@@ -1,4 +1,4 @@
-import { auth, db, setHousehold } from './firebase-init.js?v=206';
+import { auth, db, setHousehold } from './firebase-init.js?v=207';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -11,9 +11,37 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLang } from './i18n.js?v=206';
+import { t, getLang } from './i18n.js?v=207';
 
 const provider = new GoogleAuthProvider();
+
+// Build 207 — the invitation e-mail's link carries ?login=<address>
+// (js/people.js). Google's sign-in window then pre-fills exactly that
+// address — which matters most in a private window or on a new device,
+// where Google knows no accounts to offer — and otherwise shows the
+// account chooser instead of silently picking the last-used account, so
+// the invited account is the one that signs in. The parameter is dropped
+// from the address bar right away.
+(function applyLoginHint() {
+  try {
+    const url = new URL(location.href);
+    const hint = (url.searchParams.get('login') || '').trim();
+    if (!hint) return;
+    url.searchParams.delete('login');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(hint)) provider.setCustomParameters({ login_hint: hint, prompt: 'select_account' });
+  } catch (err) { /* never block sign-in over a hint */ }
+})();
+
+// What a /users doc means for the app: an account an admin removed before
+// Build 207 (removed:true, still carrying its old householdId) is simply an
+// account without a household — it gets the onboarding screen (accept a
+// new invitation or start a household), not a sign-out. Since Build 207
+// removing someone clears their household server-side instead.
+function membership(data) {
+  if (!data || data.removed === true) return { role: 'pending', householdId: null };
+  return { role: data.role || null, householdId: data.householdId || null };
+}
 
 // Build 169 — js/firebase-init.js now calls initializeAuth() with no
 // popupRedirectResolver, specifically to stop Auth loading a gapi iframe
@@ -100,10 +128,10 @@ function writeCachedIdentity(user, userData) {
       uid: user.uid,
       name: (userData && userData.name) || user.displayName || '',
       photoURL: (userData && userData.photoURL) || user.photoURL || '',
-      role: (userData && userData.role) || 'member',
+      role: (userData && membership(userData).role) || 'member',
       // Build 203 — needed at boot, before Firestore answers, to know which
       // household's data to load (offline start included).
-      householdId: (userData && userData.householdId) || null,
+      householdId: userData ? membership(userData).householdId : null,
     }));
   } catch (err) {
     // A full or unavailable localStorage must never break sign-in.
@@ -246,8 +274,17 @@ async function ensureUserDoc(user) {
   // I18N.md Phase 5: the scheduled reminders (functions/index.js) are written
   // in each recipient's language, read from here.
   if (data.lang !== getLang()) patch.lang = getLang();
-  if (Object.keys(patch).length) await updateDoc(ref, patch);
-  return { role: data.role || null, householdId: data.householdId || null };
+  // A pre-Build-207 removed account may not update its own doc (rules), and
+  // a failed name/photo sync must never hide what the account IS — so the
+  // patch can't fail this function.
+  if (Object.keys(patch).length && data.removed !== true) {
+    try {
+      await updateDoc(ref, patch);
+    } catch (err) {
+      console.error('Profil konnte nicht abgeglichen werden', err);
+    }
+  }
+  return membership(data);
 }
 
 // The role currently reflected in the UI, or null while signed out. Used to
@@ -455,30 +492,18 @@ onAuthStateChanged(auth, async (user) => {
     unsubscribeUserDoc = onSnapshot(ref, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data();
-      if (data.removed) {
-        // Build 180 (Settings → Personen "Entfernen"). firestore.rules'
-        // tightened isSignedIn() already denies this uid everything else
-        // in the database the instant removed:true lands server-side —
-        // without this branch, every other open screen would just start
-        // throwing permission-denied at once. Sign out cleanly instead,
-        // with an explanation, same shape as the explicit sign-out
-        // buttons below (explicitSignOut must win here for the same
-        // reason it does there: this is a genuine, deliberate end to the
-        // session, not the "offline, trust the cache" case).
-        explicitSignOut = true;
-        clearCachedIdentity();
-        authError.textContent = t('auth.dein_zugriff_wurde_entfernt_bitte');
-        signOut(auth);
-        return;
-      }
+      // Removed from the household (Build 180; since Build 207 the server
+      // clears the account's household instead): firestore.rules deny it
+      // everything at once. It is NOT signed out any more — it falls back
+      // to the onboarding screen, where a new invitation can be accepted
+      // (renderSignedIn reloads the app out of the old household first).
       // Cache first: if the household changed, renderSignedIn reloads, and
       // the next boot must already know the new one.
       writeCachedIdentity(user, data);
       renderSignedIn({
         name: data.name || user.displayName || '',
         photoURL: data.photoURL || user.photoURL || '',
-        role: data.role,
-        householdId: data.householdId || null,
+        ...membership(data),
       });
     }, (err) => {
       // Non-fatal: the app is already rendered by this point. Log only —
