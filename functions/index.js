@@ -100,6 +100,15 @@ const SERVER_TEXT = {
     noAccess: 'Kein Zugriff — das Konto ist (noch) nicht freigegeben.',
     noDevice: 'Kein Gerät für diesen Account registriert.',
     testBody: 'Testbenachrichtigung — wenn du das siehst, funktioniert es.',
+    noVerifiedEmail: 'Dein Google-Konto hat keine bestätigte E-Mail-Adresse.',
+    inviteNotFound: 'Einladung nicht gefunden.',
+    inviteNotOpen: 'Diese Einladung gilt nicht mehr.',
+    inviteExpired: 'Diese Einladung ist abgelaufen — bitte um eine neue.',
+    inviteWrongEmail: 'Diese Einladung gilt für eine andere E-Mail-Adresse.',
+    alreadyInHousehold: 'Dein Konto gehört schon zu einem Haushalt.',
+    accountRemoved: 'Dieses Konto wurde aus seinem Haushalt entfernt.',
+    signupClosed: 'Neue Haushalte können gerade noch nicht angelegt werden. Bitte um eine Einladung.',
+    nameRequired: 'Bitte einen Namen für den Haushalt eingeben.',
   },
   en: {
     signIn: 'Please sign in.',
@@ -113,6 +122,15 @@ const SERVER_TEXT = {
     noAccess: 'No access — this account hasn\'t been approved (yet).',
     noDevice: 'No device registered for this account.',
     testBody: 'Test notification — if you can see this, it works.',
+    noVerifiedEmail: 'Your Google account has no verified e-mail address.',
+    inviteNotFound: 'Invitation not found.',
+    inviteNotOpen: 'This invitation is no longer valid.',
+    inviteExpired: 'This invitation has expired — please ask for a new one.',
+    inviteWrongEmail: 'This invitation is for a different e-mail address.',
+    alreadyInHousehold: 'Your account already belongs to a household.',
+    accountRemoved: 'This account was removed from its household.',
+    signupClosed: 'New households can\'t be created yet. Please ask for an invitation.',
+    nameRequired: 'Please enter a name for the household.',
   },
 };
 const st = (lang, key) => SERVER_TEXT[normLang(lang)][key];
@@ -919,3 +937,161 @@ exports.sendTestNotification = onCall(async (request) => {
   return { total: results.length, succeeded, failed };
 });
 
+
+// ---------------------------------------------------------------------------
+// Joining and creating households (Build 206, MULTI_HOUSEHOLD.md step 4)
+//
+// A new sign-in self-provisions as role 'pending' with no household
+// (firestore.rules) and lands on the onboarding screen (js/onboarding.js).
+// From there it either accepts an invitation addressed to its verified
+// Google e-mail, or creates a household of its own and becomes its admin.
+// Both run here, with admin privileges, because they move an account into
+// a household — something no client rule allows.
+// ---------------------------------------------------------------------------
+
+const INVITE_DAYS = 14;
+const COUNTRY_RE = /^[A-Z]{2}$/;
+
+// The caller's verified sign-in address, lower-cased — the only identity an
+// invitation is matched against.
+function verifiedEmail(request, lang) {
+  const token = request.auth.token || {};
+  if (!token.email || token.email_verified !== true) {
+    throw new HttpsError('failed-precondition', st(lang, 'noVerifiedEmail'));
+  }
+  return String(token.email).toLowerCase();
+}
+
+function inviteExpired(invite, now = Date.now()) {
+  const created = Date.parse(invite.createdAt || '');
+  return !Number.isFinite(created) || now - created > INVITE_DAYS * 86400000 || created - now > 3600000;
+}
+
+// The caller may join/create only while not in any household yet.
+function assertFreeAccount(user, lang) {
+  if (user && user.removed === true) throw new HttpsError('failed-precondition', st(lang, 'accountRemoved'));
+  if (user && user.householdId) throw new HttpsError('failed-precondition', st(lang, 'alreadyInHousehold'));
+}
+
+function newUserFields(request) {
+  const token = request.auth.token || {};
+  return { name: token.name || '', photoURL: token.picture || '', createdAt: new Date().toISOString() };
+}
+
+// Open, unexpired invitations for the caller's address, with the household's
+// and the inviter's names looked up here (never taken from the invite doc).
+exports.myInvites = onCall(async (request) => {
+  const lang = callerLang(request);
+  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
+  const email = verifiedEmail(request, lang);
+  const snap = await db.collection('invites').where('email', '==', email).where('status', '==', 'open').get();
+  const invites = [];
+  for (const d of snap.docs) {
+    const inv = d.data();
+    if (inviteExpired(inv)) continue;
+    const [hh, by] = await Promise.all([
+      db.doc(`households/${inv.householdId}`).get(),
+      db.doc(`users/${inv.createdBy}`).get(),
+    ]);
+    if (!hh.exists) continue;
+    invites.push({
+      id: d.id,
+      householdName: hh.data().name || '',
+      invitedBy: by.exists ? (by.data().name || '') : '',
+      role: inv.role === 'admin' ? 'admin' : 'member',
+      createdAt: inv.createdAt,
+    });
+  }
+  invites.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  return { email, invites };
+});
+
+exports.acceptInvite = onCall(async (request) => {
+  const lang = callerLang(request);
+  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
+  const email = verifiedEmail(request, lang);
+  const inviteId = String((request.data && request.data.inviteId) || '');
+  if (!inviteId || inviteId.includes('/')) throw new HttpsError('invalid-argument', st(lang, 'inviteNotFound'));
+  const uid = request.auth.uid;
+  const inviteRef = db.doc(`invites/${inviteId}`);
+  const userRef = db.doc(`users/${uid}`);
+  return db.runTransaction(async (tx) => {
+    const [inviteSnap, userSnap] = await Promise.all([tx.get(inviteRef), tx.get(userRef)]);
+    if (!inviteSnap.exists) throw new HttpsError('not-found', st(lang, 'inviteNotFound'));
+    const inv = inviteSnap.data();
+    if (inv.email !== email) throw new HttpsError('permission-denied', st(lang, 'inviteWrongEmail'));
+    if (inv.status !== 'open') throw new HttpsError('failed-precondition', st(lang, 'inviteNotOpen'));
+    if (inviteExpired(inv)) throw new HttpsError('failed-precondition', st(lang, 'inviteExpired'));
+    const user = userSnap.exists ? userSnap.data() : null;
+    assertFreeAccount(user, lang);
+    const hhSnap = await tx.get(db.doc(`households/${inv.householdId}`));
+    if (!hhSnap.exists) throw new HttpsError('failed-precondition', st(lang, 'inviteNotOpen'));
+    const nowIso = new Date().toISOString();
+    const role = inv.role === 'admin' ? 'admin' : 'member';
+    if (user) {
+      tx.update(userRef, { role, householdId: inv.householdId, joinedAt: nowIso, email });
+    } else {
+      tx.set(userRef, { ...newUserFields(request), lang, role, householdId: inv.householdId, joinedAt: nowIso, email });
+    }
+    tx.update(inviteRef, { status: 'accepted', acceptedBy: uid, acceptedAt: nowIso });
+    return { householdId: inv.householdId, role };
+  });
+});
+
+exports.declineInvite = onCall(async (request) => {
+  const lang = callerLang(request);
+  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
+  const email = verifiedEmail(request, lang);
+  const inviteId = String((request.data && request.data.inviteId) || '');
+  if (!inviteId || inviteId.includes('/')) throw new HttpsError('invalid-argument', st(lang, 'inviteNotFound'));
+  const ref = db.doc(`invites/${inviteId}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError('not-found', st(lang, 'inviteNotFound'));
+  if (snap.data().email !== email) throw new HttpsError('permission-denied', st(lang, 'inviteWrongEmail'));
+  if (snap.data().status !== 'open') return { ok: true };
+  await ref.update({ status: 'declined', declinedAt: new Date().toISOString() });
+  return { ok: true };
+});
+
+// Creating a household is closed until the Reddit test opens it (step 6:
+// privacy notice, dictation limit, budget alert). Opened by setting
+// `openSignup: true` on the Firestore document _system/config (console);
+// `allowEmails: [...]` there lets single addresses in before that.
+async function signupOpenFor(email) {
+  const snap = await db.doc('_system/config').get();
+  const cfg = snap.exists ? snap.data() : {};
+  if (cfg.openSignup === true) return true;
+  return Array.isArray(cfg.allowEmails) && cfg.allowEmails.map((e) => String(e).toLowerCase()).includes(email);
+}
+
+exports.createHousehold = onCall(async (request) => {
+  const lang = callerLang(request);
+  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
+  const email = verifiedEmail(request, lang);
+  const data = request.data || {};
+  const name = typeof data.name === 'string' ? data.name.trim().slice(0, 80) : '';
+  if (!name) throw new HttpsError('invalid-argument', st(lang, 'nameRequired'));
+  const country = typeof data.country === 'string' && COUNTRY_RE.test(data.country) ? data.country : null;
+  const timezone = validTimeZone(data.timezone);
+  const dataLang = normLang(data.dataLang || lang);
+  if (!(await signupOpenFor(email))) throw new HttpsError('permission-denied', st(lang, 'signupClosed'));
+
+  const uid = request.auth.uid;
+  const userRef = db.doc(`users/${uid}`);
+  const householdRef = db.collection('households').doc();
+  return db.runTransaction(async (tx) => {
+    const userSnap = await tx.get(userRef);
+    const user = userSnap.exists ? userSnap.data() : null;
+    assertFreeAccount(user, lang);
+    const nowIso = new Date().toISOString();
+    tx.set(householdRef, {
+      name, createdAt: nowIso, createdBy: uid, lang: dataLang, country, timezone,
+    });
+    if (user) {
+      tx.update(userRef, { role: 'admin', householdId: householdRef.id, joinedAt: nowIso, email });
+    } else {
+      tx.set(userRef, { ...newUserFields(request), lang, role: 'admin', householdId: householdRef.id, joinedAt: nowIso, email });
+    }
+    return { householdId: householdRef.id };
+  });
+});

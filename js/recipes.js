@@ -19,11 +19,11 @@
 //   on purpose (a "nice to have" signal, not a checklist that nags), and
 //   no summary badge on the card either (Markus's call) — the dot only
 //   ever shows up once a recipe is actually opened.
-import { db, hcol, hdoc } from './firebase-init.js?v=205';
+import { db, hcol, hdoc } from './firebase-init.js?v=206';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=205';
+import { t } from './i18n.js?v=206';
 
 const MAX_PHOTO_DIMENSION = 1000;
 const JPEG_QUALITY = 0.6;

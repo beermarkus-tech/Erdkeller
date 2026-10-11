@@ -32,7 +32,7 @@ const HH = process.env.HARNESS_HOUSEHOLD || '';
 const FIXTURES = ((raw) => (HH
   ? Object.fromEntries([
     [`households/${HH}`, { name: 'Erdkeller', createdBy: 'u-admin', lang: 'de', country: 'DE', timezone: 'Europe/Paris', migratedFromRoot: true, migratedAt: '2026-10-01T10:00:00.000Z' }],
-    ...Object.entries(raw).map(([k, v]) => (k.startsWith('users/')
+    ...Object.entries(raw).map(([k, v]) => (k.startsWith('users/') || k.startsWith('invites/')
       ? [k, v.role === 'pending' ? v : { ...v, householdId: HH }]
       : [`households/${HH}/${k}`, v])),
   ])
@@ -122,6 +122,25 @@ async function runTour(dir, lang, only, fake, afterStep) {
           { direction: 'out', matchedBatchId: 'b7', quantity: 1, confidence: 'high' },
         ] }),
         previewReminders: () => ({ enabled: true, currentParisHour: 12, configuredHour: 9, frequencies: {} }),
+        // Build 206 onboarding: u-pending has one invitation; anyone else none.
+        // Accepting/creating does what the server does to the mock store.
+        myInvites: () => ({
+          email: `${(window.__USER__ || {}).uid || 'u-admin'}@example.com`,
+          invites: (window.__USER__ || {}).uid === 'u-pending'
+            ? [{ id: 'inv-p', householdName: 'Erdkeller', invitedBy: 'Test Admin', role: 'member', createdAt: '2026-10-09T10:00:00.000Z' }]
+            : [],
+        }),
+        acceptInvite: async () => {
+          const fb = await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');
+          await fb.updateDoc(fb.doc({}, 'users', window.__USER__.uid), hh ? { role: 'member', householdId: hh } : { role: 'member' });
+          return { householdId: hh || null, role: 'member' };
+        },
+        createHousehold: async (p) => {
+          const fb = await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');
+          await fb.setDoc(fb.doc({}, 'households', 'hNew'), { name: p.name, country: p.country, timezone: p.timezone, lang: p.dataLang, createdBy: window.__USER__.uid });
+          await fb.setDoc(fb.doc({}, 'users', window.__USER__.uid), { role: 'admin', householdId: 'hNew' }, { merge: true });
+          return { householdId: 'hNew' };
+        },
         sendTestNotification: () => ({ total: 1, succeeded: 1, failures: [] }),
       };
       // HARNESS_USER=<uid> signs in as another fixture account (no cached

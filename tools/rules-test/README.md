@@ -10,6 +10,8 @@ These dev tools are not part of the app. `rules.test.mjs` runs the repo's `fires
 - an anonymous visitor;
 - (Build 203) members and admins of two separate households: nobody sees or changes another household's data or people, and a moved account can no longer touch the old root data.
 
+`invites.test.cjs` (Build 206) runs the invitation and household-creation functions (`myInvites`, `acceptInvite`, `declineInvite`, `createHousehold`) against the emulator.
+
 `reminders.test.cjs` (Build 205) runs the real reminder scheduler from `functions/index.js` against the emulator, with push sending replaced by a recorder: recipients are household members, each household on its own timezone, removed members and other households get nothing, "remind again after N days" and "done for this period" hold.
 
 ```

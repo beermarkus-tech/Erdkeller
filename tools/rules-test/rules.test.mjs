@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const env = await initializeTestEnvironment({
@@ -83,9 +83,9 @@ await check('member cannot promote itself', () => assertFails(updateDoc(doc(as('
 await check('member cannot remove itself via removed flag', () => assertFails(updateDoc(doc(as('member'), 'users/member'), { removed: true })));
 await check('member cannot approve a pending user', () => assertFails(updateDoc(doc(as('member'), 'users/pending'), { role: 'member' })));
 await check('member reads the roster', () => assertSucceeds(getDocs(collection(as('member'), 'users'))));
-await check('admin approves a pending user', () => assertSucceeds(updateDoc(doc(as('admin'), 'users/pending'), { role: 'member' })));
-await check('approved user now reads contacts', () => assertSucceeds(getDoc(doc(as('pending'), 'contacts/c1'))));
-await check('admin rejects (removes) a pending user', () => assertSucceeds(updateDoc(doc(as('admin'), 'users/stranger2'), { removed: true })));
+await check('legacy admin can no longer approve a pending user (Build 206)', () => assertFails(updateDoc(doc(as('admin'), 'users/pending'), { role: 'member' })));
+await check('pending still cannot read contacts', () => assertFails(getDoc(doc(as('pending'), 'contacts/c1'))));
+await check('admin cannot touch an account outside a household', () => assertFails(updateDoc(doc(as('admin'), 'users/stranger2'), { removed: true })));
 
 // --- diagnostics closed -------------------------------------------------------
 await check('anonymous cannot write diagnostics', () => assertFails(setDoc(doc(anon, 'diagnostics/x'), { a: 1 })));
@@ -119,7 +119,8 @@ await check('household member lists own household roster', () => assertSucceeds(
 await check('household member cannot list the whole users collection', () => assertFails(getDocs(collection(as('hmember'), 'users'))));
 await check('household member cannot read another household\'s person', () => assertFails(getDoc(doc(as('hmember'), 'users/oadmin'))));
 await check('household member cannot list another household roster', () => assertFails(getDocs(query(collection(as('hmember'), 'users'), where('householdId', '==', 'h2')))));
-await check('household admin lists pending accounts', () => assertSucceeds(getDocs(query(collection(as('hadmin'), 'users'), where('role', '==', 'pending')))));
+await check('household admin cannot list pending accounts (Build 206)', () => assertFails(getDocs(query(collection(as('hadmin'), 'users'), where('role', '==', 'pending')))));
+await check('household admin cannot read a pending account', () => assertFails(getDoc(doc(as('hadmin'), 'users/hpending'))));
 await check('household member cannot list pending accounts', () => assertFails(getDocs(query(collection(as('hmember'), 'users'), where('role', '==', 'pending')))));
 await check('pending cannot self-provision with a household', () => assertFails(setDoc(doc(as('newbie'), 'users/newbie'), { role: 'pending', householdId: 'h1' })));
 await check('member cannot change own household', () => assertFails(updateDoc(doc(as('hmember'), 'users/hmember'), { householdId: 'h2' })));
@@ -128,9 +129,30 @@ await check('admin cannot strip a member out of the household', () => assertFail
 await check('admin cannot move a member to another household', () => assertFails(updateDoc(doc(as('hadmin'), 'users/hmember'), { householdId: 'h2' })));
 await check('other household admin cannot touch a member', () => assertFails(updateDoc(doc(as('oadmin'), 'users/hmember'), { role: 'admin' })));
 await check('admin cannot approve a pending account into another household', () => assertFails(updateDoc(doc(as('hadmin'), 'users/hpending'), { role: 'member', householdId: 'h2' })));
-await check('admin approves a pending account into own household', () => assertSucceeds(updateDoc(doc(as('hadmin'), 'users/hpending'), { role: 'member', householdId: 'h1' })));
-await check('newly approved account reads the household', () => assertSucceeds(getDoc(doc(as('hpending'), 'households/h1/contacts/c1'))));
-await check('other admin no longer sees the approved account', () => assertFails(getDoc(doc(as('oadmin'), 'users/hpending'))));
+await check('admin cannot pull a pending account into own household', () => assertFails(updateDoc(doc(as('hadmin'), 'users/hpending'), { role: 'member', householdId: 'h1' })));
+await check('pending account still cannot read the household', () => assertFails(getDoc(doc(as('hpending'), 'households/h1/contacts/c1'))));
+await check('admin changes a member role in own household', () => assertSucceeds(updateDoc(doc(as('hadmin'), 'users/hmember'), { role: 'member', lang: 'de' })));
+
+// --- Build 206: invitations ----------------------------------------------------
+const inv = (o = {}) => ({ householdId: 'h1', email: 'new@example.com', role: 'member', status: 'open', createdBy: 'hadmin', createdAt: '2026-10-11T10:00:00Z', ...o });
+await check('household admin creates an invitation', () => assertSucceeds(setDoc(doc(as('hadmin'), 'invites/i1'), inv())));
+await check('household admin lists own invitations', () => assertSucceeds(getDocs(query(collection(as('hadmin'), 'invites'), where('householdId', '==', 'h1')))));
+await check('member cannot invite', () => assertFails(setDoc(doc(as('hmember'), 'invites/i2'), inv({ createdBy: 'hmember' }))));
+await check('admin cannot invite into another household', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i3'), inv({ householdId: 'h2' }))));
+await check('invitation must start open', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i4'), inv({ status: 'accepted' }))));
+await check('invitation role is member or admin only', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i5'), inv({ role: 'owner' }))));
+await check('invitation e-mail must be lower-case', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i6'), inv({ email: 'New@Example.com' }))));
+await check('invitation e-mail must look like one', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i7'), inv({ email: 'nope' }))));
+await check('invitation cannot carry extra fields', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i8'), inv({ householdName: 'Fake' }))));
+await check('invitation createdBy must be the admin', () => assertFails(setDoc(doc(as('hadmin'), 'invites/i9'), inv({ createdBy: 'someoneelse' }))));
+await check('other household admin cannot read it', () => assertFails(getDoc(doc(as('oadmin'), 'invites/i1'))));
+await check('member cannot read invitations', () => assertFails(getDoc(doc(as('hmember'), 'invites/i1'))));
+await check('pending invitee cannot read it from the client', () => assertFails(getDoc(doc(as('hpending'), 'invites/i1'))));
+await check('pending invitee cannot accept it from the client', () => assertFails(updateDoc(doc(as('hpending'), 'invites/i1'), { status: 'accepted' })));
+await check('admin cannot mark it accepted', () => assertFails(updateDoc(doc(as('hadmin'), 'invites/i1'), { status: 'accepted' })));
+await check('admin revokes it', () => assertSucceeds(updateDoc(doc(as('hadmin'), 'invites/i1'), { status: 'revoked', revokedAt: '2026-10-12' })));
+await check('a revoked invitation stays revoked', () => assertFails(updateDoc(doc(as('hadmin'), 'invites/i1'), { status: 'open' })));
+await check('nobody deletes invitations', () => assertFails(deleteDoc(doc(as('hadmin'), 'invites/i1'))));
 await check('household admin reads a member\'s devices', () => assertSucceeds(getDocs(collection(as('hadmin'), 'users/hmember/devices'))));
 await check('other household admin cannot read those devices', () => assertFails(getDocs(collection(as('oadmin'), 'users/hmember/devices'))));
 await check('household member manages own devices', () => assertSucceeds(setDoc(doc(as('hmember'), 'users/hmember/devices/d2'), { token: 'u' })));

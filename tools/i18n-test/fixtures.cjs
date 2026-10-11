@@ -134,6 +134,9 @@ const users = {
   'users/u-admin': { name: 'Test Admin', photoURL: '', role: 'admin', recipientSlug: 'markus', createdAt: iso('2026-01-01') },
   'users/u-member': { name: 'Julia', photoURL: '', role: 'member', recipientSlug: 'julia', createdAt: iso('2026-01-03') },
   'users/u-pending': { name: 'Neuer Tester', photoURL: '', role: 'pending', recipientSlug: null, createdAt: iso('2026-10-09') },
+  // Build 206 — an open invitation from the admin (household mode shows it
+  // in Admin → Personen; invitations live at the root, not in a household).
+  'invites/inv1': { householdId: 'h1', email: 'oma@example.com', role: 'member', status: 'open', createdBy: 'u-admin', createdAt: iso('2026-10-08T10:00:00') },
   'users/u-gone': { name: 'Alter Account', photoURL: '', role: 'member', recipientSlug: null, removed: true, removedAt: iso('2026-05-01'), createdAt: iso('2026-01-04') },
 };
 

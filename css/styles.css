@@ -90,11 +90,94 @@ body.app-ready {
   cursor: pointer;
 }
 
-/* Build 201 — "waiting for approval" text on the sign-in screen. */
-.auth-gate p.auth-pending {
-  max-width: 320px;
+/* Build 206 — onboarding on the sign-in screen for an account without a
+   household: accept an invitation, or create a household. */
+.onboarding {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  text-align: left;
+}
+.auth-gate p.onboarding-hello {
   color: var(--charcoal);
-  margin-top: 12px;
+  font-size: 15px;
+  text-align: center;
+}
+.onboarding-card {
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.onboarding-card h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--charcoal);
+}
+.auth-gate p.onboarding-note {
+  font-size: 13px;
+}
+.onboarding-invite {
+  border-top: 1px solid var(--stone);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.onboarding-invite:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+.onboarding-invite-text {
+  font-size: 14px;
+  color: var(--charcoal);
+}
+.onboarding-invite-actions {
+  display: flex;
+  gap: 8px;
+}
+.onboarding-invite-actions button,
+.onboarding-primary {
+  margin-top: 0;
+}
+.onboarding-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #6b6a5f;
+}
+.onboarding-field input,
+.onboarding-field select {
+  font: inherit;
+  font-size: 15px;
+  color: var(--charcoal);
+  padding: 10px 12px;
+  border: 1px solid var(--stone-dark);
+  border-radius: 10px;
+  background: white;
+  min-width: 0;
+}
+.onboarding-link-btn {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--cellar);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.onboarding-btn-secondary {
+  background: transparent;
 }
 
 .auth-error {
@@ -4461,4 +4544,33 @@ nav.bottomnav button .icon {
     flex: 1;
     min-width: 0;
   }
+}
+
+/* Build 206 — invite form in Admin → Personen. */
+.invite-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.invite-form input {
+  flex: 1 1 180px;
+  min-width: 0;
+  font: inherit;
+  font-size: 15px;
+  padding: 8px 10px;
+  border: 1px solid var(--stone-dark);
+  border-radius: 10px;
+  background: white;
+}
+.invite-form select {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px;
+  border: 1px solid var(--stone-dark);
+  border-radius: 10px;
+  background: white;
+}
+#invite-list a.select-mode-btn {
+  text-decoration: none;
 }
