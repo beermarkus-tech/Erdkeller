@@ -17,7 +17,6 @@ const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
-const { migrateRootToHousehold } = require('./migrate');
 
 initializeApp();
 const db = getFirestore();
@@ -552,25 +551,16 @@ function isItemDoneThisPeriod(item, frequency, cfg, nowParts) {
   return new Date(item.lastCompletedAt) >= occInstant;
 }
 
-// --- Maintenance data: /checklists + /checklistItems, with a legacy
-// fallback to /config/checklists (dev plan Step 16.3) --------------------
+// --- Maintenance data: /checklists + /checklistItems -------------------
 //
-// Reassembles the exact nested shape (`{ lists: [{ ...list, items: [...] }]
-// }`) computeFrequencyDue/recipientBreakdown below were already written
-// against, so neither of them (nor isItemDoneThisPeriod/buildNotificationText)
-// needed to change for the split. The fallback makes this function safe to
-// deploy independently of when the client-side migration action actually
-// runs: an empty /checklists collection (not-yet-migrated, or a genuinely
-// checklist-less household) reads the old single document exactly as
-// before. Once migrated, the legacy document is no longer touched by this
-// function at all — only Firestore rules (see firestore.rules) keep it
-// legally writable in the meantime.
+// Reassembles the nested shape (`{ lists: [{ ...list, items: [...] }] }`)
+// computeFrequencyDue/recipientBreakdown below were written against. (The
+// fallback to the pre-Step-16.3 /config/checklists document was removed
+// with the migration code: a household with no checklists now simply has
+// nothing due, instead of reading that frozen legacy document.)
 async function loadMaintenance(base) {
   const listsSnap = await db.collection(hpath(base, 'checklists')).get();
-  if (listsSnap.empty) {
-    const maintSnap = await db.doc(hpath(base, 'config/checklists')).get();
-    return maintSnap.exists && Array.isArray(maintSnap.data().lists) ? maintSnap.data() : { lists: [] };
-  }
+  if (listsSnap.empty) return { lists: [] };
   const itemsSnap = await db.collection(hpath(base, 'checklistItems')).get();
   const itemsByList = new Map();
   itemsSnap.docs.forEach((d) => {
@@ -863,33 +853,3 @@ exports.sendTestNotification = onCall(async (request) => {
   return { total: results.length, succeeded, failed };
 });
 
-// Build 203 (MULTI_HOUSEHOLD.md step 2): the one-time move of the original
-// household from the database root to /households/{id}. Admin-only,
-// started from Settings → Sicherung after the app has downloaded a safety
-// backup. All the care (copy-not-move, count check before anyone is
-// switched, safe re-run) lives in migrate.js.
-exports.migrateToHousehold = onCall({ timeoutSeconds: 540, memory: '512MiB' }, async (request) => {
-  const lang = callerLang(request);
-  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
-  const callerSnap = await db.doc(`users/${request.auth.uid}`).get();
-  const caller = callerSnap.exists ? callerSnap.data() : null;
-  if (!caller || caller.role !== 'admin' || caller.removed === true) {
-    throw new HttpsError('permission-denied', st(lang, 'adminsOnly'));
-  }
-  const name = typeof (request.data && request.data.name) === 'string' ? request.data.name.trim().slice(0, 80) : '';
-  try {
-    const result = await migrateRootToHousehold(db, {
-      callerUid: request.auth.uid,
-      household: { name, lang: 'de', country: 'DE', timezone: CHECKLIST_TZ },
-    });
-    return {
-      householdId: result.householdId,
-      alreadyDone: result.alreadyDone,
-      users: result.users,
-      collections: result.collections.map((c) => ({ path: c.src, count: c.count, copied: c.copied })),
-    };
-  } catch (err) {
-    console.error('migrateToHousehold failed', err);
-    throw new HttpsError(err.code === 'count-mismatch' ? 'aborted' : 'internal', err.message);
-  }
-});

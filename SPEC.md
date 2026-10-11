@@ -65,7 +65,7 @@ Settings/config screen is **admin-only** — not visible to Julia/Sophia at all 
 
 **Approval of new accounts (Build 201).** Build 180's gate turned out not to stop strangers: the same self-provisioning `create` rule let *any* Google account create its own `/users/{uid}` doc as `member`, and the app's URL is public. Now a new sign-in self-provisions as role **`pending`** (the only role the `create` rule allows), and `isSignedIn()` requires role `admin` or `member` — a pending account can read only its own doc and sees a "waiting for approval" screen (`js/auth.js`) until an admin taps **Freigeben** (→ `member`) or **Ablehnen** (→ removed tombstone) in Settings → Personen, whose card shows a ⏳ count of waiting accounts. Self-updates (name/photo/lang) may never change `role` or `removed` (previously a member could set `removed` on themselves). `parseDictation` (`functions/index.js`) now also requires an approved, non-removed caller — it runs with admin privileges and calls a paid AI API, so "any Google account" was not enough. The retired `/diagnostics` collection, writable by anyone on the internet, is closed. Rules are covered by `tools/rules-test/` (Firestore emulator, 31 cases).
 
-**Households (Build 203, MULTI_HOUSEHOLD.md step 2).** Each account's `/users/{uid}` doc carries `householdId`; the household's data lives under `/households/{hid}/…` with the same per-collection rules as before, readable and writable only by that household's approved members. Accounts without `householdId` use the original data at the database root (the legacy household); the one-time move (Admin → Sicherung → Haushalts-Umstellung, server function `migrateToHousehold`) copies the root data into a new household, checks the counts, and then sets `householdId` on every account — after which the root copy is frozen by the rules as a fallback. Approving a pending account puts it into the approving admin's household. Rules: `tools/rules-test/` (72 cases) plus a migration test (21 checks).
+**Households (Build 203, MULTI_HOUSEHOLD.md step 2).** Each account's `/users/{uid}` doc carries `householdId`; the household's data lives under `/households/{hid}/…` with the same per-collection rules as before, readable and writable only by that household's approved members. Accounts without `householdId` use the original data at the database root (the legacy household); the one-time move (server function `migrateToHousehold`, run 2026-10-11 and removed again in Build 204 together with the old checklist migration) copied the root data into a new household, checked the counts, and then set `householdId` on every account — after which the root copy is frozen by the rules as a fallback. Approving a pending account puts it into the approving admin's household. Rules: `tools/rules-test/` (72 cases).
 
 ---
 
@@ -116,11 +116,10 @@ Firestore organizes data as **collections** (folders) of **documents** (individu
 /checklistItems/{itemId}         listId, text, frequency, lastCompletedAt, createdAt,
                                   updatedAt
 /config/checklists               LEGACY, frozen since Build 175's cutover — no longer read or
-                                  written by the client or by functions/index.js once the two
-                                  collections above are populated (a fallback still reads it
-                                  if they're empty). Kept only until dev plan Step 16.3's
-                                  cleanup step deletes it for good; do not write new code
-                                  against it
+                                  written by the client or by functions/index.js (the server's
+                                  fallback read and the migration button were removed in Build
+                                  204). Still included in JSON backups so old backup files
+                                  round-trip; do not write new code against it
 /config/crisisTypes              types: [{ id, name, sym, steps: [{ id, text }] }]
 /config/notifications             enabled (master on/off), checklists: { weekly: { weekday },
                                   monthly: { weekOfMonth, weekday }, quarterly/halfYearly:

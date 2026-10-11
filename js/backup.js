@@ -14,12 +14,11 @@
 // replacement wrote (every subsequent write's isAdmin() check re-reads
 // /users/{currentUid}). Roles/names are managed only through Settings →
 // Personen, backup or no backup.
-import { db, hcol, hdoc, functions, getHouseholdId } from './firebase-init.js?v=203';
-import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
+import { db, hcol, hdoc } from './firebase-init.js?v=204';
 import {
   collection, getDocs, doc, getDoc, setDoc, deleteDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale, getLang } from './i18n.js?v=203';
+import { t, getLocale } from './i18n.js?v=204';
 
 const statusEl = document.getElementById('export-status');
 
@@ -29,9 +28,6 @@ const contactsBtn = document.getElementById('export-contacts-btn');
 const notesBtn = document.getElementById('export-notes-btn');
 const recipesBtn = document.getElementById('export-recipes-btn');
 const jsonBtn = document.getElementById('export-json-btn');
-const migrateBtn = document.getElementById('migrate-checklists-btn');
-const migrateMeta = document.getElementById('migrate-checklists-meta');
-const migrateStatus = document.getElementById('migrate-checklists-status');
 
 function todayStamp() {
   const d = new Date();
@@ -219,17 +215,12 @@ recipesBtn.addEventListener('click', () => downloadCsv(recipesBtn, 'rezepte', as
 // copy, not a readable report (that's what the CSVs above are for).
 // /users is intentionally not included — see the file header comment.
 
-// 'checklists'/'checklistItems' added ahead of the Step 16.3 migration
-// (dev plan) landing — until that migration action has actually run these
-// two collections are simply empty in every backup, no different from any
-// other unused collection. 'checklists' also still appears below in
-// CONFIG_DOCS for the legacy /config/checklists doc; both names are kept
-// deliberately distinct (a flat collection vs. a /config singleton) rather
-// than colliding, and the legacy entry is removed only once the migration
-// fully cuts over (see dev plan Step 16.3, step 7).
-// Shared by the full-replace import's chunked delete/write below AND the
-// checklists migration further down — Firestore's own cap is 500 writes
-// per batch, this stays comfortably under it.
+// 'checklists' appears twice on purpose: the flat /checklists collection
+// (current) and, in CONFIG_DOCS, the legacy /config/checklists document
+// from before the Step 16.3 split — kept in backups so older backup files
+// still round-trip; nothing in the app reads it any more.
+// Used by the full-replace import's chunked delete/write below —
+// Firestore's own cap is 500 writes per batch, this stays under it.
 const BATCH_SIZE = 450;
 
 const COLLECTIONS = ['products', 'stockItems', 'stockLog', 'contacts', 'notes', 'recipes', 'checklists', 'checklistItems'];
@@ -269,266 +260,6 @@ jsonBtn.addEventListener('click', async () => {
     jsonBtn.disabled = false;
   }
 });
-
-// --- Checklisten-Migration (dev plan Step 16.3) -------------------------
-// Splits the single /config/checklists document (rewritten wholesale on
-// every tick, see js/checklists.js) into two flat collections,
-// /checklists/{listId} and /checklistItems/{itemId}, so two devices
-// ticking different items offline merge on reconnect instead of one
-// device's entire set of edits silently clobbering the other's. This
-// button only ever WRITES the two new collections — js/checklists.js
-// itself keeps reading/writing the legacy document until its own
-// switchover ships separately, so running this migration (even
-// repeatedly) has no visible effect on the live app until that lands.
-//
-// The one real hazard of moving from one nested document to two flat
-// collections: a duplicate item id across two different lists would
-// collapse into a single document. Every id in this app already comes
-// from genId() (js/checklists.js), which is virtually certain to be
-// unique, but "virtually certain" isn't good enough for a migration that
-// can't be un-run cleanly — so this validates real uniqueness first and
-// refuses loudly rather than silently merging two items into one.
-function validateChecklistsForMigration(maintenance) {
-  const lists = Array.isArray(maintenance.lists) ? maintenance.lists : [];
-  if (!lists.length) return t('backup.keine_checklisten_gefunden_nichts_zu');
-  const listIds = new Set();
-  const itemIds = new Set();
-  for (const list of lists) {
-    if (!list.id) return t('backup.checkliste_hat_keine_id', { value: list.name || t('backup.ohne_namen') });
-    if (String(list.id).includes('/')) return t('backup.checklisten_id_enthaelt_ein_und', { id: list.id });
-    if (listIds.has(list.id)) return t('backup.doppelte_checklisten_id', { id: list.id });
-    listIds.add(list.id);
-    for (const item of (list.items || [])) {
-      if (!item.id) return t('backup.ein_eintrag_in_hat_keine', { value: list.name || list.id });
-      if (String(item.id).includes('/')) return t('backup.eintrags_id_enthaelt_ein_und', { id: item.id });
-      if (itemIds.has(item.id)) return t('backup.doppelte_eintrags_id_wuerde_beim', { id: item.id });
-      itemIds.add(item.id);
-    }
-  }
-  return null;
-}
-
-// Set to true only in the build that ships js/checklists.js's own
-// switchover to reading /checklists + /checklistItems directly (Build
-// 175, dev plan Step 16.3 step 6) — flips the NEXT migration run (which
-// Markus runs once after that build is live, to catch any ticks made in
-// the window since the last run) into the one that stamps cutoverAt and
-// permanently disables further re-runs. Before this flipped to true, this
-// button only ever prepared data for a future switchover; from here on,
-// running it also declares that switchover complete.
-const CHECKLISTS_CUTOVER_SHIPPED = true;
-
-// Same chunking shape as replaceCollection() below, generalised to take
-// prebuilt mutation closures rather than doc lists — the migration writes
-// two different kinds of documents (lists and items) plus one marker doc
-// in a single logical operation, which replaceCollection's single-name
-// shape doesn't fit. In real use this is one household's ~10 lists + ~113
-// items + 1 marker ≈ 124 writes, so it always runs as exactly one batch;
-// chunking only matters as a safety net well past today's data volume,
-// same reasoning as the dev plan's own "well under the 500 cap" note.
-async function commitInChunks(ops) {
-  for (let i = 0; i < ops.length; i += BATCH_SIZE) {
-    const batch = writeBatch(db);
-    ops.slice(i, i + BATCH_SIZE).forEach((op) => op(batch));
-    await batch.commit();
-  }
-}
-
-// Read-only status display, driven by the marker doc written at the end
-// of a successful run — see runChecklistsMigration() below for the two
-// fields that matter: migratedAt (pre-cutover, freely re-runnable) and
-// cutoverAt (set only once js/checklists.js's own switchover ships and
-// actually starts reading these collections — NOT by this button, which
-// only ever prepares data for that future switchover). Once cutoverAt is
-// set, re-running is disabled: after cutover the legacy doc is frozen, so
-// this migration's own max-wins reconciliation (see below) could
-// otherwise resurrect a completion status someone deliberately un-ticked
-// on the new collections after that point.
-async function loadMigrationMarker() {
-  try {
-    const snap = await getDoc(hdoc('config', 'checklistsMigration'));
-    if (!snap.exists()) {
-      migrateMeta.textContent = t('backup.noch_nicht_ausgefuehrt');
-      migrateBtn.textContent = t('backup.migration_starten');
-      migrateBtn.disabled = false;
-      return;
-    }
-    const data = snap.data();
-    if (data.cutoverAt) {
-      migrateMeta.textContent = t('backup.abgeschlossen_am', { date: new Date(data.cutoverAt).toLocaleString(getLocale()) });
-      migrateBtn.textContent = t('backup.abgeschlossen');
-      migrateBtn.disabled = true;
-      return;
-    }
-    migrateMeta.textContent = t('backup.migriert_am_checklisten_eintraege', { date: new Date(data.migratedAt).toLocaleString(getLocale()), listCount: data.listCount, itemCount: data.itemCount });
-    migrateBtn.textContent = t('backup.erneut_ausfuehren');
-    migrateBtn.disabled = false;
-  } catch (err) {
-    migrateMeta.textContent = t('backup.status_konnte_nicht_geladen_werden');
-    console.error('Migrations-Status konnte nicht geladen werden', err);
-  }
-}
-
-async function runChecklistsMigration() {
-  migrateBtn.disabled = true;
-  migrateStatus.textContent = t('backup.pruefe_daten');
-  try {
-    // Defense in depth, not just the disabled button above: refuse to
-    // re-run for real if cutoverAt is already set, in case this ever got
-    // triggered some other way (a cached older page, devtools). See the
-    // marker-loading comment above for why a post-cutover re-run is
-    // actually unsafe, not merely redundant.
-    const markerSnap = await getDoc(hdoc('config', 'checklistsMigration'));
-    if (markerSnap.exists() && markerSnap.data().cutoverAt) {
-      migrateStatus.textContent = t('backup.migration_bereits_abgeschlossen_keine_erneute');
-      return;
-    }
-
-    const snap = await getDoc(hdoc('config', 'checklists'));
-    const maintenance = snap.exists() && Array.isArray(snap.data().lists) ? snap.data() : { lists: [] };
-    const validationError = validateChecklistsForMigration(maintenance);
-    if (validationError) {
-      migrateStatus.textContent = t('backup.migration_abgebrochen') + validationError;
-      migrateBtn.disabled = false;
-      return;
-    }
-
-    migrateStatus.textContent = t('backup.sicherheits_backup_wird_heruntergeladen');
-    const safetyBackup = await buildBackup();
-    download(`erdkeller-vor-checklisten-migration-${todayStamp()}.json`, JSON.stringify(safetyBackup, null, 2), 'application/json;charset=utf-8');
-
-    // Max-wins reconciliation (dev plan Step 16.3): on a re-run before
-    // cutover, an item already migrated may have a NEWER lastCompletedAt
-    // than the legacy doc if someone ticked it on the new collections in
-    // the meantime (possible once js/checklists.js's switchover is live
-    // for testing but before this migration's "run again" is disabled).
-    // Read what's there now so the newer of the two timestamps always
-    // wins, never the legacy one just because it happens to run last.
-    migrateStatus.textContent = t('backup.lese_bereits_migrierte_eintraege');
-    const existingItemsSnap = await getDocs(hcol('checklistItems'));
-    const existingItems = new Map(existingItemsSnap.docs.map((d) => [d.id, d.data()]));
-
-    const nowIso = new Date().toISOString();
-    const lists = maintenance.lists;
-    let itemCount = 0;
-    lists.forEach((list) => { itemCount += (list.items || []).length; });
-
-    migrateStatus.textContent = t('backup.migriere_checklisten_eintraege', { length: lists.length, itemCount });
-    const ops = [];
-    lists.forEach((list) => {
-      ops.push((batch) => batch.set(hdoc('checklists', list.id), {
-        name: list.name || '',
-        recipients: list.recipients || [],
-        createdAt: list.createdAt || nowIso,
-        updatedAt: nowIso,
-      }));
-      (list.items || []).forEach((item) => {
-        const existing = existingItems.get(item.id);
-        const legacyCompleted = item.lastCompletedAt || null;
-        const existingCompleted = existing ? (existing.lastCompletedAt || null) : null;
-        let lastCompletedAt = legacyCompleted;
-        if (existingCompleted && (!legacyCompleted || existingCompleted > legacyCompleted)) {
-          lastCompletedAt = existingCompleted;
-        }
-        ops.push((batch) => batch.set(hdoc('checklistItems', item.id), {
-          listId: list.id,
-          text: item.text || '',
-          frequency: item.frequency || '',
-          lastCompletedAt,
-          createdAt: (existing && existing.createdAt) || item.createdAt || nowIso,
-          updatedAt: nowIso,
-        }));
-      });
-    });
-    ops.push((batch) => batch.set(hdoc('config', 'checklistsMigration'), {
-      status: CHECKLISTS_CUTOVER_SHIPPED ? 'cutover' : 'migrated',
-      migratedAt: nowIso,
-      listCount: lists.length,
-      itemCount,
-      cutoverAt: CHECKLISTS_CUTOVER_SHIPPED ? nowIso : null,
-    }));
-    await commitInChunks(ops);
-
-    migrateStatus.textContent = t('backup.migration_abgeschlossen_checklisten_eintraege', { length: lists.length, itemCount });
-    await loadMigrationMarker();
-  } catch (err) {
-    migrateStatus.textContent = t('backup.migration_fehlgeschlagen') + err.message;
-    console.error(err);
-    migrateBtn.disabled = false;
-  }
-}
-
-migrateBtn.addEventListener('click', runChecklistsMigration);
-loadMigrationMarker();
-// Language switch (I18N.md): the status line is rendered once per load.
-window.addEventListener('erdkeller:langchange', () => loadMigrationMarker());
-
-// --- Household move (MULTI_HOUSEHOLD.md step 2, Build 203) ----------------
-// One-time copy of all data from the database root into /households/{id}.
-// The work happens server-side (functions/migrate.js): copy, count check,
-// and only then switch every account over — at which point each device's
-// account listener (js/auth.js) reloads the app into the household.
-const householdBtn = document.getElementById('migrate-household-btn');
-const householdMeta = document.getElementById('migrate-household-meta');
-const householdStatus = document.getElementById('migrate-household-status');
-const migrateToHouseholdFn = httpsCallable(functions, 'migrateToHousehold', { timeout: 560000 });
-
-async function loadHouseholdStatus() {
-  const hid = getHouseholdId();
-  if (!hid) {
-    householdMeta.textContent = t('backup.haushalt_noch_nicht');
-    householdBtn.textContent = t('settings.export.umstellen');
-    householdBtn.disabled = false;
-    return;
-  }
-  householdBtn.textContent = t('backup.abgeschlossen');
-  householdBtn.disabled = true;
-  try {
-    const snap = await getDoc(doc(db, 'households', hid));
-    const at = snap.exists() && snap.data().migratedAt;
-    householdMeta.textContent = at
-      ? t('backup.haushalt_umgestellt_am', { date: new Date(at).toLocaleString(getLocale()) })
-      : t('backup.abgeschlossen');
-  } catch (err) {
-    householdMeta.textContent = t('backup.status_konnte_nicht_geladen_werden');
-    console.error('Haushalts-Status konnte nicht geladen werden', err);
-  }
-}
-
-async function runHouseholdMigration() {
-  if (!navigator.onLine) {
-    householdStatus.textContent = t('backup.haushalt_nur_online');
-    return;
-  }
-  if (!confirm(t('backup.haushalt_confirm'))) return;
-  householdBtn.disabled = true;
-  try {
-    householdStatus.textContent = t('backup.sicherheits_backup_wird_heruntergeladen');
-    const safetyBackup = await buildBackup();
-    download(`erdkeller-vor-haushalt-umstellung-${todayStamp()}.json`, JSON.stringify(safetyBackup, null, 2), 'application/json;charset=utf-8');
-
-    householdStatus.textContent = t('backup.haushalt_kopiere');
-    const { data } = await migrateToHouseholdFn({ lang: getLang(), name: 'Erdkeller' });
-    const docs = (data.collections || []).reduce((sum, c) => sum + (c.copied || 0), 0);
-    householdStatus.textContent = t('backup.haushalt_fertig', { docs, users: data.users || 0 });
-    // The account listener normally reloads the app the moment the new
-    // householdId arrives; this is only the backstop.
-    setTimeout(() => location.reload(), 4000);
-  } catch (err) {
-    console.error(err);
-    householdStatus.textContent = t('backup.haushalt_fehler') + err.message;
-    householdBtn.disabled = false;
-  }
-}
-
-householdBtn.addEventListener('click', runHouseholdMigration);
-// Both status lines depend on which household is signed in (Build 203), so
-// they're (re)loaded once that's known, not only at module load.
-window.addEventListener('erdkeller:signedin', () => {
-  loadMigrationMarker();
-  loadHouseholdStatus();
-});
-window.addEventListener('erdkeller:langchange', () => loadHouseholdStatus());
 
 // --- Import (full-replace JSON restore) -------------------------------
 // Deletes every doc in each collection above and every /config doc, then
