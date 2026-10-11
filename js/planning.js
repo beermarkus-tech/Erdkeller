@@ -7,9 +7,9 @@
 // category picker: which stock counts as water is now a whole Taxonomie
 // type tagged Wasser (js/taxonomy.js), summed globally in the Übersicht
 // (js/dashboard.js) rather than assigned to one hand-picked category here.
-import { db } from './firebase-init.js?v=201';
+import { db, hdoc } from './firebase-init.js?v=202';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=201';
+import { t, getLocale } from './i18n.js?v=202';
 
 const planningCard = document.querySelector('.settings-card[data-target="planning"]');
 const panelEl = document.getElementById('settings-panel-planning');
@@ -55,9 +55,9 @@ function hasWaterType() {
 async function loadAll() {
   try {
     const [taxSnap, householdSnap, planningSnap] = await Promise.all([
-      getDoc(doc(db, 'config', 'taxonomy')),
-      getDoc(doc(db, 'config', 'household')),
-      getDoc(doc(db, 'config', 'planning')),
+      getDoc(hdoc('config', 'taxonomy')),
+      getDoc(hdoc('config', 'household')),
+      getDoc(hdoc('config', 'planning')),
     ]);
     taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
     household = {
@@ -86,7 +86,7 @@ async function saveHousehold() {
   statusEl.textContent = t('planning.speichere');
   try {
     household.updatedAt = new Date().toISOString();
-    await setDoc(doc(db, 'config', 'household'), household);
+    await setDoc(hdoc('config', 'household'), household);
     statusEl.textContent = '';
     // Dashboard/Ziele cache household+planning in memory and only reload
     // on this event — see js/taxonomy.js's saveTaxonomy for the same fix
@@ -106,7 +106,7 @@ async function savePlanning() {
   statusEl.textContent = t('planning.speichere');
   try {
     planning.updatedAt = new Date().toISOString();
-    await setDoc(doc(db, 'config', 'planning'), planning);
+    await setDoc(hdoc('config', 'planning'), planning);
     statusEl.textContent = '';
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {

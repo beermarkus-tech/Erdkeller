@@ -14,11 +14,11 @@
 // replacement wrote (every subsequent write's isAdmin() check re-reads
 // /users/{currentUid}). Roles/names are managed only through Settings →
 // Personen, backup or no backup.
-import { db } from './firebase-init.js?v=201';
+import { db, hcol, hdoc } from './firebase-init.js?v=202';
 import {
   collection, getDocs, doc, getDoc, setDoc, deleteDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=201';
+import { t, getLocale } from './i18n.js?v=202';
 
 const statusEl = document.getElementById('export-status');
 
@@ -90,8 +90,8 @@ async function downloadCsv(btn, section, load) {
 
 stockBtn.addEventListener('click', () => downloadCsv(stockBtn, 'bestand', async () => {
   const [batchesSnap, productsSnap] = await Promise.all([
-    getDocs(collection(db, 'stockItems')),
-    getDocs(collection(db, 'products')),
+    getDocs(hcol('stockItems')),
+    getDocs(hcol('products')),
   ]);
   const productNames = new Map(productsSnap.docs.map((d) => [d.id, d.data().name || '']));
   const rows = batchesSnap.docs.map((d) => d.data());
@@ -123,8 +123,8 @@ checklistsBtn.addEventListener('click', () => downloadCsv(checklistsBtn, 'checkl
   // for the identical read shape; js/checklists.js stopped writing the
   // legacy /config/checklists document in this same build.
   const [listsSnap, itemsSnap] = await Promise.all([
-    getDocs(collection(db, 'checklists')),
-    getDocs(collection(db, 'checklistItems')),
+    getDocs(hcol('checklists')),
+    getDocs(hcol('checklistItems')),
   ]);
   const itemsByListId = new Map();
   itemsSnap.docs.forEach((d) => {
@@ -166,7 +166,7 @@ checklistsBtn.addEventListener('click', () => downloadCsv(checklistsBtn, 'checkl
 // --- Kontakte -----------------------------------------------------------
 
 contactsBtn.addEventListener('click', () => downloadCsv(contactsBtn, 'kontakte', async () => {
-  const snap = await getDocs(collection(db, 'contacts'));
+  const snap = await getDocs(hcol('contacts'));
   const rows = snap.docs.map((d) => d.data());
   const columns = [
     { label: t('backup.name'), get: (r) => r.name },
@@ -182,7 +182,7 @@ contactsBtn.addEventListener('click', () => downloadCsv(contactsBtn, 'kontakte',
 // --- Notizen --------------------------------------------------------------
 
 notesBtn.addEventListener('click', () => downloadCsv(notesBtn, 'notizen', async () => {
-  const snap = await getDocs(collection(db, 'notes'));
+  const snap = await getDocs(hcol('notes'));
   const rows = snap.docs.map((d) => d.data());
   const columns = [
     { label: t('backup.titel'), get: (r) => r.title },
@@ -197,7 +197,7 @@ notesBtn.addEventListener('click', () => downloadCsv(notesBtn, 'notizen', async 
 // --- Rezepte --------------------------------------------------------------
 
 recipesBtn.addEventListener('click', () => downloadCsv(recipesBtn, 'rezepte', async () => {
-  const snap = await getDocs(collection(db, 'recipes'));
+  const snap = await getDocs(hcol('recipes'));
   const rows = snap.docs.map((d) => d.data());
   const columns = [
     { label: t('backup.titel'), get: (r) => r.title },
@@ -241,8 +241,8 @@ const CONFIG_DOCS = [
 // automatic pre-replace safety snapshot below.
 async function buildBackup() {
   const [collectionSnaps, configSnaps] = await Promise.all([
-    Promise.all(COLLECTIONS.map((name) => getDocs(collection(db, name)))),
-    Promise.all(CONFIG_DOCS.map((id) => getDoc(doc(db, 'config', id)))),
+    Promise.all(COLLECTIONS.map((name) => getDocs(hcol(name)))),
+    Promise.all(CONFIG_DOCS.map((id) => getDoc(hdoc('config', id)))),
   ]);
   const backup = { exportedAt: new Date().toISOString() };
   COLLECTIONS.forEach((name, i) => {
@@ -345,7 +345,7 @@ async function commitInChunks(ops) {
 // on the new collections after that point.
 async function loadMigrationMarker() {
   try {
-    const snap = await getDoc(doc(db, 'config', 'checklistsMigration'));
+    const snap = await getDoc(hdoc('config', 'checklistsMigration'));
     if (!snap.exists()) {
       migrateMeta.textContent = t('backup.noch_nicht_ausgefuehrt');
       migrateBtn.textContent = t('backup.migration_starten');
@@ -377,13 +377,13 @@ async function runChecklistsMigration() {
     // triggered some other way (a cached older page, devtools). See the
     // marker-loading comment above for why a post-cutover re-run is
     // actually unsafe, not merely redundant.
-    const markerSnap = await getDoc(doc(db, 'config', 'checklistsMigration'));
+    const markerSnap = await getDoc(hdoc('config', 'checklistsMigration'));
     if (markerSnap.exists() && markerSnap.data().cutoverAt) {
       migrateStatus.textContent = t('backup.migration_bereits_abgeschlossen_keine_erneute');
       return;
     }
 
-    const snap = await getDoc(doc(db, 'config', 'checklists'));
+    const snap = await getDoc(hdoc('config', 'checklists'));
     const maintenance = snap.exists() && Array.isArray(snap.data().lists) ? snap.data() : { lists: [] };
     const validationError = validateChecklistsForMigration(maintenance);
     if (validationError) {
@@ -404,7 +404,7 @@ async function runChecklistsMigration() {
     // Read what's there now so the newer of the two timestamps always
     // wins, never the legacy one just because it happens to run last.
     migrateStatus.textContent = t('backup.lese_bereits_migrierte_eintraege');
-    const existingItemsSnap = await getDocs(collection(db, 'checklistItems'));
+    const existingItemsSnap = await getDocs(hcol('checklistItems'));
     const existingItems = new Map(existingItemsSnap.docs.map((d) => [d.id, d.data()]));
 
     const nowIso = new Date().toISOString();
@@ -415,7 +415,7 @@ async function runChecklistsMigration() {
     migrateStatus.textContent = t('backup.migriere_checklisten_eintraege', { length: lists.length, itemCount });
     const ops = [];
     lists.forEach((list) => {
-      ops.push((batch) => batch.set(doc(db, 'checklists', list.id), {
+      ops.push((batch) => batch.set(hdoc('checklists', list.id), {
         name: list.name || '',
         recipients: list.recipients || [],
         createdAt: list.createdAt || nowIso,
@@ -429,7 +429,7 @@ async function runChecklistsMigration() {
         if (existingCompleted && (!legacyCompleted || existingCompleted > legacyCompleted)) {
           lastCompletedAt = existingCompleted;
         }
-        ops.push((batch) => batch.set(doc(db, 'checklistItems', item.id), {
+        ops.push((batch) => batch.set(hdoc('checklistItems', item.id), {
           listId: list.id,
           text: item.text || '',
           frequency: item.frequency || '',
@@ -439,7 +439,7 @@ async function runChecklistsMigration() {
         }));
       });
     });
-    ops.push((batch) => batch.set(doc(db, 'config', 'checklistsMigration'), {
+    ops.push((batch) => batch.set(hdoc('config', 'checklistsMigration'), {
       status: CHECKLISTS_CUTOVER_SHIPPED ? 'cutover' : 'migrated',
       migratedAt: nowIso,
       listCount: lists.length,
@@ -558,7 +558,7 @@ importConfirmInput.addEventListener('input', () => {
 });
 
 async function replaceCollection(name, backupDocs) {
-  const existingSnap = await getDocs(collection(db, name));
+  const existingSnap = await getDocs(hcol(name));
   const existingDocs = existingSnap.docs;
   for (let i = 0; i < existingDocs.length; i += BATCH_SIZE) {
     const batch = writeBatch(db);
@@ -570,7 +570,7 @@ async function replaceCollection(name, backupDocs) {
     const batch = writeBatch(db);
     docs.slice(i, i + BATCH_SIZE).forEach((docData) => {
       const { id, ...data } = docData;
-      batch.set(doc(db, name, id), data);
+      batch.set(hdoc(name, id), data);
     });
     await batch.commit();
   }
@@ -581,9 +581,9 @@ async function replaceConfig(config) {
   for (const id of CONFIG_DOCS) {
     const value = entries[id];
     if (value == null) {
-      await deleteDoc(doc(db, 'config', id));
+      await deleteDoc(hdoc('config', id));
     } else {
-      await setDoc(doc(db, 'config', id), value);
+      await setDoc(hdoc('config', id), value);
     }
   }
 }

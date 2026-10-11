@@ -22,11 +22,11 @@
 // note with more than one photo just shows photos[0] as its hero until
 // next edited, same as everywhere else in this app that reads a narrowed
 // field defensively instead of needing a migration.
-import { db } from './firebase-init.js?v=201';
+import { db, hcol, hdoc } from './firebase-init.js?v=202';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
+import { t } from './i18n.js?v=202';
 
 const MAX_PHOTO_DIMENSION = 1000;
 const JPEG_QUALITY = 0.6;
@@ -107,7 +107,7 @@ let saveTimer = null;
 
 async function loadNotes() {
   try {
-    const snap = await getDocs(collection(db, 'notes'));
+    const snap = await getDocs(hcol('notes'));
     notes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     loadOk = true;
   } catch (err) {
@@ -367,7 +367,7 @@ function makeNoteCard(note) {
 async function deleteNote(note) {
   if (!confirm(t('notes.wirklich_loeschen', { value: note.title || t('notes.notiz') }))) return;
   try {
-    await deleteDoc(doc(db, 'notes', note.id));
+    await deleteDoc(hdoc('notes', note.id));
     notes = notes.filter((n) => n.id !== note.id);
     renderNotes();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
@@ -388,7 +388,7 @@ async function duplicateNote(note) {
     photos: note.photos || [],
   };
   try {
-    const newDoc = await addDoc(collection(db, 'notes'), { ...data, createdAt: nowIso, updatedAt: nowIso });
+    const newDoc = await addDoc(hcol('notes'), { ...data, createdAt: nowIso, updatedAt: nowIso });
     notes.push({ id: newDoc.id, ...data, createdAt: nowIso, updatedAt: nowIso });
     renderNotes();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
@@ -633,7 +633,7 @@ async function persistNow() {
         setEditStatus(t('notes.gespeichert'));
         return false;
       }
-      await deleteDoc(doc(db, 'notes', editingNoteId));
+      await deleteDoc(hdoc('notes', editingNoteId));
       notes = notes.filter((n) => n.id !== editingNoteId);
       editingNoteId = null;
       renderNotes();
@@ -641,11 +641,11 @@ async function persistNow() {
       return true;
     }
     if (!editingNoteId) {
-      const newDoc = await addDoc(collection(db, 'notes'), { ...data, createdAt: nowIso, updatedAt: nowIso });
+      const newDoc = await addDoc(hcol('notes'), { ...data, createdAt: nowIso, updatedAt: nowIso });
       editingNoteId = newDoc.id;
       notes.push({ id: newDoc.id, ...data, createdAt: nowIso, updatedAt: nowIso });
     } else {
-      await updateDoc(doc(db, 'notes', editingNoteId), { ...data, updatedAt: nowIso });
+      await updateDoc(hdoc('notes', editingNoteId), { ...data, updatedAt: nowIso });
       const idx = notes.findIndex((n) => n.id === editingNoteId);
       if (idx >= 0) notes[idx] = { ...notes[idx], ...data, updatedAt: nowIso };
     }

@@ -1,11 +1,11 @@
-import { db } from './firebase-init.js?v=201';
+import { db, hdoc } from './firebase-init.js?v=202';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
+import { t } from './i18n.js?v=202';
 
 const listEl = document.getElementById('storage-list');
 const addBtn = document.getElementById('add-storage-btn');
 const statusEl = document.getElementById('storage-status');
-const ref = doc(db, 'config', 'storageLocations');
+const ref = () => hdoc('config', 'storageLocations');
 
 let locations = [];
 // Same data-integrity guard as taxonomy.js: never let a save persist
@@ -15,7 +15,7 @@ let loadOk = false;
 
 async function loadStorage() {
   try {
-    const snap = await getDoc(ref);
+    const snap = await getDoc(ref());
     locations = snap.exists() && Array.isArray(snap.data().locations) ? snap.data().locations : [];
     loadOk = true;
   } catch (err) {
@@ -35,7 +35,7 @@ async function saveStorage() {
   }
   statusEl.textContent = t('storageLocations.speichere');
   try {
-    await setDoc(ref, { locations, updatedAt: new Date().toISOString() });
+    await setDoc(ref(), { locations, updatedAt: new Date().toISOString() });
     statusEl.textContent = '';
     // stock-checkin/-checkout/-table cache this list in memory and only
     // reload on this event — same bug class as js/taxonomy.js's

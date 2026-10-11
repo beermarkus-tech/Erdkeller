@@ -19,11 +19,11 @@
 // This file reads /config/household and /config/planning directly so the
 // whole pipeline (Taxonomie → Planung → Ziele) stays in sync with no
 // manual commit anywhere.
-import { db } from './firebase-init.js?v=201';
+import { db, hdoc, hcol } from './firebase-init.js?v=202';
 import {
   doc, getDoc, setDoc, addDoc, collection, getDocs,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=201';
+import { t, getLocale } from './i18n.js?v=202';
 
 const targetsCard = document.querySelector('.settings-card[data-target="targets"]');
 const panelEl = document.getElementById('settings-panel-targets');
@@ -143,11 +143,11 @@ let pendingMode = 'flat';
 async function loadAll() {
   try {
     const [taxSnap, targetsSnap, productsSnap, householdSnap, planningSnap] = await Promise.all([
-      getDoc(doc(db, 'config', 'taxonomy')),
-      getDoc(doc(db, 'config', 'targets')),
-      getDocs(collection(db, 'products')),
-      getDoc(doc(db, 'config', 'household')),
-      getDoc(doc(db, 'config', 'planning')),
+      getDoc(hdoc('config', 'taxonomy')),
+      getDoc(hdoc('config', 'targets')),
+      getDocs(hcol('products')),
+      getDoc(hdoc('config', 'household')),
+      getDoc(hdoc('config', 'planning')),
     ]);
     taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
     const t = targetsSnap.exists() ? targetsSnap.data() : {};
@@ -185,7 +185,7 @@ async function saveTargets() {
   statusEl.textContent = t('targets.speichere');
   try {
     targets.updatedAt = new Date().toISOString();
-    await setDoc(doc(db, 'config', 'targets'), targets);
+    await setDoc(hdoc('config', 'targets'), targets);
     statusEl.textContent = '';
     // js/dashboard.js caches /config/targets in memory (its Kategorien/
     // Wasser gaps and Einkaufsliste both depend on it) and only reloads
@@ -975,7 +975,7 @@ nonfoodNewCreateBtn.addEventListener('click', async () => {
   nonfoodNewCreateBtn.disabled = true;
   try {
     const nowIso = new Date().toISOString();
-    const newDoc = await addDoc(collection(db, 'products'), {
+    const newDoc = await addDoc(hcol('products'), {
       name, subcategoryId, unitType: unit, createdAt: nowIso, updatedAt: nowIso,
     });
     const product = { id: newDoc.id, name, subcategoryId, unitType: unit };
@@ -1027,7 +1027,7 @@ newProductCreateBtn.addEventListener('click', async () => {
   newProductCreateBtn.disabled = true;
   try {
     const nowIso = new Date().toISOString();
-    const newDoc = await addDoc(collection(db, 'products'), {
+    const newDoc = await addDoc(hcol('products'), {
       name, subcategoryId, unitType: newProductUnit, createdAt: nowIso, updatedAt: nowIso,
     });
     const product = { id: newDoc.id, name, subcategoryId, unitType: newProductUnit };

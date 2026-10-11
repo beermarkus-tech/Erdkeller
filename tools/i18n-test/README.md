@@ -28,6 +28,12 @@ SHOTS=/tmp/shots VIEWPORT=phone node tools/i18n-test/run.cjs --dump . --lang en
 node tools/i18n-test/run.cjs --live .
 ```
 
+**Other switches (environment variables):**
+- `HARNESS_USER=<uid>` signs in as another account (no cached identity).
+- `HARNESS_TOUR=signup` runs `tour-signup.cjs`: a stranger's sign-up, the waiting screen, then approval.
+- `HARNESS_HOUSEHOLD=households/h1` runs with all household data under that path, proving every access goes through `hcol()` / `hdoc()`.
+- `--calls` prints the server calls the tour made, plus every Firestore write path.
+
 Playwright is preinstalled in the Claude Code cloud container. If `require('playwright')` fails, set `PW=/opt/node-tools/node_modules/playwright`.
 
 See `I18N.md` for the plan.

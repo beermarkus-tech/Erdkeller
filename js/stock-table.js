@@ -1,11 +1,11 @@
-import { db } from './firebase-init.js?v=201';
-import { PALETTE } from './year-colors.js?v=201';
-import { openAddFlow } from './stock-checkin.js?v=201';
-import { switchTabWithoutReset } from './app-shell.js?v=201';
+import { db, hdoc, hcol } from './firebase-init.js?v=202';
+import { PALETTE } from './year-colors.js?v=202';
+import { openAddFlow } from './stock-checkin.js?v=202';
+import { switchTabWithoutReset } from './app-shell.js?v=202';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
+import { t } from './i18n.js?v=202';
 
 const stocktableCard = document.querySelector('.settings-card[data-target="stocktable"]');
 const settingsPanelStocktable = document.getElementById('settings-panel-stocktable');
@@ -119,12 +119,12 @@ let months = [];
 async function loadConfig() {
   try {
     const [taxSnap, storeSnap, colorSnap, targetsSnap, productsSnap, batchesSnap] = await Promise.all([
-      getDoc(doc(db, 'config', 'taxonomy')),
-      getDoc(doc(db, 'config', 'storageLocations')),
-      getDoc(doc(db, 'config', 'yearColorMap')),
-      getDoc(doc(db, 'config', 'targets')),
-      getDocs(collection(db, 'products')),
-      getDocs(collection(db, 'stockItems')),
+      getDoc(hdoc('config', 'taxonomy')),
+      getDoc(hdoc('config', 'storageLocations')),
+      getDoc(hdoc('config', 'yearColorMap')),
+      getDoc(hdoc('config', 'targets')),
+      getDocs(hcol('products')),
+      getDocs(hcol('stockItems')),
     ]);
     taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
     storageLocations = storeSnap.exists() && Array.isArray(storeSnap.data().locations) ? storeSnap.data().locations : [];
@@ -658,7 +658,7 @@ bulkDeleteBtn.addEventListener('click', async () => {
   const ids = Array.from(selectedIds);
   bulkDeleteBtn.disabled = true;
   try {
-    await Promise.all(ids.map((id) => deleteDoc(doc(db, 'stockItems', id))));
+    await Promise.all(ids.map((id) => deleteDoc(hdoc('stockItems', id))));
     allBatches = allBatches.filter((b) => !selectedIds.has(b.id));
     selectedIds.clear();
     renderRows();
@@ -817,12 +817,12 @@ async function applyCategoryChange(productId) {
   }
 
   const nowIso = new Date().toISOString();
-  await updateDoc(doc(db, 'products', productId), { subcategoryId: newSubcategoryId, updatedAt: nowIso });
+  await updateDoc(hdoc('products', productId), { subcategoryId: newSubcategoryId, updatedAt: nowIso });
   product.subcategoryId = newSubcategoryId;
 
   if (movesToWater && existingTarget) {
     delete targets.products[productId];
-    await setDoc(doc(db, 'config', 'targets'), targets);
+    await setDoc(hdoc('config', 'targets'), targets);
   }
 
   const matchingBatches = allBatches.filter((b) => b.productId === productId);
@@ -835,7 +835,7 @@ async function applyCategoryChange(productId) {
       updatedAt: nowIso,
     };
     const batchWrite = writeBatch(db);
-    matchingBatches.forEach((b) => batchWrite.update(doc(db, 'stockItems', b.id), patch));
+    matchingBatches.forEach((b) => batchWrite.update(hdoc('stockItems', b.id), patch));
     await batchWrite.commit();
     matchingBatches.forEach((b) => {
       const idx = allBatches.findIndex((x) => x.id === b.id);
@@ -855,7 +855,7 @@ editSaveBtn.addEventListener('click', async () => {
     editSaveBtn.disabled = true;
     try {
       if (newName && newName !== productName(editingBatch.productId)) {
-        await updateDoc(doc(db, 'products', editingBatch.productId), { name: newName, updatedAt: new Date().toISOString() });
+        await updateDoc(hdoc('products', editingBatch.productId), { name: newName, updatedAt: new Date().toISOString() });
         const product = productIndex.get(editingBatch.productId);
         if (product) product.name = newName;
       }
@@ -883,14 +883,14 @@ editSaveBtn.addEventListener('click', async () => {
   };
   editSaveBtn.disabled = true;
   try {
-    await updateDoc(doc(db, 'stockItems', editingBatch.id), updated);
+    await updateDoc(hdoc('stockItems', editingBatch.id), updated);
     const idx = allBatches.findIndex((b) => b.id === editingBatch.id);
     if (idx >= 0) allBatches[idx] = { ...allBatches[idx], ...updated };
 
     // Product name lives on /products, not the batch — a rename here is a
     // catalog-wide rename, applying to every batch of this product.
     if (newName && newName !== productName(editingBatch.productId)) {
-      await updateDoc(doc(db, 'products', editingBatch.productId), { name: newName, updatedAt: new Date().toISOString() });
+      await updateDoc(hdoc('products', editingBatch.productId), { name: newName, updatedAt: new Date().toISOString() });
       const product = productIndex.get(editingBatch.productId);
       if (product) product.name = newName;
     }
@@ -921,10 +921,10 @@ editDeleteBtn.addEventListener('click', async () => {
   if (editingBatch.id === null) {
     if (!confirm(t('stockTable.produkt_endgueltig_aus_dem_katalog', { productName: productName(editingBatch.productId) }))) return;
     try {
-      await deleteDoc(doc(db, 'products', editingBatch.productId));
+      await deleteDoc(hdoc('products', editingBatch.productId));
       if (targets.products[editingBatch.productId]) {
         delete targets.products[editingBatch.productId];
-        await setDoc(doc(db, 'config', 'targets'), targets);
+        await setDoc(hdoc('config', 'targets'), targets);
       }
       allProducts = allProducts.filter((p) => p.id !== editingBatch.productId);
       productIndex.delete(editingBatch.productId);
@@ -939,7 +939,7 @@ editDeleteBtn.addEventListener('click', async () => {
 
   if (!confirm(t('stockTable.wirklich_loeschen', { productName: productName(editingBatch.productId) }))) return;
   try {
-    await deleteDoc(doc(db, 'stockItems', editingBatch.id));
+    await deleteDoc(hdoc('stockItems', editingBatch.id));
     allBatches = allBatches.filter((b) => b.id !== editingBatch.id);
     closeEdit();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));

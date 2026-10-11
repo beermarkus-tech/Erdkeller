@@ -1,11 +1,11 @@
-import { db } from './firebase-init.js?v=201';
+import { db, hdoc } from './firebase-init.js?v=202';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
+import { t } from './i18n.js?v=202';
 
 const listEl = document.getElementById('year-color-list');
 const addBtn = document.getElementById('add-year-btn');
 const statusEl = document.getElementById('year-color-status');
-const ref = doc(db, 'config', 'yearColorMap');
+const ref = () => hdoc('config', 'yearColorMap');
 
 // Mirrors the physical colored stickers already used in the cellar
 // (SPEC.md Section 5) — a small fixed palette rather than a free color
@@ -31,7 +31,7 @@ function defaultMap() {
 
 async function loadYearColors() {
   try {
-    const snap = await getDoc(ref);
+    const snap = await getDoc(ref());
     yearColorMap = snap.exists() && snap.data() ? snap.data() : defaultMap();
     if (!('none' in yearColorMap)) yearColorMap.none = 'white';
     loadOk = true;
@@ -53,7 +53,7 @@ async function saveYearColors() {
   statusEl.textContent = t('yearColors.speichere');
   try {
     yearColorMap.updatedAt = new Date().toISOString();
-    await setDoc(ref, yearColorMap);
+    await setDoc(ref(), yearColorMap);
     statusEl.textContent = '';
     // stock-checkin/-checkout/-table cache this map in memory and only
     // reload on this event — same bug class as js/taxonomy.js's

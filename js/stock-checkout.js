@@ -1,12 +1,12 @@
-import { db } from './firebase-init.js?v=201';
-import { PALETTE } from './year-colors.js?v=201';
-import { renderRecentLog } from './stock-log.js?v=201';
-import { renderResultLines } from './format-batch.js?v=201';
+import { db, hdoc, hcol } from './firebase-init.js?v=202';
+import { PALETTE } from './year-colors.js?v=202';
+import { renderRecentLog } from './stock-log.js?v=202';
+import { renderResultLines } from './format-batch.js?v=202';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, setDoc, addDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
-import { setHeader } from './app-shell.js?v=201';
+import { t } from './i18n.js?v=202';
+import { setHeader } from './app-shell.js?v=202';
 
 const stockHomeEl = document.getElementById('stock-home');
 const stockFlowEl = document.getElementById('stock-flow-checkout');
@@ -81,10 +81,10 @@ let undoTimer = null;
 async function loadConfig() {
   try {
     const [taxSnap, productsSnap, batchesSnap, targetsSnap] = await Promise.all([
-      getDoc(doc(db, 'config', 'taxonomy')),
-      getDocs(collection(db, 'products')),
-      getDocs(collection(db, 'stockItems')),
-      getDoc(doc(db, 'config', 'targets')),
+      getDoc(hdoc('config', 'taxonomy')),
+      getDocs(hcol('products')),
+      getDocs(hcol('stockItems')),
+      getDoc(hdoc('config', 'targets')),
     ]);
     taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
     allProducts = productsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -487,7 +487,7 @@ confirmBtn.addEventListener('click', async () => {
   confirmBtn.disabled = true;
   try {
     const batch = selection.batch;
-    const ref = doc(db, 'stockItems', batch.id);
+    const ref = hdoc('stockItems', batch.id);
     const originalData = { ...batch };
     delete originalData.id;
     lastDeletedProduct = null;
@@ -507,7 +507,7 @@ confirmBtn.addEventListener('click', async () => {
       if (!stillStocked && !targets.products[batch.productId]) {
         const product = productIndex.get(batch.productId);
         if (product) {
-          await deleteDoc(doc(db, 'products', batch.productId));
+          await deleteDoc(hdoc('products', batch.productId));
           lastDeletedProduct = { ...product };
           allProducts = allProducts.filter((p) => p.id !== batch.productId);
           productIndex.delete(batch.productId);
@@ -523,7 +523,7 @@ confirmBtn.addEventListener('click', async () => {
     lastCheckoutId = batch.id;
     lastCheckoutOriginal = originalData;
 
-    const logDoc = await addDoc(collection(db, 'stockLog'), {
+    const logDoc = await addDoc(hcol('stockLog'), {
       action: 'out',
       productName: productName(batch.productId),
       quantity: selection.removeQty,
@@ -607,15 +607,15 @@ undoBtn.addEventListener('click', async () => {
   try {
     if (productToRestore) {
       const { id: productId, ...productData } = productToRestore;
-      await setDoc(doc(db, 'products', productId), productData);
+      await setDoc(hdoc('products', productId), productData);
       allProducts.push({ id: productId, ...productData });
       productIndex.set(productId, { id: productId, ...productData });
     }
-    await setDoc(doc(db, 'stockItems', idToRestore), dataToRestore);
+    await setDoc(hdoc('stockItems', idToRestore), dataToRestore);
     const idx = allBatches.findIndex((b) => b.id === idToRestore);
     if (idx >= 0) allBatches[idx] = { id: idToRestore, ...dataToRestore };
     else allBatches.push({ id: idToRestore, ...dataToRestore });
-    if (logIdToDelete) await deleteDoc(doc(db, 'stockLog', logIdToDelete));
+    if (logIdToDelete) await deleteDoc(hdoc('stockLog', logIdToDelete));
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     alert(t('checkout.rueckgaengig_fehlgeschlagen') + err.message);

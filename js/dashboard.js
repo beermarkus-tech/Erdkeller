@@ -22,14 +22,14 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db } from './firebase-init.js?v=201';
+import { db, hdoc, hcol } from './firebase-init.js?v=202';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=201';
-import { openAtSubcategory } from './stock-checkin.js?v=201';
-import { openMaintenanceDue } from './checklists.js?v=201';
-import { t, getLocale } from './i18n.js?v=201';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=202';
+import { openAtSubcategory } from './stock-checkin.js?v=202';
+import { openMaintenanceDue } from './checklists.js?v=202';
+import { t, getLocale } from './i18n.js?v=202';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');
@@ -74,12 +74,12 @@ const openCategoryIds = new Set();
 async function loadAll() {
   try {
     const [taxSnap, targetsSnap, householdSnap, planningSnap, productsSnap, batchesSnap] = await Promise.all([
-      getDoc(doc(db, 'config', 'taxonomy')),
-      getDoc(doc(db, 'config', 'targets')),
-      getDoc(doc(db, 'config', 'household')),
-      getDoc(doc(db, 'config', 'planning')),
-      getDocs(collection(db, 'products')),
-      getDocs(collection(db, 'stockItems')),
+      getDoc(hdoc('config', 'taxonomy')),
+      getDoc(hdoc('config', 'targets')),
+      getDoc(hdoc('config', 'household')),
+      getDoc(hdoc('config', 'planning')),
+      getDocs(hcol('products')),
+      getDocs(hcol('stockItems')),
     ]);
     taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
     const t = targetsSnap.exists() ? targetsSnap.data() : {};
@@ -113,8 +113,8 @@ async function loadAll() {
   // "nothing rendered" fallback — worst case here is just no warning badge.
   try {
     const [itemsSnap, notificationsSnap] = await Promise.all([
-      getDocs(collection(db, 'checklistItems')),
-      getDoc(doc(db, 'config', 'notifications')),
+      getDocs(hcol('checklistItems')),
+      getDoc(hdoc('config', 'notifications')),
     ]);
     checklistItems = itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     notificationsChecklistsCfg = notificationsSnap.exists() ? notificationsSnap.data().checklists : null;

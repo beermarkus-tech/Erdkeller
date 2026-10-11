@@ -1,14 +1,14 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, CACHE_SIZE_UNLIMITED,
-  disableNetwork, enableNetwork,
+  disableNetwork, enableNetwork, collection, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence,
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { firebaseConfig } from './firebase-config.js?v=201';
+import { firebaseConfig } from './firebase-config.js?v=202';
 
 // Step 16b (SPEC.md Section 13.5) — Funkstille/Sync are deliberately
 // per-device localStorage flags (js/verbindung.js owns writing them), not
@@ -45,6 +45,33 @@ export const db = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager(),
   }),
 });
+
+// --- Household-scoped data paths (MULTI_HOUSEHOLD.md, step 1, Build 202) ---
+//
+// Every read/write of HOUSEHOLD data (products, stock, log, checklists,
+// contacts, notes, recipes, config/*) goes through hcol()/hdoc() instead of
+// collection(db, …)/doc(db, …). Today the one household lives at the
+// database root, so the prefix is empty and the paths are exactly the old
+// ones. Step 2 moves each household to /households/{id}/… — then only
+// setHouseholdPath() needs calling (after sign-in), not ~150 call sites.
+// Per-USER data (/users/{uid}, its devices) is not household data and keeps
+// using doc(db, 'users', …) directly.
+//
+// Call these when the reference is needed, never once at module load: the
+// household is only known after sign-in.
+let householdPath = '';
+
+export function setHouseholdPath(path) {
+  householdPath = path || '';
+}
+
+export function hcol(...segments) {
+  return householdPath ? collection(db, householdPath, ...segments) : collection(db, ...segments);
+}
+
+export function hdoc(...segments) {
+  return householdPath ? doc(db, householdPath, ...segments) : doc(db, ...segments);
+}
 // Applied immediately, before any screen loads (SPEC.md Section 13.5) —
 // if this device has Funkstille or Sync turned off, the network should
 // never even be attempted, not briefly enabled and then disabled once the
