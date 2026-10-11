@@ -6,6 +6,33 @@
 
 ---
 
+## 0. Start here next time: to-do list
+
+Everything suggested so far, in order. Tick it off as it gets done.
+
+**Right now (Build 201 follow-up)**
+- [ ] **Markus: deploy Build 201** from Cloud Shell: `cd ~/Erdkeller && git checkout claude/project-onboarding-mdzoen && git pull && cd functions && npm install && cd .. && firebase deploy --only firestore:rules,functions --project erdkeller-cdbb9`. Until this runs, the old rules still let strangers in.
+- [ ] **Markus: open Admin → Personen and remove any account you don't recognise.** Anyone who signed in before the fix is still a full member.
+
+**Before posting on Reddit**
+- [ ] **Clean up the categories and data.** This blocks the starter templates (step 5 in Section 9).
+- [ ] **Answer the open questions in Section 10:** cloud region, dictation for testers, contact address.
+- [ ] **Build steps 1–6 of Section 9.**
+- [ ] **Write a privacy notice and test disclaimer, shown at sign-up and linked in the app** (Section 7).
+- [ ] **Limit AI dictation per household per day** (e.g. 20), or turn it off for test households.
+- [ ] **Add a Google Cloud budget alert** (Billing → Budgets & alerts).
+- [ ] **Enable Cloud Data Access audit logs** for Firestore, so any console look at data is recorded (Section 8).
+- [ ] **Let testers delete their household and their account** themselves (GDPR, and it's fair).
+- [ ] **Build a metadata-only operator page** (Section 8).
+
+**Later (not needed for the test)**
+- [ ] **Imperial units** as a separate setting. Country is the trigger (I18N.md 8.3).
+- [ ] **Real invitation emails** (Firebase "Trigger Email" extension). Until then the admin tells the person to sign in.
+- [ ] **More templates** (e.g. `en-GB`) as testers from other countries appear.
+- [ ] **Conflict-aware import** (SPEC.md 20.2.4) and paid tiers (SPEC.md 20.1), if the test shows interest.
+
+---
+
 ## 1. Today (single household)
 
 - **Data layout.** All data lives in top-level Firestore collections: `/products`, `/stockItems`, `/stockLog`, `/checklists`, `/checklistItems`, `/contacts`, `/notes`, `/recipes`, `/config/*` and `/users`. Every approved account sees all of it.
@@ -24,7 +51,7 @@
 | 2 | One person in several households? | **No.** One person belongs to one household. |
 | 3 | How do family members join? | **By email invitation.** The admin enters a family member's Google email; that person signs in, sees the invitation, accepts, and becomes a member. Anyone who signs in **without** an invitation creates their own new household and is its admin, after an explicit "create household" step rather than silently. |
 | 4 | Starter data | Markus's current category/data structure, **after he cleans it up**. That becomes the German template; a plain translation becomes the English one. |
-| 5 | Ask for the country? | Fine. It's not sensitive data (Section 6). It drives emergency numbers, official guidance and, later, units. |
+| 5 | Ask for the country? | **Yes, confirmed by Markus.** It's not sensitive data (Section 6). Pre-select it from the device language, never from the IP address; the person can change it. It's stored on the household and drives emergency numbers, official guidance and, later, units. |
 | 6 | Close the open sign-up gap first | **Done in Build 201.** |
 
 ## 3. Recommended data model: one Firestore section per household
