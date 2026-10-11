@@ -22,8 +22,20 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require(process.env.PW || 'playwright');
-const FIXTURES = ((raw) => (process.env.HARNESS_HOUSEHOLD
-  ? Object.fromEntries(Object.entries(raw).map(([k, v]) => [k.startsWith('users/') ? k : `${process.env.HARNESS_HOUSEHOLD}/${k}`, v]))
+// HARNESS_HOUSEHOLD=<id> (Build 203) runs the app in household mode: all
+// fixture data moves under /households/<id>/ (users/* stay at the root),
+// every approved account gets householdId <id>, and the app must find its
+// way there by itself from the account — every screen showing the same
+// data then proves no data access bypasses hcol()/hdoc() and that the
+// household is set before any screen loads (MULTI_HOUSEHOLD.md).
+const HH = process.env.HARNESS_HOUSEHOLD || '';
+const FIXTURES = ((raw) => (HH
+  ? Object.fromEntries([
+    [`households/${HH}`, { name: 'Erdkeller', createdBy: 'u-admin', lang: 'de', country: 'DE', timezone: 'Europe/Paris', migratedFromRoot: true, migratedAt: '2026-10-01T10:00:00.000Z' }],
+    ...Object.entries(raw).map(([k, v]) => (k.startsWith('users/')
+      ? [k, v.role === 'pending' ? v : { ...v, householdId: HH }]
+      : [`households/${HH}/${k}`, v])),
+  ])
   : raw))(require('./fixtures.cjs'));
 // HARNESS_TOUR=<name> runs tour-<name>.cjs instead (e.g. signup).
 const TOUR = require(process.env.HARNESS_TOUR ? `./tour-${process.env.HARNESS_TOUR}.cjs` : './tour.cjs');
@@ -37,15 +49,6 @@ function serve(dir) {
       const p = path.join(dir, decodeURIComponent(new URL(req.url, 'http://x').pathname));
       fs.readFile(p, (err, buf) => {
         if (err) { res.writeHead(404); return res.end(); }
-        // HARNESS_HOUSEHOLD=households/h1 serves firebase-init.js with that
-        // household prefix and moves the fixtures under it (users/* stay at
-        // the root): every screen must still show the same data, which
-        // proves no data access bypasses hcol()/hdoc() (MULTI_HOUSEHOLD.md).
-        if (process.env.HARNESS_HOUSEHOLD && p.endsWith('firebase-init.js')) {
-          const patched = buf.toString().replace("let householdPath = '';", `let householdPath = '${process.env.HARNESS_HOUSEHOLD}';`);
-          if (patched === buf.toString()) throw new Error('HARNESS_HOUSEHOLD: householdPath line not found');
-          buf = Buffer.from(patched);
-        }
         res.writeHead(200, { 'content-type': TYPES[path.extname(p)] || 'application/octet-stream' });
         res.end(buf);
       });
@@ -83,7 +86,13 @@ async function runTour(dir, lang, only, fake, afterStep) {
       const fakeEn = Object.fromEntries(Object.entries(de).map(([k, v]) => [k, mark(v)]));
       await ctx.route(/locales\/en\.js/, (r) => r.fulfill({ contentType: 'text/javascript', body: 'export default ' + JSON.stringify(fakeEn) }));
     }
-    await ctx.addInitScript(({ fixtures, lang, user }) => {
+    await ctx.addInitScript(({ fixtures, lang, user, hh }) => {
+      // A tour can simulate server-side writes that survive a reload
+      // (tour-switch.cjs): sessionStorage '__persist__' = { path: fields }.
+      const persisted = JSON.parse(sessionStorage.getItem('__persist__') || '{}');
+      Object.entries(persisted).forEach(([k, v]) => { fixtures[k] = { ...fixtures[k], ...v }; });
+      const reloaded = sessionStorage.getItem('__booted__') === '1';
+      sessionStorage.setItem('__booted__', '1');
       window.__FIXTURES__ = fixtures;
       // Deterministic ids/randomness so two runs produce identical DOM.
       let n = 0;
@@ -118,9 +127,9 @@ async function runTour(dir, lang, only, fake, afterStep) {
       // HARNESS_USER=<uid> signs in as another fixture account (no cached
       // identity, like a first sign-in on a new device); default: the admin.
       if (user) window.__USER__ = { uid: user, displayName: user, photoURL: '' };
-      else localStorage.setItem('erdkeller-last-user', JSON.stringify({ uid: 'u-admin', name: 'Test Admin', photoURL: '', role: 'admin' }));
+      else if (!reloaded) localStorage.setItem('erdkeller-last-user', JSON.stringify({ uid: 'u-admin', name: 'Test Admin', photoURL: '', role: 'admin', ...(hh ? { householdId: hh } : {}) }));
       localStorage.setItem('erdkeller-lang', lang);
-    }, { fixtures: FIXTURES, lang, user: process.env.HARNESS_USER || null });
+    }, { fixtures: FIXTURES, lang, user: process.env.HARNESS_USER || null, hh: HH });
     const page = await ctx.newPage();
     page.on('download', async (d) => {
       if (!process.env.PDF_OUT) return;

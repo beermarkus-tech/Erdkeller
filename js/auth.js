@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-init.js?v=202';
+import { auth, db, setHousehold } from './firebase-init.js?v=203';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -11,7 +11,7 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLang } from './i18n.js?v=202';
+import { t, getLang } from './i18n.js?v=203';
 
 const provider = new GoogleAuthProvider();
 
@@ -101,10 +101,24 @@ function writeCachedIdentity(user, userData) {
       name: (userData && userData.name) || user.displayName || '',
       photoURL: (userData && userData.photoURL) || user.photoURL || '',
       role: (userData && userData.role) || 'member',
+      // Build 203 — needed at boot, before Firestore answers, to know which
+      // household's data to load (offline start included).
+      householdId: (userData && userData.householdId) || null,
     }));
   } catch (err) {
     // A full or unavailable localStorage must never break sign-in.
   }
+}
+
+// Updates just the cached household (Build 203) — written before the
+// reload a household change triggers, so the next boot can't come back up
+// in the old one (and reload again) when Auth is slow to answer.
+function cacheHousehold(householdId) {
+  const cached = readCachedIdentity();
+  if (!cached) return;
+  try {
+    localStorage.setItem(LAST_USER_KEY, JSON.stringify({ ...cached, householdId }));
+  } catch (err) { /* ignore */ }
 }
 
 function clearCachedIdentity() {
@@ -223,7 +237,7 @@ async function ensureUserDoc(user) {
       createdAt: new Date().toISOString(),
       lang: getLang(),
     });
-    return 'pending';
+    return { role: 'pending', householdId: null };
   }
   const data = snap.data();
   const patch = {};
@@ -233,7 +247,7 @@ async function ensureUserDoc(user) {
   // in each recipient's language, read from here.
   if (data.lang !== getLang()) patch.lang = getLang();
   if (Object.keys(patch).length) await updateDoc(ref, patch);
-  return data.role || null;
+  return { role: data.role || null, householdId: data.householdId || null };
 }
 
 // The role currently reflected in the UI, or null while signed out. Used to
@@ -241,6 +255,13 @@ async function ensureUserDoc(user) {
 // out to match the cached one we already rendered from — otherwise every
 // screen in the app would reload its data a second time on every startup.
 let renderedRole = null;
+
+// The household whose data the screens were told to load (Build 203), or
+// undefined before the first erdkeller:signedin. Every screen keeps live
+// listeners on that household's paths, so a change while running (the
+// one-time migration, or an approval) reloads the app rather than trying
+// to re-point dozens of listeners in place.
+let renderedHousehold;
 
 // Waiting for approval (Build 201): the sign-in screen, with an explanation
 // and a sign-out button instead of the Google button. No erdkeller:signedin
@@ -254,6 +275,7 @@ function showPendingGate(pending) {
 
 function renderSignedOut() {
   renderedRole = null;
+  renderedHousehold = undefined;
   paintedIdentity = null;
   showPendingGate(false);
   authGate.classList.remove('hidden');
@@ -308,11 +330,19 @@ window.addEventListener('erdkeller:langchange', () => {
 });
 
 function renderSignedIn(identity) {
+  const household = identity.householdId || null;
+  if (renderedHousehold !== undefined && household !== renderedHousehold) {
+    cacheHousehold(household);
+    location.reload();
+    return;
+  }
   paintSignedIn(identity);
 
   if (renderedRole !== identity.role) {
     renderedRole = identity.role;
     if (identity.role === 'pending') return;
+    renderedHousehold = household;
+    setHousehold(household);
     window.dispatchEvent(new CustomEvent('erdkeller:signedin', { detail: { role: identity.role } }));
   }
 }
@@ -393,7 +423,7 @@ onAuthStateChanged(auth, async (user) => {
     // Skips itself immediately while offline (see its own comment), so
     // this adds no delay at all to the offline cold-start path that
     // Section 13.8 spent three builds getting fast.
-    const verifiedRole = await Promise.race([
+    const verified = await Promise.race([
       ensureUserDoc(user).catch((err) => {
         console.error('Nutzerprofil konnte nicht aktualisiert werden', err);
         return null;
@@ -405,7 +435,11 @@ onAuthStateChanged(auth, async (user) => {
     // brand-new account, which has no cached identity), use it, so a
     // pending account goes straight to the waiting screen instead of
     // briefly getting the app shell under the 'member' fallback above.
-    if (typeof verifiedRole === 'string') signedInIdentity = { ...signedInIdentity, role: verifiedRole };
+    // Build 203 — likewise its household, so the very first data load goes
+    // to the right place even with no cached identity.
+    if (verified && typeof verified.role === 'string') {
+      signedInIdentity = { ...signedInIdentity, role: verified.role, householdId: verified.householdId };
+    }
 
     renderSignedIn(signedInIdentity);
 
@@ -429,12 +463,15 @@ onAuthStateChanged(auth, async (user) => {
         signOut(auth);
         return;
       }
+      // Cache first: if the household changed, renderSignedIn reloads, and
+      // the next boot must already know the new one.
+      writeCachedIdentity(user, data);
       renderSignedIn({
         name: data.name || user.displayName || '',
         photoURL: data.photoURL || user.photoURL || '',
         role: data.role,
+        householdId: data.householdId || null,
       });
-      writeCachedIdentity(user, data);
     }, (err) => {
       // Non-fatal: the app is already rendered by this point. Log only —
       // painting an error onto a screen the user isn't even looking at was

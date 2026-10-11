@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const env = await initializeTestEnvironment({
@@ -28,6 +28,20 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'contacts/c1'), { name: 'Dr. Weber' });
   await setDoc(doc(db, 'stockItems/s1'), { quantity: 1 });
   await setDoc(doc(db, 'config/taxonomy'), { types: [] });
+  // Build 203 — two households under /households/{hid}.
+  await setDoc(doc(db, 'users/hadmin'), { name: 'H1 admin', role: 'admin', householdId: 'h1' });
+  await setDoc(doc(db, 'users/hmember'), { name: 'H1 member', role: 'member', householdId: 'h1' });
+  await setDoc(doc(db, 'users/hremoved'), { name: 'H1 removed', role: 'member', householdId: 'h1', removed: true });
+  await setDoc(doc(db, 'users/oadmin'), { name: 'H2 admin', role: 'admin', householdId: 'h2' });
+  await setDoc(doc(db, 'users/hpending'), { name: 'Waiting', role: 'pending' });
+  await setDoc(doc(db, 'users/hmember/devices/d1'), { token: 't' });
+  await setDoc(doc(db, 'households/h1'), { name: 'One', createdBy: 'hadmin', lang: 'de' });
+  await setDoc(doc(db, 'households/h2'), { name: 'Two', createdBy: 'oadmin', lang: 'en' });
+  for (const h of ['h1', 'h2']) {
+    await setDoc(doc(db, `households/${h}/contacts/c1`), { name: 'Contact ' + h });
+    await setDoc(doc(db, `households/${h}/stockItems/s1`), { quantity: 1 });
+    await setDoc(doc(db, `households/${h}/checklistItems/i1`), { text: 'Task', lastCompletedAt: null });
+  }
 });
 
 const as = (uid) => env.authenticatedContext(uid).firestore();
@@ -77,6 +91,48 @@ await check('admin rejects (removes) a pending user', () => assertSucceeds(updat
 await check('anonymous cannot write diagnostics', () => assertFails(setDoc(doc(anon, 'diagnostics/x'), { a: 1 })));
 await check('anonymous cannot read diagnostics', () => assertFails(getDoc(doc(anon, 'diagnostics/x'))));
 await check('anonymous cannot read contacts', () => assertFails(getDoc(doc(anon, 'contacts/c1'))));
+
+// --- Build 203: households ----------------------------------------------------
+await check('household member reads own household data', () => assertSucceeds(getDoc(doc(as('hmember'), 'households/h1/contacts/c1'))));
+await check('household member reads own household doc', () => assertSucceeds(getDoc(doc(as('hmember'), 'households/h1'))));
+await check('household member cannot read another household', () => assertFails(getDoc(doc(as('hmember'), 'households/h2/contacts/c1'))));
+await check('household member cannot read another household doc', () => assertFails(getDoc(doc(as('hmember'), 'households/h2'))));
+await check('household admin cannot read another household', () => assertFails(getDocs(collection(as('oadmin'), 'households/h1/stockItems'))));
+await check('household admin cannot write another household', () => assertFails(setDoc(doc(as('oadmin'), 'households/h1/contacts/x'), { name: 'X' })));
+await check('migrated member cannot read the old root data', () => assertFails(getDoc(doc(as('hmember'), 'contacts/c1'))));
+await check('migrated member cannot write the old root data', () => assertFails(setDoc(doc(as('hmember'), 'stockItems/s9'), { quantity: 1 })));
+await check('legacy member cannot read household data', () => assertFails(getDoc(doc(as('member'), 'households/h1/contacts/c1'))));
+await check('pending cannot read household data', () => assertFails(getDoc(doc(as('hpending'), 'households/h1/contacts/c1'))));
+await check('removed household member cannot read household data', () => assertFails(getDoc(doc(as('hremoved'), 'households/h1/contacts/c1'))));
+await check('household member writes stock', () => assertSucceeds(setDoc(doc(as('hmember'), 'households/h1/stockItems/s2'), { quantity: 2 })));
+await check('household member cannot write contacts', () => assertFails(setDoc(doc(as('hmember'), 'households/h1/contacts/c2'), { name: 'X' })));
+await check('household admin writes contacts', () => assertSucceeds(setDoc(doc(as('hadmin'), 'households/h1/contacts/c2'), { name: 'X' })));
+await check('household member ticks a checklist item', () => assertSucceeds(updateDoc(doc(as('hmember'), 'households/h1/checklistItems/i1'), { lastCompletedAt: '2026-01-01' })));
+await check('household member cannot rename a checklist item', () => assertFails(updateDoc(doc(as('hmember'), 'households/h1/checklistItems/i1'), { text: 'Y' })));
+await check('nobody creates a household from the client', () => assertFails(setDoc(doc(as('hadmin'), 'households/h3'), { name: 'Three' })));
+await check('household admin renames own household', () => assertSucceeds(updateDoc(doc(as('hadmin'), 'households/h1'), { name: 'Uno' })));
+await check('household admin cannot change createdBy', () => assertFails(updateDoc(doc(as('hadmin'), 'households/h1'), { createdBy: 'x' })));
+await check('household member cannot rename the household', () => assertFails(updateDoc(doc(as('hmember'), 'households/h1'), { name: 'Mine' })));
+await check('household member lists own household roster', () => assertSucceeds(getDocs(query(collection(as('hmember'), 'users'), where('householdId', '==', 'h1')))));
+await check('household member cannot list the whole users collection', () => assertFails(getDocs(collection(as('hmember'), 'users'))));
+await check('household member cannot read another household\'s person', () => assertFails(getDoc(doc(as('hmember'), 'users/oadmin'))));
+await check('household member cannot list another household roster', () => assertFails(getDocs(query(collection(as('hmember'), 'users'), where('householdId', '==', 'h2')))));
+await check('household admin lists pending accounts', () => assertSucceeds(getDocs(query(collection(as('hadmin'), 'users'), where('role', '==', 'pending')))));
+await check('household member cannot list pending accounts', () => assertFails(getDocs(query(collection(as('hmember'), 'users'), where('role', '==', 'pending')))));
+await check('pending cannot self-provision with a household', () => assertFails(setDoc(doc(as('newbie'), 'users/newbie'), { role: 'pending', householdId: 'h1' })));
+await check('member cannot change own household', () => assertFails(updateDoc(doc(as('hmember'), 'users/hmember'), { householdId: 'h2' })));
+await check('member still updates own lang', () => assertSucceeds(updateDoc(doc(as('hmember'), 'users/hmember'), { lang: 'en' })));
+await check('admin cannot strip a member out of the household', () => assertFails(updateDoc(doc(as('hadmin'), 'users/hmember'), { householdId: null })));
+await check('admin cannot move a member to another household', () => assertFails(updateDoc(doc(as('hadmin'), 'users/hmember'), { householdId: 'h2' })));
+await check('other household admin cannot touch a member', () => assertFails(updateDoc(doc(as('oadmin'), 'users/hmember'), { role: 'admin' })));
+await check('admin cannot approve a pending account into another household', () => assertFails(updateDoc(doc(as('hadmin'), 'users/hpending'), { role: 'member', householdId: 'h2' })));
+await check('admin approves a pending account into own household', () => assertSucceeds(updateDoc(doc(as('hadmin'), 'users/hpending'), { role: 'member', householdId: 'h1' })));
+await check('newly approved account reads the household', () => assertSucceeds(getDoc(doc(as('hpending'), 'households/h1/contacts/c1'))));
+await check('other admin no longer sees the approved account', () => assertFails(getDoc(doc(as('oadmin'), 'users/hpending'))));
+await check('household admin reads a member\'s devices', () => assertSucceeds(getDocs(collection(as('hadmin'), 'users/hmember/devices'))));
+await check('other household admin cannot read those devices', () => assertFails(getDocs(collection(as('oadmin'), 'users/hmember/devices'))));
+await check('household member manages own devices', () => assertSucceeds(setDoc(doc(as('hmember'), 'users/hmember/devices/d2'), { token: 'u' })));
+await check('household admin cannot read legacy root config', () => assertFails(getDoc(doc(as('hadmin'), 'config/taxonomy'))));
 
 await env.cleanup();
 console.log(failed ? `\n${failed} rule test(s) FAILED` : '\nall rule tests passed');

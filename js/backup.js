@@ -14,11 +14,12 @@
 // replacement wrote (every subsequent write's isAdmin() check re-reads
 // /users/{currentUid}). Roles/names are managed only through Settings →
 // Personen, backup or no backup.
-import { db, hcol, hdoc } from './firebase-init.js?v=202';
+import { db, hcol, hdoc, functions, getHouseholdId } from './firebase-init.js?v=203';
+import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
 import {
   collection, getDocs, doc, getDoc, setDoc, deleteDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=202';
+import { t, getLocale, getLang } from './i18n.js?v=203';
 
 const statusEl = document.getElementById('export-status');
 
@@ -461,6 +462,73 @@ migrateBtn.addEventListener('click', runChecklistsMigration);
 loadMigrationMarker();
 // Language switch (I18N.md): the status line is rendered once per load.
 window.addEventListener('erdkeller:langchange', () => loadMigrationMarker());
+
+// --- Household move (MULTI_HOUSEHOLD.md step 2, Build 203) ----------------
+// One-time copy of all data from the database root into /households/{id}.
+// The work happens server-side (functions/migrate.js): copy, count check,
+// and only then switch every account over — at which point each device's
+// account listener (js/auth.js) reloads the app into the household.
+const householdBtn = document.getElementById('migrate-household-btn');
+const householdMeta = document.getElementById('migrate-household-meta');
+const householdStatus = document.getElementById('migrate-household-status');
+const migrateToHouseholdFn = httpsCallable(functions, 'migrateToHousehold', { timeout: 560000 });
+
+async function loadHouseholdStatus() {
+  const hid = getHouseholdId();
+  if (!hid) {
+    householdMeta.textContent = t('backup.haushalt_noch_nicht');
+    householdBtn.textContent = t('settings.export.umstellen');
+    householdBtn.disabled = false;
+    return;
+  }
+  householdBtn.textContent = t('backup.abgeschlossen');
+  householdBtn.disabled = true;
+  try {
+    const snap = await getDoc(doc(db, 'households', hid));
+    const at = snap.exists() && snap.data().migratedAt;
+    householdMeta.textContent = at
+      ? t('backup.haushalt_umgestellt_am', { date: new Date(at).toLocaleString(getLocale()) })
+      : t('backup.abgeschlossen');
+  } catch (err) {
+    householdMeta.textContent = t('backup.status_konnte_nicht_geladen_werden');
+    console.error('Haushalts-Status konnte nicht geladen werden', err);
+  }
+}
+
+async function runHouseholdMigration() {
+  if (!navigator.onLine) {
+    householdStatus.textContent = t('backup.haushalt_nur_online');
+    return;
+  }
+  if (!confirm(t('backup.haushalt_confirm'))) return;
+  householdBtn.disabled = true;
+  try {
+    householdStatus.textContent = t('backup.sicherheits_backup_wird_heruntergeladen');
+    const safetyBackup = await buildBackup();
+    download(`erdkeller-vor-haushalt-umstellung-${todayStamp()}.json`, JSON.stringify(safetyBackup, null, 2), 'application/json;charset=utf-8');
+
+    householdStatus.textContent = t('backup.haushalt_kopiere');
+    const { data } = await migrateToHouseholdFn({ lang: getLang(), name: 'Erdkeller' });
+    const docs = (data.collections || []).reduce((sum, c) => sum + (c.copied || 0), 0);
+    householdStatus.textContent = t('backup.haushalt_fertig', { docs, users: data.users || 0 });
+    // The account listener normally reloads the app the moment the new
+    // householdId arrives; this is only the backstop.
+    setTimeout(() => location.reload(), 4000);
+  } catch (err) {
+    console.error(err);
+    householdStatus.textContent = t('backup.haushalt_fehler') + err.message;
+    householdBtn.disabled = false;
+  }
+}
+
+householdBtn.addEventListener('click', runHouseholdMigration);
+// Both status lines depend on which household is signed in (Build 203), so
+// they're (re)loaded once that's known, not only at module load.
+window.addEventListener('erdkeller:signedin', () => {
+  loadMigrationMarker();
+  loadHouseholdStatus();
+});
+window.addEventListener('erdkeller:langchange', () => loadHouseholdStatus());
 
 // --- Import (full-replace JSON restore) -------------------------------
 // Deletes every doc in each collection above and every /config doc, then

@@ -1,10 +1,11 @@
 // Alternate tour (HARNESS_TOUR=signup, with HARNESS_USER=<a uid that has no
 // fixture doc>): a stranger's first sign-in → waiting screen → an admin
-// approves them (simulated by writing role 'member' to their doc) → app.
-const asAdmin = (uid, role) => async (page) => page.evaluate(async ({ uid, role }) => {
+// approves them (simulated by writing role 'member' — and, in household
+// mode, the admin's householdId, as js/people.js does — to their doc) → app.
+const asAdmin = (uid, role) => async (page) => page.evaluate(async ({ uid, role, hh }) => {
   const fb = await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');
-  await fb.updateDoc(fb.doc({}, 'users', uid), { role });
-}, { uid, role });
+  await fb.updateDoc(fb.doc({}, 'users', uid), hh ? { role, householdId: hh } : { role });
+}, { uid, role, hh: process.env.HARNESS_HOUSEHOLD || '' });
 const uid = process.env.HARNESS_USER || 'u-new';
 module.exports = [
   { name: 'signup: first sign-in', run: async () => {} },

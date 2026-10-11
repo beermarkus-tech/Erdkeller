@@ -14,6 +14,13 @@ Everything suggested so far, in order. Tick it off as it gets done.
 - [x] **Markus: deploy Build 201** — done 2026-10-11. from Cloud Shell: `cd ~/Erdkeller && git checkout claude/project-onboarding-mdzoen && git pull && cd functions && npm install && cd .. && firebase deploy --only firestore:rules,functions --project erdkeller-cdbb9`. Until this runs, the old rules still let strangers in.
 - [ ] **Markus: open Admin → Personen and remove any account you don't recognise.** Anyone who signed in before the fix is still a full member.
 
+**Right now (Build 203, step 2): move your data into its own household.** In this order:
+- [ ] **1. Open the app once on every device** (phone, tablet, family devices) so each one runs Build 203 (the tag bottom-left says "Build 203"). An older build would keep writing to the old place after the move and get "permission denied".
+- [ ] **2. Deploy** from Cloud Shell: `cd ~/Erdkeller && git checkout claude/project-onboarding-mdzoen && git pull && cd functions && npm install && cd .. && firebase deploy --only firestore:rules,functions --project erdkeller-cdbb9`. Nothing changes for anyone yet.
+- [ ] **3. Admin → Sicherung → Haushalts-Umstellung → Umstellen.** Pick a quiet moment: nobody editing on other devices, and no device in offline mode with unsynced changes (edits made offline on the old place can't sync after the move). It downloads a safety backup first — keep that file. Then the server copies everything, checks the counts, and only then switches every account over; all devices reload by themselves.
+- [ ] **4. Check** a few screens (stock, checklists, contacts, recipes). The old data stays untouched at the database root as a fallback.
+- [ ] **5. A few weeks later:** delete the old root data (ask Claude for the exact steps then).
+
 **Before posting on Reddit**
 - [ ] **Clean up the categories and data.** This blocks the starter templates (step 5 in Section 9).
 - [x] **Answer the open questions in Section 10:** cloud region, dictation for testers, contact address. Answered 2026-10-11 (Section 10).
@@ -79,6 +86,8 @@ Everything suggested so far, in order. Tick it off as it gets done.
 
 **What it involves:**
 - **One data-access helper.** A `hcol('products')` / `hdoc('config', 'taxonomy')` helper in `firebase-init.js` prefixes the current household's path. That's one mechanical change across about 150 call sites, proven by the i18n harness to change nothing visible.
+**As built in Build 203 (step 2) — one simplification:** since one person belongs to exactly one household, the role and membership stay on `/users/{uid}` (`role`, `removed`, and the new `householdId`) instead of a separate `/households/{hid}/members` collection. The rules check "is `householdId` on my user doc equal to `{hid}`?". Invitations (step 4) will add `/households/{hid}/invites`.
+
 - **Recipients become member uids.** The hardcoded slugs `markus` / `julia` / `sophia` are replaced by member uids in `list.recipients`, the People picker and the reminder server code.
 - **Server per household.** `sendReminders` loops over households, each at its own hour and timezone. `parseDictation` gets `hid`, checks membership, and uses the household's data language.
 - **Migrating Markus's data: copy, don't move.**
@@ -169,7 +178,14 @@ Each step is its own build, with the harness and rules tests.
      - With `HARNESS_HOUSEHOLD=households/h1` (fixtures moved under that prefix, `firebase-init.js` served with it), every screen's text and the generated PDF are identical to the root run.
      - All 22 recorded writes land under `households/h1/…` or `users/…`.
      - This proves no data access bypasses the helper.
-2. **Household model, rules and migration.** `/households`, members, rules (emulator tests), and copying Markus's data in. *Risky step: tag, backup, copy-not-move, fallback.* Needs `firebase deploy`.
+2. **Household model, rules and migration. Built in Build 203** — needs `firebase deploy` and then the one-time move (Section 0).
+   - **Model:** `/households/{hid}` (name, createdAt, createdBy, lang, country, timezone, migratedAt, migratedCounts) and `householdId` on `/users/{uid}`. No `householdId` = the legacy household still at the root.
+   - **Rules (`firestore.rules`):** `isMember(hid)` / `isHouseholdAdmin(hid)`; every collection is mirrored under `/households/{hid}/…` with the same per-collection rules as before. The root blocks call the same helpers with `null`, so the moment an account gets a `householdId` it loses access to the root copy — the old data freezes as a fallback without another rules change. Households are created server-side only; an admin may rename theirs (name/lang/country/timezone only). The roster is per household: you read your household's accounts; admins also see pending ones and approve them *into* their household (role + householdId in one write). Nobody can move an account between households or strip it out of one.
+   - **Migration (`functions/migrate.js`, callable `migrateToHousehold`, admin-only):** remembers the new id first (so a re-run after a crash resumes into the same household), copies every root collection incl. subcollections (not `users`, `diagnostics`), verifies each copied collection's count, and only then creates the household doc and gives every approved/removed account the `householdId`. Pending accounts stay without one. Re-running after success is a no-op. Started from Admin → Sicherung → Haushalts-Umstellung, which downloads a safety backup first.
+   - **Client:** `js/auth.js` takes `householdId` from the account (and caches it, so offline starts know it) and calls `setHousehold()` before any screen loads. If it changes while the app is open (the move, or an approval), the app stores it and reloads once. `js/people.js` lists the household's accounts plus pending ones (two scoped queries) and approval sets `householdId`.
+   - **Server:** `parseDictation` and `previewReminders` use the caller's household; `sendReminders` loops over all households (only the root one while none exists) and resolves recipients only within each household. Hour/timezone are still global until step 3.
+   - **Verified:** 72 rules tests (41 new: isolation between two households, frozen root, roster scoping, approval into a household, devices); 21 migration tests on the emulator (620-doc collection beyond one batch, timestamps, subcollections, copy-not-move, pending untouched, re-run no-op, crash resume); the real Cloud Functions code run against the emulator (legacy preview, member refused, migration, household preview ignoring the frozen root, other household's recipients excluded); harness: 90/90 identical to Build 202 (apart from the new panel), household mode (`HARNESS_HOUSEHOLD=h1`, the app finds the household from the account itself) shows identical text in DE and EN except the move button's status, all writes land in `households/h1/…` or `users/…`, member and sign-up tours identical, live language switch 90/90, and a `switch` tour proves the one-time reload with no loop.
+   - **Known gap until step 4:** admins of *every* household see pending accounts (name, photo) — harmless with one household, but invitations must replace open sign-up before strangers arrive.
 3. **Recipients become member uids.** Includes the server reminders per household (hour, timezone, data language). Needs `firebase deploy`.
 4. **Invitations and onboarding.** Invite by email, accept/decline, and the "create your household" screen.
 5. **Templates.** An "export as template" admin action, the de-DE template from Markus's cleaned-up data, its en-US translation, and `createHousehold`.
