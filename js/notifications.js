@@ -12,12 +12,12 @@
 // whether an item is done-for-the-current-period; functions/index.js's
 // sendReminders is what actually reads the send-time half and dispatches
 // the push.
-import { db } from './firebase-init.js?v=201';
+import { db, hdoc } from './firebase-init.js?v=202';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   permissionState, enableOnThisDevice, refreshIfAlreadyEnabled, listMyDevices, sendTestNotification, previewReminders,
-} from './push.js?v=201';
-import { t, getLocale } from './i18n.js?v=201';
+} from './push.js?v=202';
+import { t, getLocale } from './i18n.js?v=202';
 
 const notificationsCard = document.querySelector('.settings-card[data-target="notifications"]');
 const panelEl = document.getElementById('settings-panel-notifications');
@@ -48,7 +48,7 @@ const testBtn = document.getElementById('notif-test-btn');
 const previewBtn = document.getElementById('notif-preview-btn');
 const previewResultEl = document.getElementById('notif-preview-result');
 
-const notificationsRef = doc(db, 'config', 'notifications');
+const notificationsRef = () => hdoc('config', 'notifications');
 
 // Sensible fallback until the admin configures this the first time —
 // 1st Monday everywhere, 09:00, re-nudge every 3 days. js/checklists.js and
@@ -91,7 +91,7 @@ let loadOk = false;
 
 async function loadAll() {
   try {
-    const snap = await getDoc(notificationsRef);
+    const snap = await getDoc(notificationsRef());
     const data = snap.exists() ? snap.data() : {};
     notifications = { enabled: data.enabled !== false, checklists: mergeChecklists(data.checklists) };
     loadOk = true;
@@ -112,7 +112,7 @@ async function save() {
   }
   try {
     notifications.updatedAt = new Date().toISOString();
-    await setDoc(notificationsRef, notifications);
+    await setDoc(notificationsRef(), notifications);
     statusEl.textContent = '';
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {

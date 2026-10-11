@@ -1,8 +1,8 @@
-import { auth, db } from './firebase-init.js?v=201';
+import { auth, db } from './firebase-init.js?v=202';
 import {
   collection, getDocs, doc, updateDoc, query, where,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=201';
+import { t, getLocale } from './i18n.js?v=202';
 
 const peopleCard = document.querySelector('.settings-card[data-target="people"]');
 const peopleListEl = document.getElementById('people-list');

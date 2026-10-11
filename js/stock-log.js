@@ -1,8 +1,8 @@
-import { db } from './firebase-init.js?v=201';
+import { db, hcol } from './firebase-init.js?v=202';
 import {
   collection, getDocs, query, orderBy, limit, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
+import { t } from './i18n.js?v=202';
 
 function formatLogRow(entry) {
   const icon = entry.action === 'in' ? '⬇' : '⬆';
@@ -20,7 +20,7 @@ function formatLogRow(entry) {
 export async function renderRecentLog(container, count = 15) {
   container.innerHTML = '';
   try {
-    const snap = await getDocs(query(collection(db, 'stockLog'), orderBy('createdAt', 'desc'), limit(count)));
+    const snap = await getDocs(query(hcol('stockLog'), orderBy('createdAt', 'desc'), limit(count)));
     if (snap.empty) {
       const empty = document.createElement('p');
       empty.className = 'screen-placeholder';
@@ -55,7 +55,7 @@ export async function renderRecentLog(container, count = 15) {
 const DELETE_BATCH_SIZE = 450;
 
 export async function deleteAllLogs() {
-  const snap = await getDocs(collection(db, 'stockLog'));
+  const snap = await getDocs(hcol('stockLog'));
   const docs = snap.docs;
   for (let i = 0; i < docs.length; i += DELETE_BATCH_SIZE) {
     const batch = writeBatch(db);

@@ -22,7 +22,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require(process.env.PW || 'playwright');
-const FIXTURES = require('./fixtures.cjs');
+const FIXTURES = ((raw) => (process.env.HARNESS_HOUSEHOLD
+  ? Object.fromEntries(Object.entries(raw).map(([k, v]) => [k.startsWith('users/') ? k : `${process.env.HARNESS_HOUSEHOLD}/${k}`, v]))
+  : raw))(require('./fixtures.cjs'));
 // HARNESS_TOUR=<name> runs tour-<name>.cjs instead (e.g. signup).
 const TOUR = require(process.env.HARNESS_TOUR ? `./tour-${process.env.HARNESS_TOUR}.cjs` : './tour.cjs');
 
@@ -35,6 +37,15 @@ function serve(dir) {
       const p = path.join(dir, decodeURIComponent(new URL(req.url, 'http://x').pathname));
       fs.readFile(p, (err, buf) => {
         if (err) { res.writeHead(404); return res.end(); }
+        // HARNESS_HOUSEHOLD=households/h1 serves firebase-init.js with that
+        // household prefix and moves the fixtures under it (users/* stay at
+        // the root): every screen must still show the same data, which
+        // proves no data access bypasses hcol()/hdoc() (MULTI_HOUSEHOLD.md).
+        if (process.env.HARNESS_HOUSEHOLD && p.endsWith('firebase-init.js')) {
+          const patched = buf.toString().replace("let householdPath = '';", `let householdPath = '${process.env.HARNESS_HOUSEHOLD}';`);
+          if (patched === buf.toString()) throw new Error('HARNESS_HOUSEHOLD: householdPath line not found');
+          buf = Buffer.from(patched);
+        }
         res.writeHead(200, { 'content-type': TYPES[path.extname(p)] || 'application/octet-stream' });
         res.end(buf);
       });
@@ -237,12 +248,12 @@ function firstDiff(a, b) {
     return;
   }
   if (args[0] === '--calls') {
-    // Server calls the client made during the tour, and the language saved
-    // on the signed-in user's doc (Phase 5).
+    // Server calls the client made during the tour, the language saved on
+    // the signed-in user's doc (Phase 5), and every Firestore write path.
     const r = await runTour(path.resolve(args[1]), lang, only, false, async (page) => page.evaluate(async () => {
       const fb = await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');
       const snap = await fb.getDoc(fb.doc({}, 'users', 'u-admin'));
-      return { calls: (window.__CALLS__ || []).map((c) => ({ name: c.name, lang: c.payload && c.payload.lang })), userLang: snap.data().lang, recognizerLang: window.__lastRecognizerLang };
+      return { calls: (window.__CALLS__ || []).map((c) => ({ name: c.name, lang: c.payload && c.payload.lang })), userLang: snap.data().lang, recognizerLang: window.__lastRecognizerLang, writes: (window.__WRITES__ || []).map((w) => w.join(' ')) };
     }));
     const last = r[r.length - 1].extra;
     console.log(JSON.stringify(last, null, 1));

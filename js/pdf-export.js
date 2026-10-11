@@ -10,11 +10,11 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=201';
+import { db, hdoc, hcol } from './firebase-init.js?v=202';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=201';
+import { t, getLocale } from './i18n.js?v=202';
 
 const sectionChecks = document.querySelectorAll('.pdf-section-check');
 const selectAllBtn = document.getElementById('pdf-select-all-btn');
@@ -720,12 +720,12 @@ function unitLabelFor(unit) {
 
 async function loadTargetGraph() {
   const [taxSnap, targetsSnap, householdSnap, planningSnap, productsSnap, batchesSnap] = await Promise.all([
-    getDoc(doc(db, 'config', 'taxonomy')),
-    getDoc(doc(db, 'config', 'targets')),
-    getDoc(doc(db, 'config', 'household')),
-    getDoc(doc(db, 'config', 'planning')),
-    getDocs(collection(db, 'products')),
-    getDocs(collection(db, 'stockItems')),
+    getDoc(hdoc('config', 'taxonomy')),
+    getDoc(hdoc('config', 'targets')),
+    getDoc(hdoc('config', 'household')),
+    getDoc(hdoc('config', 'planning')),
+    getDocs(hcol('products')),
+    getDocs(hcol('stockItems')),
   ]);
   const taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
   const t = targetsSnap.exists() ? targetsSnap.data() : {};
@@ -987,9 +987,9 @@ async function buildStockSection(pdf) {
   y = heading(pdf, y, t('pdf.bestand'));
 
   const [batchesSnap, productsSnap, taxSnap] = await Promise.all([
-    getDocs(collection(db, 'stockItems')),
-    getDocs(collection(db, 'products')),
-    getDoc(doc(db, 'config', 'taxonomy')),
+    getDocs(hcol('stockItems')),
+    getDocs(hcol('products')),
+    getDoc(hdoc('config', 'taxonomy')),
   ]);
   const products = new Map(productsSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
   const taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
@@ -1077,8 +1077,8 @@ async function buildMaintenanceSection(pdf) {
   // legacy /config/checklists document in this same build, so reading it
   // here would silently go stale from this point on.
   const [listsSnap, itemsSnap] = await Promise.all([
-    getDocs(collection(db, 'checklists')),
-    getDocs(collection(db, 'checklistItems')),
+    getDocs(hcol('checklists')),
+    getDocs(hcol('checklistItems')),
   ]);
   if (listsSnap.empty) {
     bodyText(pdf, y, t('pdf.keine_checklisten_vorhanden'));
@@ -1115,7 +1115,7 @@ async function buildCrisisSection(pdf) {
   let y = MARGIN;
   y = heading(pdf, y, t('pdf.checkliste_krise'));
 
-  const snap = await getDoc(doc(db, 'config', 'crisisTypes'));
+  const snap = await getDoc(hdoc('config', 'crisisTypes'));
   const types = snap.exists() && Array.isArray(snap.data().types) ? snap.data().types : [];
   if (types.length === 0) {
     bodyText(pdf, y, t('pdf.keine_krisentypen_vorhanden'));
@@ -1137,7 +1137,7 @@ async function buildContactsSection(pdf) {
   let y = MARGIN;
   y = heading(pdf, y, t('pdf.kontakte'));
 
-  const snap = await getDocs(collection(db, 'contacts'));
+  const snap = await getDocs(hcol('contacts'));
   const all = snap.docs.map((d) => d.data());
   const emergency = all.filter((c) => c.isEmergency).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const general = all.filter((c) => !c.isEmergency).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -1174,7 +1174,7 @@ async function buildNotesSection(pdf) {
   let y = MARGIN;
   y = heading(pdf, y, t('pdf.notizen_2'));
 
-  const snap = await getDocs(collection(db, 'notes'));
+  const snap = await getDocs(hcol('notes'));
   const notes = snap.docs.map((d) => d.data());
   if (notes.length === 0) {
     bodyText(pdf, y, t('pdf.keine_notizen_vorhanden'));
@@ -1193,7 +1193,7 @@ async function buildRecipesSection(pdf) {
   let y = MARGIN;
   y = heading(pdf, y, t('pdf.rezepte'));
 
-  const snap = await getDocs(collection(db, 'recipes'));
+  const snap = await getDocs(hcol('recipes'));
   const recipes = snap.docs.map((d) => d.data());
   if (recipes.length === 0) {
     bodyText(pdf, y, t('pdf.keine_rezepte_vorhanden'));

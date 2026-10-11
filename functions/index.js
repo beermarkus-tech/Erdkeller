@@ -20,6 +20,13 @@ const { getMessaging } = require('firebase-admin/messaging');
 
 initializeApp();
 const db = getFirestore();
+
+// Household-scoped paths (MULTI_HOUSEHOLD.md, step 1, Build 202) — mirrors
+// hcol()/hdoc() in js/firebase-init.js. The one household lives at the
+// database root today, so this returns the path unchanged; step 3 makes it
+// per household (/households/{id}/…). Per-user paths (users/…) don't use it.
+const HOUSEHOLD_PATH = '';
+const hpath = (path) => (HOUSEHOLD_PATH ? `${HOUSEHOLD_PATH}/${path}` : path);
 const messaging = getMessaging();
 
 // Set via: firebase functions:secrets:set ANTHROPIC_API_KEY
@@ -240,8 +247,8 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
   }
 
   const [taxSnap, productsSnap] = await Promise.all([
-    db.doc('config/taxonomy').get(),
-    db.collection('products').get(),
+    db.doc(hpath('config/taxonomy')).get(),
+    db.collection(hpath('products')).get(),
   ]);
   const taxonomy = taxSnap.exists && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
   const products = productsSnap.docs.map((d) => {
@@ -255,7 +262,7 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
     // Only text-dictation lines can be "out" (a photo just shows what's
     // physically present), so the current-stock batch context is only
     // ever needed here.
-    const batchesSnap = await db.collection('stockItems').get();
+    const batchesSnap = await db.collection(hpath('stockItems')).get();
     const batches = batchesSnap.docs.map((d) => {
       const b = d.data();
       return {
@@ -556,12 +563,12 @@ function isItemDoneThisPeriod(item, frequency, cfg, nowParts) {
 // function at all — only Firestore rules (see firestore.rules) keep it
 // legally writable in the meantime.
 async function loadMaintenance() {
-  const listsSnap = await db.collection('checklists').get();
+  const listsSnap = await db.collection(hpath('checklists')).get();
   if (listsSnap.empty) {
-    const maintSnap = await db.doc('config/checklists').get();
+    const maintSnap = await db.doc(hpath('config/checklists')).get();
     return maintSnap.exists && Array.isArray(maintSnap.data().lists) ? maintSnap.data() : { lists: [] };
   }
-  const itemsSnap = await db.collection('checklistItems').get();
+  const itemsSnap = await db.collection(hpath('checklistItems')).get();
   const itemsByList = new Map();
   itemsSnap.docs.forEach((d) => {
     const data = d.data();
@@ -683,8 +690,8 @@ async function sendToTokens(tokenEntries, title, body, data) {
 // right Paris-local hour.
 exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: CHECKLIST_TZ }, async () => {
   const [notifSnap, stateSnap] = await Promise.all([
-    db.doc('config/notifications').get(),
-    db.doc('config/notificationState').get(),
+    db.doc(hpath('config/notifications')).get(),
+    db.doc(hpath('config/notificationState')).get(),
   ]);
 
   const notifications = notifSnap.exists ? notifSnap.data() : {};
@@ -749,7 +756,7 @@ exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: CHECKL
   }
 
   if (Object.keys(stateUpdates).length) {
-    await db.doc('config/notificationState').set(stateUpdates, { merge: true });
+    await db.doc(hpath('config/notificationState')).set(stateUpdates, { merge: true });
   }
 });
 
@@ -769,8 +776,8 @@ exports.previewReminders = onCall(async (request) => {
   const slugLangs = Object.fromEntries(await Promise.all(RECIPIENT_SLUGS.map(async (slug) => [slug, await slugLang(slug)])));
 
   const [notifSnap, stateSnap, maintenance] = await Promise.all([
-    db.doc('config/notifications').get(),
-    db.doc('config/notificationState').get(),
+    db.doc(hpath('config/notifications')).get(),
+    db.doc(hpath('config/notificationState')).get(),
     loadMaintenance(),
   ]);
   const notifications = notifSnap.exists ? notifSnap.data() : {};

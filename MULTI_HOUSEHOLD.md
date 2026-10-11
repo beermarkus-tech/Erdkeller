@@ -160,7 +160,15 @@ Everything suggested so far, in order. Tick it off as it gets done.
 Each step is its own build, with the harness and rules tests.
 
 0. **Build 201 (done): approval for new accounts.** This closes the open sign-up gap.
-1. **Data-access helper (`hcol` / `hdoc`).** A pure refactor that still points at today's top-level paths; no visible change.
+1. **Data-access helper (`hcol` / `hdoc`). Done in Build 202.** A pure refactor that still points at today's top-level paths; no visible change.
+   - **Client:** `js/firebase-init.js` exports `hcol(...)`, `hdoc(...)` and `setHouseholdPath(path)`; the path is empty today. All 166 household data accesses in `js/` use them. Only per-user data (`/users/{uid}`, its `devices`) still calls `doc(db, 'users', …)` directly.
+   - **Load-time references** are now functions, built when used: `crisisRef()`, `notificationsRef()` and `notificationStateRef()` (`checklists.js`), `notificationsRef()` (`notifications.js`, `verbindung.js`), and `ref()` (`storage-locations.js`, `taxonomy.js`, `year-colors.js`).
+   - **Server:** `functions/index.js` routes its 11 household paths through `hpath()`, with `HOUSEHOLD_PATH = ''`. Behaviour is identical, so no deploy was needed; the next server deploy simply includes it.
+   - **Verified:**
+     - German is identical to Build 201 on all 90 harness steps.
+     - With `HARNESS_HOUSEHOLD=households/h1` (fixtures moved under that prefix, `firebase-init.js` served with it), every screen's text and the generated PDF are identical to the root run.
+     - All 22 recorded writes land under `households/h1/…` or `users/…`.
+     - This proves no data access bypasses the helper.
 2. **Household model, rules and migration.** `/households`, members, rules (emulator tests), and copying Markus's data in. *Risky step: tag, backup, copy-not-move, fallback.* Needs `firebase deploy`.
 3. **Recipients become member uids.** Includes the server reminders per household (hour, timezone, data language). Needs `firebase deploy`.
 4. **Invitations and onboarding.** Invite by email, accept/decline, and the "create your household" screen.

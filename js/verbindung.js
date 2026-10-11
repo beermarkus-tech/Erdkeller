@@ -23,11 +23,11 @@
 // same lazy-load-on-shown convention already used everywhere else in
 // Settings, not a live listener, since the two are tabs in one screen and
 // only one is ever visible at a time.
-import { db } from './firebase-init.js?v=201';
+import { db, hdoc } from './firebase-init.js?v=202';
 import {
   doc, getDoc, updateDoc, disableNetwork, enableNetwork,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
+import { t } from './i18n.js?v=202';
 
 const panelEl = document.getElementById('settings-panel-notifications');
 const verbindungTabEl = document.querySelector('.reminders-tab[data-reminders-tab-panel="verbindung"]');
@@ -38,7 +38,7 @@ const syncToggle = document.getElementById('verbindung-sync-toggle');
 const aiToggle = document.getElementById('verbindung-ai-toggle');
 const remindersToggle = document.getElementById('verbindung-reminders-toggle');
 const statusEl = document.getElementById('verbindung-status');
-const notificationsRef = doc(db, 'config', 'notifications');
+const notificationsRef = () => hdoc('config', 'notifications');
 
 const FUNKSTILLE_KEY = 'erdkeller-funkstille';
 const SYNC_KEY = 'erdkeller-sync-enabled';
@@ -134,7 +134,7 @@ remindersToggle.addEventListener('change', async () => {
   const enabled = remindersToggle.checked;
   statusEl.textContent = '';
   try {
-    await updateDoc(notificationsRef, { enabled, updatedAt: new Date().toISOString() });
+    await updateDoc(notificationsRef(), { enabled, updatedAt: new Date().toISOString() });
     lastKnownRemindersEnabled = enabled;
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
@@ -155,7 +155,7 @@ async function loadPanel() {
 
   statusEl.textContent = '';
   try {
-    const snap = await getDoc(notificationsRef);
+    const snap = await getDoc(notificationsRef());
     lastKnownRemindersEnabled = !snap.exists() || snap.data().enabled !== false;
     applySuboptionsGreyedOut();
   } catch (err) {

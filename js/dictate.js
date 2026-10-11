@@ -15,12 +15,12 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions } from './firebase-init.js?v=201';
+import { db, functions, hdoc, hcol } from './firebase-init.js?v=202';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { t, getLang, getLocale } from './i18n.js?v=201';
+import { t, getLang, getLocale } from './i18n.js?v=202';
 
 const startBtn = document.getElementById('start-dictate-btn');
 const modal = document.getElementById('dictate-modal');
@@ -86,12 +86,12 @@ function buildSubcategoryIndex() {
 async function loadConfig() {
   try {
     const [taxSnap, productsSnap, storeSnap, colorSnap, batchesSnap, targetsSnap] = await Promise.all([
-      getDoc(doc(db, 'config', 'taxonomy')),
-      getDocs(collection(db, 'products')),
-      getDoc(doc(db, 'config', 'storageLocations')),
-      getDoc(doc(db, 'config', 'yearColorMap')),
-      getDocs(collection(db, 'stockItems')),
-      getDoc(doc(db, 'config', 'targets')),
+      getDoc(hdoc('config', 'taxonomy')),
+      getDocs(hcol('products')),
+      getDoc(hdoc('config', 'storageLocations')),
+      getDoc(hdoc('config', 'yearColorMap')),
+      getDocs(hcol('stockItems')),
+      getDoc(hdoc('config', 'targets')),
     ]);
     taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
     allProducts = productsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -771,12 +771,12 @@ function appendErrorBubble(message, retry, debugDetail) {
 
 async function undoTurn(records) {
   for (const rec of records) {
-    await setDoc(doc(db, 'stockItems', rec.batchId), rec.originalBatch);
+    await setDoc(hdoc('stockItems', rec.batchId), rec.originalBatch);
     if (rec.deletedProduct) {
       const { id, ...productData } = rec.deletedProduct;
-      await setDoc(doc(db, 'products', id), productData);
+      await setDoc(hdoc('products', id), productData);
     }
-    await deleteDoc(doc(db, 'stockLog', rec.stockLogId));
+    await deleteDoc(hdoc('stockLog', rec.stockLogId));
   }
   window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
 }
@@ -1239,7 +1239,7 @@ async function registerLines(lines) {
       }
       const removeQty = clampQty(line.removeQty, batch.quantity);
 
-      const ref = doc(db, 'stockItems', batch.id);
+      const ref = hdoc('stockItems', batch.id);
       const originalBatch = { ...batch };
       delete originalBatch.id;
       let deletedProduct = null;
@@ -1253,7 +1253,7 @@ async function registerLines(lines) {
         if (!stillStocked && !targets.products[batch.productId]) {
           const product = productIndex.get(batch.productId);
           if (product) {
-            await deleteDoc(doc(db, 'products', batch.productId));
+            await deleteDoc(hdoc('products', batch.productId));
             deletedProduct = { ...product };
             allProducts = allProducts.filter((p) => p.id !== batch.productId);
             productIndex.delete(batch.productId);
@@ -1268,7 +1268,7 @@ async function registerLines(lines) {
         if (idx >= 0) allBatches[idx] = withId;
       }
 
-      const logDoc = await addDoc(collection(db, 'stockLog'), {
+      const logDoc = await addDoc(hcol('stockLog'), {
         action: 'out',
         productName: line.name,
         quantity: removeQty,
@@ -1305,7 +1305,7 @@ async function registerLines(lines) {
           newProductIds.set(dedupeKey, productId);
         } else {
           const nowIso = new Date().toISOString();
-          const newDoc = await addDoc(collection(db, 'products'), {
+          const newDoc = await addDoc(hcol('products'), {
             name: line.name.trim(),
             subcategoryId: line.subcategoryId,
             unitType: line.unitType,
@@ -1348,8 +1348,8 @@ async function registerLines(lines) {
       updatedAt: nowIso,
     };
 
-    await addDoc(collection(db, 'stockItems'), data);
-    await addDoc(collection(db, 'stockLog'), {
+    await addDoc(hcol('stockItems'), data);
+    await addDoc(hcol('stockLog'), {
       action: 'in',
       productName: line.name,
       quantity: data.quantity,

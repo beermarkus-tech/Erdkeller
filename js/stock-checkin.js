@@ -1,11 +1,11 @@
-import { db } from './firebase-init.js?v=201';
-import { renderRecentLog } from './stock-log.js?v=201';
-import { renderResultLines } from './format-batch.js?v=201';
-import { switchTabWithoutReset, setHeader } from './app-shell.js?v=201';
+import { db, hdoc, hcol } from './firebase-init.js?v=202';
+import { renderRecentLog } from './stock-log.js?v=202';
+import { renderResultLines } from './format-batch.js?v=202';
+import { switchTabWithoutReset, setHeader } from './app-shell.js?v=202';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
+import { t } from './i18n.js?v=202';
 
 const stockHomeEl = document.getElementById('stock-home');
 const stockFlowEl = document.getElementById('stock-flow');
@@ -120,10 +120,10 @@ function isCurrentUnitFractional() {
 async function loadConfig() {
   try {
     const [taxSnap, storeSnap, colorSnap, productsSnap] = await Promise.all([
-      getDoc(doc(db, 'config', 'taxonomy')),
-      getDoc(doc(db, 'config', 'storageLocations')),
-      getDoc(doc(db, 'config', 'yearColorMap')),
-      getDocs(collection(db, 'products')),
+      getDoc(hdoc('config', 'taxonomy')),
+      getDoc(hdoc('config', 'storageLocations')),
+      getDoc(hdoc('config', 'yearColorMap')),
+      getDocs(hcol('products')),
     ]);
     taxonomy = taxSnap.exists() && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
     storageLocations = storeSnap.exists() && Array.isArray(storeSnap.data().locations) ? storeSnap.data().locations : [];
@@ -672,7 +672,7 @@ checkinConfirmBtn.addEventListener('click', async () => {
     let productId = selection.product.id;
     if (selection.isNewProduct) {
       const nowIso = new Date().toISOString();
-      const newDoc = await addDoc(collection(db, 'products'), {
+      const newDoc = await addDoc(hcol('products'), {
         name: selection.product.name,
         subcategoryId: selection.product.subcategoryId,
         unitType: selection.product.unitType,
@@ -701,10 +701,10 @@ checkinConfirmBtn.addEventListener('click', async () => {
       updatedAt: nowIso,
     };
 
-    const stockDoc = await addDoc(collection(db, 'stockItems'), data);
+    const stockDoc = await addDoc(hcol('stockItems'), data);
     lastCheckInId = stockDoc.id;
 
-    const logDoc = await addDoc(collection(db, 'stockLog'), {
+    const logDoc = await addDoc(hcol('stockLog'), {
       action: 'in',
       productName: selection.product.name,
       quantity: data.quantity,
@@ -792,8 +792,8 @@ undoBtn.addEventListener('click', async () => {
   lastLogId = null;
   hideUndoToast();
   try {
-    await deleteDoc(doc(db, 'stockItems', idToDelete));
-    if (logIdToDelete) await deleteDoc(doc(db, 'stockLog', logIdToDelete));
+    await deleteDoc(hdoc('stockItems', idToDelete));
+    if (logIdToDelete) await deleteDoc(hdoc('stockLog', logIdToDelete));
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     alert(t('checkin.rueckgaengig_fehlgeschlagen') + err.message);

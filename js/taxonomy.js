@@ -1,13 +1,13 @@
-import { db } from './firebase-init.js?v=201';
+import { db, hdoc } from './firebase-init.js?v=202';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
+import { t } from './i18n.js?v=202';
 
 const editorEl = document.getElementById('taxonomy-editor');
 const addTypeBtn = document.getElementById('add-type-btn');
 const expandAllBtn = document.getElementById('expand-all-btn');
 const collapseAllBtn = document.getElementById('collapse-all-btn');
 const statusEl = document.getElementById('taxonomy-status');
-const ref = doc(db, 'config', 'taxonomy');
+const ref = () => hdoc('config', 'taxonomy');
 
 let taxonomy = { types: [] };
 const openTypes = new Set(); // UI-only expand/collapse state, not persisted
@@ -121,7 +121,7 @@ function focusNewName(id) {
 
 async function loadTaxonomy() {
   try {
-    const snap = await getDoc(ref);
+    const snap = await getDoc(ref());
     taxonomy = snap.exists() && Array.isArray(snap.data().types) ? snap.data() : { types: [] };
     loadOk = true;
   } catch (err) {
@@ -146,7 +146,7 @@ async function saveTaxonomy() {
   statusEl.textContent = t('taxonomy.speichere');
   try {
     taxonomy.updatedAt = new Date().toISOString();
-    await setDoc(ref, taxonomy);
+    await setDoc(ref(), taxonomy);
     statusEl.textContent = '';
     // Every other module that reads taxonomy (Ziele, Planung, Übersicht,
     // the Bestand type/category/subcategory tile grids) caches it in

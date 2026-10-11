@@ -61,11 +61,11 @@
 // or triggers a render — never a manual optimistic flip in the same tick,
 // which would be a second writer to the same state and risk a visible
 // flicker if a slightly-lagged snapshot event arrived after it.
-import { db } from './firebase-init.js?v=201';
+import { db, hdoc, hcol } from './firebase-init.js?v=202';
 import {
   collection, doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
+import { t } from './i18n.js?v=202';
 
 // --- DOM refs: main screen ------------------------------------------------
 //
@@ -105,15 +105,15 @@ const crisisEditorEl = document.getElementById('crisis-editor');
 const addCrisisTypeBtn = document.getElementById('add-crisis-type-btn');
 const statusEl = document.getElementById('checklists-status');
 
-const crisisRef = doc(db, 'config', 'crisisTypes');
-const notificationsRef = doc(db, 'config', 'notifications');
+const crisisRef = () => hdoc('config', 'crisisTypes');
+const notificationsRef = () => hdoc('config', 'notifications');
 // Step 17 — send-tracking + per-period dismissal, written by both
 // functions/index.js's sendReminders AND this file's own dismissPeriod()
 // below. Deliberately its own doc, not a key inside notificationsRef above
 // — that one is saved wholesale from an in-memory object by its own
 // screen, so any field written there by something else would be silently
 // clobbered on the next unrelated save.
-const notificationStateRef = doc(db, 'config', 'notificationState');
+const notificationStateRef = () => hdoc('config', 'notificationState');
 
 const RECIPIENT_OPTIONS = [
   { id: 'markus', label: 'Markus' },
@@ -255,7 +255,7 @@ function subscribeChecklists() {
     // and it only re-renders the badge, not the whole dashboard.
     window.dispatchEvent(new CustomEvent('erdkeller:checklistitems', { detail: { items: [...itemsById.values()] } }));
   };
-  onSnapshot(collection(db, 'checklists'), (snap) => {
+  onSnapshot(hcol('checklists'), (snap) => {
     snap.docChanges().forEach((change) => {
       if (change.type === 'removed') listsById.delete(change.doc.id);
       else listsById.set(change.doc.id, { id: change.doc.id, ...change.doc.data() });
@@ -266,7 +266,7 @@ function subscribeChecklists() {
     statusEl.textContent = t('checklists.fehler_beim_laden_der_checklisten') + err.message;
     console.error(err);
   });
-  onSnapshot(collection(db, 'checklistItems'), (snap) => {
+  onSnapshot(hcol('checklistItems'), (snap) => {
     snap.docChanges().forEach((change) => {
       if (change.type === 'removed') itemsById.delete(change.doc.id);
       else itemsById.set(change.doc.id, { id: change.doc.id, ...change.doc.data() });
@@ -293,7 +293,7 @@ function subscribeChecklists() {
 
 async function saveList(list, patch) {
   try {
-    await updateDoc(doc(db, 'checklists', list.id), { ...patch, updatedAt: new Date().toISOString() });
+    await updateDoc(hdoc('checklists', list.id), { ...patch, updatedAt: new Date().toISOString() });
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     statusEl.textContent = t('checklists.fehler_beim_speichern') + err.message;
@@ -304,7 +304,7 @@ async function saveList(list, patch) {
 async function createList() {
   const nowIso = new Date().toISOString();
   try {
-    await setDoc(doc(db, 'checklists', genId()), {
+    await setDoc(hdoc('checklists', genId()), {
       name: t('checklists.neue_checkliste'), recipients: ['markus'], createdAt: nowIso, updatedAt: nowIso,
     });
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
@@ -317,8 +317,8 @@ async function createList() {
 async function deleteList(list) {
   try {
     const batch = writeBatch(db);
-    batch.delete(doc(db, 'checklists', list.id));
-    (list.items || []).forEach((item) => batch.delete(doc(db, 'checklistItems', item.id)));
+    batch.delete(hdoc('checklists', list.id));
+    (list.items || []).forEach((item) => batch.delete(hdoc('checklistItems', item.id)));
     await batch.commit();
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
@@ -329,7 +329,7 @@ async function deleteList(list) {
 
 async function saveItem(item, patch) {
   try {
-    await updateDoc(doc(db, 'checklistItems', item.id), { ...patch, updatedAt: new Date().toISOString() });
+    await updateDoc(hdoc('checklistItems', item.id), { ...patch, updatedAt: new Date().toISOString() });
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     statusEl.textContent = t('checklists.fehler_beim_speichern') + err.message;
@@ -341,7 +341,7 @@ async function createItem(list) {
   const nowIso = new Date().toISOString();
   const id = genId();
   try {
-    await setDoc(doc(db, 'checklistItems', id), {
+    await setDoc(hdoc('checklistItems', id), {
       listId: list.id, text: t('checklists.neuer_eintrag'), frequency: 'yearly', lastCompletedAt: null, createdAt: nowIso, updatedAt: nowIso,
     });
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
@@ -355,7 +355,7 @@ async function createItem(list) {
 
 async function deleteItem(item) {
   try {
-    await deleteDoc(doc(db, 'checklistItems', item.id));
+    await deleteDoc(hdoc('checklistItems', item.id));
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
     statusEl.textContent = t('checklists.fehler_beim_loeschen') + err.message;
@@ -377,7 +377,7 @@ async function saveCrisis() {
   }
   try {
     crisis.updatedAt = new Date().toISOString();
-    await setDoc(crisisRef, crisis);
+    await setDoc(crisisRef(), crisis);
     statusEl.textContent = '';
     window.dispatchEvent(new CustomEvent('erdkeller:refresh'));
   } catch (err) {
@@ -398,7 +398,7 @@ async function saveCrisis() {
 async function loadRest() {
   try {
     const [cSnap, nSnap, nsSnap] = await Promise.all([
-      getDoc(crisisRef), getDoc(notificationsRef), getDoc(notificationStateRef),
+      getDoc(crisisRef()), getDoc(notificationsRef()), getDoc(notificationStateRef()),
     ]);
     crisis = cSnap.exists() && Array.isArray(cSnap.data().types) ? cSnap.data() : { types: [] };
     notifications = nSnap.exists() ? nSnap.data() : { checklists: defaultNotificationsChecklists() };
@@ -519,7 +519,7 @@ function formatLastDone(iso) {
 // doesn't change, which is correct and needs no hand-written revert path.
 function toggleItemDone(item) {
   const next = isDoneThisPeriod(item) ? null : new Date().toISOString();
-  updateDoc(doc(db, 'checklistItems', item.id), { lastCompletedAt: next, updatedAt: new Date().toISOString() })
+  updateDoc(hdoc('checklistItems', item.id), { lastCompletedAt: next, updatedAt: new Date().toISOString() })
     .catch((err) => console.error('Ankreuzen fehlgeschlagen', err));
 }
 
@@ -673,7 +673,7 @@ async function dismissCurrentPeriod() {
     // just wrote to a different frequency's fields. setDoc+merge (not
     // updateDoc) since the doc may not exist yet if no reminder has ever
     // sent.
-    await setDoc(notificationStateRef, { [`checklists.${freq}.dismissedOccurrence`]: occKey }, { merge: true });
+    await setDoc(notificationStateRef(), { [`checklists.${freq}.dismissedOccurrence`]: occKey }, { merge: true });
     if (!notificationState.checklists) notificationState.checklists = {};
     notificationState.checklists[freq] = { ...(notificationState.checklists[freq] || {}), dismissedOccurrence: occKey };
     renderDismissPeriodButton();

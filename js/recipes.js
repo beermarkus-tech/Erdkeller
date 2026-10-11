@@ -19,11 +19,11 @@
 //   on purpose (a "nice to have" signal, not a checklist that nags), and
 //   no summary badge on the card either (Markus's call) — the dot only
 //   ever shows up once a recipe is actually opened.
-import { db } from './firebase-init.js?v=201';
+import { db, hcol, hdoc } from './firebase-init.js?v=202';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
+import { t } from './i18n.js?v=202';
 
 const MAX_PHOTO_DIMENSION = 1000;
 const JPEG_QUALITY = 0.6;
@@ -139,9 +139,9 @@ function ingredientAvailable(text) {
 async function loadRecipes() {
   try {
     const [recipesSnap, productsSnap, batchesSnap] = await Promise.all([
-      getDocs(collection(db, 'recipes')),
-      getDocs(collection(db, 'products')),
-      getDocs(collection(db, 'stockItems')),
+      getDocs(hcol('recipes')),
+      getDocs(hcol('products')),
+      getDocs(hcol('stockItems')),
     ]);
     recipes = recipesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     allProducts = productsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -415,7 +415,7 @@ function makeRecipeCard(recipe) {
 async function deleteRecipe(recipe) {
   if (!confirm(t('recipes.wirklich_loeschen', { value: recipe.title || t('recipes.rezept') }))) return;
   try {
-    await deleteDoc(doc(db, 'recipes', recipe.id));
+    await deleteDoc(hdoc('recipes', recipe.id));
     recipes = recipes.filter((r) => r.id !== recipe.id);
     renderTagFilter();
     renderRecipes();
@@ -436,7 +436,7 @@ async function duplicateRecipe(recipe) {
     photos: recipe.photos || [],
   };
   try {
-    const newDoc = await addDoc(collection(db, 'recipes'), { ...data, createdAt: nowIso, updatedAt: nowIso });
+    const newDoc = await addDoc(hcol('recipes'), { ...data, createdAt: nowIso, updatedAt: nowIso });
     recipes.push({ id: newDoc.id, ...data, createdAt: nowIso, updatedAt: nowIso });
     renderTagFilter();
     renderRecipes();
@@ -701,7 +701,7 @@ async function persistNow() {
         setEditStatus(t('recipes.gespeichert'));
         return false;
       }
-      await deleteDoc(doc(db, 'recipes', editingRecipeId));
+      await deleteDoc(hdoc('recipes', editingRecipeId));
       recipes = recipes.filter((r) => r.id !== editingRecipeId);
       editingRecipeId = null;
       renderRecipes();
@@ -709,11 +709,11 @@ async function persistNow() {
       return true;
     }
     if (!editingRecipeId) {
-      const newDoc = await addDoc(collection(db, 'recipes'), { ...data, createdAt: nowIso, updatedAt: nowIso });
+      const newDoc = await addDoc(hcol('recipes'), { ...data, createdAt: nowIso, updatedAt: nowIso });
       editingRecipeId = newDoc.id;
       recipes.push({ id: newDoc.id, ...data, createdAt: nowIso, updatedAt: nowIso });
     } else {
-      await updateDoc(doc(db, 'recipes', editingRecipeId), { ...data, updatedAt: nowIso });
+      await updateDoc(hdoc('recipes', editingRecipeId), { ...data, updatedAt: nowIso });
       const idx = recipes.findIndex((r) => r.id === editingRecipeId);
       if (idx >= 0) recipes[idx] = { ...recipes[idx], ...data, updatedAt: nowIso };
     }

@@ -4,11 +4,11 @@
 // submenu — this is content you'd add while browsing, unlike structural
 // config). Same loadOk guard + erdkeller:refresh dispatch convention as
 // every other admin-editable module.
-import { db } from './firebase-init.js?v=201';
+import { db, hcol, hdoc } from './firebase-init.js?v=202';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=201';
+import { t } from './i18n.js?v=202';
 
 const addContactBtn = document.getElementById('add-contact-btn');
 const emergencySectionEl = document.getElementById('contacts-emergency-section');
@@ -52,7 +52,7 @@ let isNewContact = false;
 
 async function loadContacts() {
   try {
-    const snap = await getDocs(collection(db, 'contacts'));
+    const snap = await getDocs(hcol('contacts'));
     contacts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     loadOk = true;
   } catch (err) {
@@ -246,10 +246,10 @@ saveBtn.addEventListener('click', async () => {
   try {
     if (isNewContact) {
       data.createdAt = nowIso;
-      const newDoc = await addDoc(collection(db, 'contacts'), data);
+      const newDoc = await addDoc(hcol('contacts'), data);
       contacts.push({ id: newDoc.id, ...data });
     } else {
-      await updateDoc(doc(db, 'contacts', editingContact.id), data);
+      await updateDoc(hdoc('contacts', editingContact.id), data);
       const idx = contacts.findIndex((c) => c.id === editingContact.id);
       if (idx >= 0) contacts[idx] = { ...contacts[idx], ...data };
     }
@@ -268,7 +268,7 @@ deleteBtn.addEventListener('click', async () => {
   if (!editingContact) return;
   if (!confirm(t('contacts.wirklich_loeschen', { value: editingContact.name || t('contacts.kontakt') }))) return;
   try {
-    await deleteDoc(doc(db, 'contacts', editingContact.id));
+    await deleteDoc(hdoc('contacts', editingContact.id));
     contacts = contacts.filter((c) => c.id !== editingContact.id);
     detailModal.classList.remove('show');
     renderContacts();
