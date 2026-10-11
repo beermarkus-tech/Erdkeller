@@ -186,7 +186,9 @@ const isLeft = (s) => !s.includes('§') && (words(s.replace(/^\[[a-z-]+\] /, '')
 async function visibleStrings(page) {
   return page.evaluate(() => {
     const out = [];
-    const visible = (el) => el && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden';
+    // translate="no" marks technical names that are the same in every
+    // language (e.g. the time-zone list) — not UI text.
+    const visible = (el) => el && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden' && !el.closest('[translate="no"]');
     const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     while (w.nextNode()) {
       const v = w.currentNode.nodeValue.trim();

@@ -69,9 +69,13 @@ function buildBatchLines(batches, productIndex) {
 
 // The language the household's DATA (product catalog, taxonomy) is kept in —
 // new product names proposed by dictation/photo must match it, whatever
-// language the UI or the spoken dictation is in (I18N.md 8.1/8.2). The data
-// is German today; if an English dataset is ever built, this is the switch.
-const APP_LANGUAGE = 'Deutsch';
+// language the UI or the spoken dictation is in (I18N.md 8.1/8.2). Build 205
+// (MULTI_HOUSEHOLD step 3): per household, from /households/{id}.lang;
+// German for the legacy household and anything unknown. The prompts
+// themselves stay German (the model handles that fine); only the language
+// names inside them change.
+const DATA_LANG_NAMES = { de: 'Deutsch', en: 'Englisch' };
+const dataLangName = (dataLang) => DATA_LANG_NAMES[normLang(dataLang)];
 
 // --- UI language for server-written text (I18N.md Phase 5) -----------------
 //
@@ -114,7 +118,8 @@ const SERVER_TEXT = {
 const st = (lang, key) => SERVER_TEXT[normLang(lang)][key];
 const callerLang = (request) => normLang(request.data && request.data.lang);
 
-function buildPhotoPrompt(taxonomy, products) {
+function buildPhotoPrompt(taxonomy, products, dataLang = 'de') {
+  const APP_LANGUAGE = dataLangName(dataLang);
   const taxonomyLines = buildTaxonomyLines(taxonomy);
   const productLines = buildProductLines(products);
   return `Du hilfst beim Einlagern von Vorräten in einer Haushalts-Vorratsverwaltung anhand eines Fotos. Das Foto zeigt ein Regal, einen Schrank oder eine Ablage mit Lebensmitteln/Vorräten.
@@ -146,26 +151,43 @@ Regeln:
 - "bestBefore" nur setzen, wenn Monat UND Jahr klar lesbar sind; nie raten.
 - "confidence" spiegelt Sicherheit bei Produkt-Identität UND Menge wider.
 - Ist kein Lebensmittel/Vorrat erkennbar, gib ein leeres JSON-Array zurück.
-- Antworte NUR mit einem JSON-Array, keine Erklärung, kein Markdown.`;
+- Antworte NUR mit einem JSON-Array, keine Erklärung, kein Markdown.${englishDataNote(dataLang)}`;
+}
+
+// For a household whose data is English, the German examples above (e.g.
+// "Haferflocken") point the wrong way — say so once, at the end. Empty for
+// German data, so those prompts are byte-for-byte unchanged.
+function englishDataNote(dataLang) {
+  if (normLang(dataLang) !== 'en') return '';
+  return `
+
+Hinweis: Die Daten dieses Haushalts sind auf Englisch. Die deutschen Beispielnamen oben gelten sinngemäß auf Englisch (z.B. "Flocons d'Avoine" → "Oats", "Kidneybohnen" → "Kidney beans").`;
 }
 
 // Phase 5 (I18N.md 8.2): with the app in English, speech recognition runs in
 // English, so the transcript is English while the catalog stays German.
-function spokenLanguageNote(lang) {
-  if (lang !== 'en') return '';
+// Build 205: and the mirror case — German speech, English household data.
+function spokenLanguageNote(lang, dataLang = 'de') {
+  const APP_LANGUAGE = dataLangName(dataLang);
+  if (normLang(lang) === normLang(dataLang)) return '';
+  if (lang !== 'en') {
+    return `
+Achtung: Der Nutzer hat DEUTSCH diktiert, der Produktkatalog, die Bestandsliste und die Kategorien sind aber auf ${APP_LANGUAGE}. Ordne deutsche Produktnamen den passenden Einträgen zu (z.B. "Thunfisch" → "canned tuna"/"Tuna", "Nudeln" → "Pasta"), verstehe deutsche Mengen-, Datums- und Richtungsangaben, und nenne neue Produkte ("newProductName") trotzdem auf ${APP_LANGUAGE}. "productNameHeard" und "attemptedName" dürfen das gehörte deutsche Wort sein.
+`;
+  }
   return `
 Achtung: Der Nutzer hat ENGLISCH diktiert, der Produktkatalog, die Bestandsliste und die Kategorien sind aber auf ${APP_LANGUAGE}. Ordne englische Produktnamen den passenden Einträgen zu (z.B. "canned tuna" → "Thunfisch", "pasta" → "Nudeln"/"Spaghetti"), verstehe englische Mengen-, Datums- und Richtungsangaben (z.B. "two cans", "best before June 2027", "stored"/"added"/"bought" = "in", "took out"/"used"/"removed" = "out"), und nenne neue Produkte ("newProductName") trotzdem auf ${APP_LANGUAGE}. "productNameHeard" und "attemptedName" dürfen das gehörte englische Wort sein.
 `;
 }
 
-function buildPrompt(transcript, taxonomy, products, batches, productIndex, spokenLang) {
+function buildPrompt(transcript, taxonomy, products, batches, productIndex, spokenLang, dataLang = 'de') {
   const taxonomyLines = buildTaxonomyLines(taxonomy);
   const productLines = buildProductLines(products);
   const batchLines = buildBatchLines(batches, productIndex);
   return `Du hilfst beim Einlagern UND Entnehmen von Vorräten in einer Haushalts-Vorratsverwaltung. Ein Nutzer hat eine oder mehrere Chargen diktiert; hier die Transkription (${spokenLang === 'en' ? 'Englisch' : 'Deutsch'}, kann Erkennungsfehler enthalten):
 
 "${transcript}"
-${spokenLanguageNote(spokenLang)}
+${spokenLanguageNote(spokenLang, dataLang)}
 Zerlege die Aussage in eine JSON-Liste von Chargen (batch lines). Eine Aussage kann mehrere Chargen enthalten — z.B. "10 Tomatensugo, 5x800g, 5x400g" ergibt ZWEI Zeilen desselben Produkts mit unterschiedlichem Inhalt. Zwei verschiedene genannte Produkte ergeben ebenfalls getrennte Zeilen. Eine Aussage kann auch Einlagern UND Entnehmen gleichzeitig enthalten.
 
 Jede Zeile braucht zuerst ein Feld "direction": "in" (eingelagert/gekauft/neu dazu) oder "out" (entnommen/verbraucht/aufgebraucht/rausgenommen/weggenommen/weniger geworden) — aus der Wortwahl erkennbar. Das ist die wichtigste Entscheidung pro Zeile — lies sie sorgfältig aus dem jeweiligen Satzteil, nicht aus dem Rest der Aussage. Beispiel: "10 Gläser Sugo eingelagert, dafür 2 Dosen Bohnen entnommen" → ZWEI Zeilen, eine mit "direction":"in" (Sugo), eine mit "direction":"out" (Bohnen) — niemals beide als "in", nur weil ein Teil des Satzes ein Einlagern beschreibt.
@@ -200,7 +222,7 @@ Regeln:
 - "content" ist die Packungsgröße als kurzer String wie im Beispiel (z.B. "800g", "1l"), nicht die Gesamtmenge.
 - "bestBefore" nur setzen, wenn ein Monat UND Jahr klar genannt wurden; sonst null.
 - "storage" nur setzen, wenn ein Lagerort klar genannt wurde; sonst null.
-- Antworte NUR mit einem JSON-Array, keine Erklärung, kein Markdown, kein Codeblock.`;
+- Antworte NUR mit einem JSON-Array, keine Erklärung, kein Markdown, kein Codeblock.${englishDataNote(dataLang)}`;
 }
 
 function extractJsonArray(text) {
@@ -248,10 +270,12 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
     }
   }
 
-  const [taxSnap, productsSnap] = await Promise.all([
+  const [taxSnap, productsSnap, householdSnap] = await Promise.all([
     db.doc(hpath(base, 'config/taxonomy')).get(),
     db.collection(hpath(base, 'products')).get(),
+    caller.householdId ? db.doc(base).get() : null,
   ]);
+  const dataLang = householdSnap && householdSnap.exists ? normLang(householdSnap.data().lang) : 'de';
   const taxonomy = taxSnap.exists && Array.isArray(taxSnap.data().types) ? taxSnap.data() : { types: [] };
   const products = productsSnap.docs.map((d) => {
     const p = d.data();
@@ -276,9 +300,9 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
         storage: b.storage || '',
       };
     });
-    content = buildPrompt(transcript, taxonomy, products, batches, productIndex, lang);
+    content = buildPrompt(transcript, taxonomy, products, batches, productIndex, lang, dataLang);
   } else {
-    const prompt = buildPhotoPrompt(taxonomy, products);
+    const prompt = buildPhotoPrompt(taxonomy, products, dataLang);
     content = [
       { type: 'image', source: { type: 'base64', media_type: data.mimeType, data: imageBase64 } },
       { type: 'text', text: prompt },
@@ -346,15 +370,26 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
 // isDoneThisPeriod) — same duplicate-rather-than-share convention as
 // buildTaxonomyLines/buildProductLines above, forced here since the client
 // has no build step to share code with a Node Cloud Function anyway. The
-// client's version runs in the browser's local time (the household's
-// devices are always Europe/Paris); this version runs in whatever timezone
-// the Cloud Function executes in (UTC), so every "now" and every computed
-// occurrence boundary is deliberately routed through Europe/Paris wall-clock
-// conversion rather than using the process's own local time anywhere.
+// client's version runs in the browser's local time; this version runs in
+// UTC, so every "now" and every computed occurrence boundary is routed
+// through the HOUSEHOLD's wall clock (Build 205: /households/{id}.timezone,
+// Europe/Paris for the legacy household and as the fallback) rather than
+// the process's own local time anywhere.
 // ---------------------------------------------------------------------------
 
-const CHECKLIST_TZ = 'Europe/Paris';
-const RECIPIENT_SLUGS = ['markus', 'julia', 'sophia'];
+const DEFAULT_TZ = 'Europe/Paris';
+
+// A household's timezone, if it's a real IANA zone; else the default — a
+// typo stored there must not stop that household's reminders for good.
+function validTimeZone(tz) {
+  if (typeof tz !== 'string' || !tz) return DEFAULT_TZ;
+  try {
+    new Intl.DateTimeFormat('en-GB', { timeZone: tz });
+    return tz;
+  } catch (err) {
+    return DEFAULT_TZ;
+  }
+}
 const FREQUENCIES = ['weekly', 'monthly', 'quarterly', 'halfYearly', 'yearly'];
 const FREQ_LABELS = {
   weekly: 'Wöchentlich', monthly: 'Monatlich', quarterly: 'Vierteljährlich', halfYearly: 'Halbjährlich', yearly: 'Jährlich',
@@ -402,19 +437,21 @@ function mergeNotificationsChecklists(stored) {
   };
 }
 
-// --- Europe/Paris wall-clock conversion --------------------------------
+// --- Household wall-clock conversion (was Europe/Paris only) ----------
 //
 // Cloud Functions run in UTC regardless of the schedule trigger's own
 // timeZone option (that option only controls *when* the function fires,
 // not what `new Date()` returns inside it). Every boundary computation
 // below needs to reason in the household's actual local calendar, so "now"
-// is first converted to Paris Y/M/D/H via Intl, and any computed occurrence
-// date is converted back to a real UTC instant (Paris local midnight on
-// that date) before ever being compared against a stored ISO timestamp.
+// is first converted to local Y/M/D/H via Intl, and any computed occurrence
+// date is converted back to a real UTC instant (local midnight on that
+// date) before ever being compared against a stored ISO timestamp. The
+// returned parts carry their `tz`, so everything downstream that needs it
+// (occurrenceInstant) gets it without another parameter.
 
-function parisDateParts(utcInstant) {
+function zonedDateParts(utcInstant, tz = DEFAULT_TZ) {
   const dtf = new Intl.DateTimeFormat('en-GB', {
-    timeZone: CHECKLIST_TZ, hour12: false,
+    timeZone: tz, hour12: false,
     year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
   });
   const parts = Object.fromEntries(dtf.formatToParts(utcInstant).map((p) => [p.type, p.value]));
@@ -426,40 +463,43 @@ function parisDateParts(utcInstant) {
     // version — normalize to 0 rather than risk an off-by-one on the hour
     // gate below.
     hour: parts.hour === '24' ? 0 : Number(parts.hour),
+    tz,
   };
 }
 
-// The Paris UTC offset (in minutes) at a given real instant, derived by
-// diffing that instant's Paris wall-clock reading against its own UTC
-// reading — rather than hardcoding +1/+2h, so CET/CEST (DST) is handled
-// automatically by the ICU data Node ships with.
-function parisOffsetMinutes(utcInstant) {
-  const p = parisDateParts(utcInstant);
+// The zone's UTC offset (in minutes) at a given real instant, derived by
+// diffing that instant's local wall-clock reading against its own UTC
+// reading — rather than hardcoding offsets, so DST is handled
+// automatically by the ICU data Node ships with. (Minutes are dropped from
+// the reading, so zones with :30/:45 offsets round to the hour here; that
+// only shifts a reset boundary within its own day.)
+function zonedOffsetMinutes(utcInstant, tz) {
+  const p = zonedDateParts(utcInstant, tz);
   const asIfUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, 0);
   return Math.round((asIfUtc - utcInstant.getTime()) / 60000);
 }
 
-// Converts a Paris-local calendar date (midnight) into the real UTC instant
-// it represents. Single-correction-pass: guess the instant as if the wall
-// clock were UTC, then shift by the Paris offset AT that guessed instant.
+// Converts a local calendar date (midnight) into the real UTC instant it
+// represents. Single-correction-pass: guess the instant as if the wall
+// clock were UTC, then shift by the zone's offset AT that guessed instant.
 // This is exact except within the ~1h DST-transition window itself (2-3am
 // local) — irrelevant here since every date this function ever receives is
 // a checklist reset-boundary date, and the transition itself is never the
 // value being converted, only ordinary calendar dates are.
-function parisMidnightToUtc(year, month1based, day) {
+function zonedMidnightToUtc(year, month1based, day, tz) {
   const guessUtcMs = Date.UTC(year, month1based - 1, day, 0, 0);
-  const offsetMin = parisOffsetMinutes(new Date(guessUtcMs));
+  const offsetMin = zonedOffsetMinutes(new Date(guessUtcMs), tz);
   return new Date(guessUtcMs - offsetMin * 60000);
 }
 
 // --- Ported boundary math (see js/checklists.js for the client original) --
 //
 // Deliberately built on Date.UTC/getUTC* throughout, NOT the process's own
-// local time — every "year/month/day" here is already a Paris-local
-// calendar value (from parisDateParts), so UTC methods are used purely as
+// local time — every "year/month/day" here is already a household-local
+// calendar value (from zonedDateParts), so UTC methods are used purely as
 // a neutral, timezone-agnostic calendar for the arithmetic, exactly
 // mirroring what the client's plain `new Date(y, m, d)` local-time
-// arithmetic does when the browser's own local time IS Europe/Paris.
+// arithmetic does when the browser's own local time is the household's.
 
 function nthWeekdayOfMonthUTC(year, month1based, weekOfMonth, weekday1to7) {
   const first = new Date(Date.UTC(year, month1based - 1, 1));
@@ -534,14 +574,14 @@ function occurrenceKey(occDateUTC) {
   return `${y}-${m}-${d}`;
 }
 
-function occurrenceInstant(occDateUTC) {
+function occurrenceInstant(occDateUTC, tz) {
   if (!occDateUTC) return null;
-  return parisMidnightToUtc(occDateUTC.getUTCFullYear(), occDateUTC.getUTCMonth() + 1, occDateUTC.getUTCDate());
+  return zonedMidnightToUtc(occDateUTC.getUTCFullYear(), occDateUTC.getUTCMonth() + 1, occDateUTC.getUTCDate(), tz);
 }
 
 function isItemDoneThisPeriod(item, frequency, cfg, nowParts) {
   if (!item.lastCompletedAt) return false;
-  const occInstant = occurrenceInstant(mostRecentOccurrenceUTC(frequency, cfg, nowParts));
+  const occInstant = occurrenceInstant(mostRecentOccurrenceUTC(frequency, cfg, nowParts), nowParts.tz);
   // Client-side, `date >= null` coerces to `date >= 0` (i.e. always true) —
   // an unreachable case today given the UI's weekOfMonth 1-4 range, but
   // guarded explicitly here rather than relying on the same coercion,
@@ -576,6 +616,27 @@ async function loadMaintenance(base) {
   };
 }
 
+// /config/notificationState, per frequency. Build 205 — both writers used to
+// set() "checklists.<freq>.<field>" keys, which set() stores as LITERAL
+// field names (only update() reads dots as paths), so this reader never
+// found them: "remind again after N days" was ignored (a reminder went out
+// at the configured hour every day while anything stayed due) and
+// "Für diesen Zeitraum erledigt" never stopped one. Writes are nested
+// objects now; the old literal keys are still read (newest value wins) so
+// state written before keeps counting. Mirrored in js/checklists.js.
+function readStateChecklists(data) {
+  const out = {};
+  Object.entries((data && data.checklists) || {}).forEach(([freq, v]) => { out[freq] = { ...(v || {}) }; });
+  Object.entries(data || {}).forEach(([key, value]) => {
+    const m = key.match(/^checklists\.(\w+)\.(\w+)$/);
+    if (!m) return;
+    const [, freq, field] = m;
+    out[freq] = out[freq] || {};
+    if (out[freq][field] === undefined || String(value) > String(out[freq][field])) out[freq][field] = value;
+  });
+  return out;
+}
+
 // --- Due computation, grouped per checklist then per recipient ------------
 
 function computeFrequencyDue(maintenance, frequency, cfg, nowParts) {
@@ -588,8 +649,19 @@ function computeFrequencyDue(maintenance, frequency, cfg, nowParts) {
   return perList;
 }
 
-function recipientBreakdown(perList, slug) {
-  const relevant = perList.filter(({ list }) => (list.recipients || []).includes(slug));
+// Build 205 (MULTI_HOUSEHOLD step 3): list.recipients holds member uids.
+// Lists saved before still hold the old hardcoded slugs ('markus' etc.);
+// js/checklists.js converts them on an admin's next visit, and until then
+// a slug still matches the member whose /users doc carries that
+// `recipientSlug`. So a member is a recipient of a list if the list names
+// their uid OR their old slug.
+function isRecipient(list, member) {
+  const r = list.recipients || [];
+  return r.includes(member.uid) || (!!member.recipientSlug && r.includes(member.recipientSlug));
+}
+
+function recipientBreakdown(perList, member) {
+  const relevant = perList.filter(({ list }) => isRecipient(list, member));
   const total = relevant.reduce((sum, r) => sum + r.dueCount, 0);
   return { total, checklists: relevant.map(({ list, dueCount }) => ({ name: list.name, count: dueCount })) };
 }
@@ -615,39 +687,34 @@ function buildNotificationText(frequency, breakdown, lang = 'de') {
   return { title, body };
 }
 
-// --- Recipients: slug -> /users -> device tokens ---------------------------
-//
-// list.recipients holds hardcoded slugs ('markus'|'julia'|'sophia'), with
-// no link to /users anywhere else in the app — an admin maps each real
-// account to a slug once via `recipientSlug` on /users/{uid} (Settings ->
-// Personen). A slug nobody has claimed yet simply resolves to zero tokens
-// and is silently skipped, same as a recipient with no due items.
+// --- Recipients: the household's members -> device tokens ---------------
 
-// Build 203: only accounts of the household being processed (householdId
-// null = the legacy root household) — slugs are per household.
-const inHousehold = (userData, householdId) => (userData.householdId || null) === (householdId || null);
-
-async function resolveRecipientTokens(slug, householdId) {
-  const usersSnap = await db.collection('users').where('recipientSlug', '==', slug).get();
-  const entries = [];
-  for (const userDoc of usersSnap.docs) {
-    if (!inHousehold(userDoc.data(), householdId)) continue;
-    const devicesSnap = await db.collection('users').doc(userDoc.id).collection('devices').get();
-    const lang = normLang(userDoc.data().lang);
-    devicesSnap.docs.forEach((deviceDoc) => {
-      const token = deviceDoc.data().token;
-      if (token) entries.push({ token, ref: deviceDoc.ref, lang });
-    });
-  }
-  return entries;
+// Approved, non-removed accounts of one household (householdId null = the
+// legacy root household: every account without one).
+async function loadMembers(householdId) {
+  const snap = householdId
+    ? await db.collection('users').where('householdId', '==', householdId).get()
+    : await db.collection('users').get();
+  return snap.docs
+    .map((d) => ({ uid: d.id, ...d.data() }))
+    .filter((u) => (u.householdId || null) === (householdId || null)
+      && u.removed !== true && ['admin', 'member'].includes(u.role))
+    .map((u) => ({ uid: u.uid, name: u.name || '', lang: normLang(u.lang), recipientSlug: u.recipientSlug || null }));
 }
 
-// The language a recipient slug's reminders are written in, for the admin
-// preview: the first linked account's language (normally there is one).
-async function slugLang(slug, householdId) {
-  const usersSnap = await db.collection('users').where('recipientSlug', '==', slug).get();
-  const first = usersSnap.docs.find((d) => inHousehold(d.data(), householdId));
-  return first ? normLang(first.data().lang) : 'de';
+async function memberTokens(member) {
+  const devicesSnap = await db.collection('users').doc(member.uid).collection('devices').get();
+  return devicesSnap.docs
+    .map((deviceDoc) => ({ token: deviceDoc.data().token, ref: deviceDoc.ref }))
+    .filter((e) => e.token);
+}
+
+// A household's timezone for the scheduler (validated; the default for the
+// legacy household).
+async function loadHouseholdTz(householdId) {
+  if (!householdId) return DEFAULT_TZ;
+  const snap = await db.doc(`households/${householdId}`).get();
+  return validTimeZone(snap.exists ? snap.data().timezone : null);
 }
 
 // Deletes device docs FCM reports as dead, so a phone that was reset or had
@@ -686,11 +753,12 @@ async function sendToTokens(tokenEntries, title, body, data) {
 // Hourly rather than a cron pinned to 09:00, so the configured send hour
 // (Settings -> Erinnerungen) stays editable in-app without redeploying this
 // function — each tick is a near-free early exit unless it's actually the
-// right Paris-local hour.
-exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: CHECKLIST_TZ }, async () => {
+// right hour in that household's own timezone (Build 205). The schedule's
+// own timeZone only decides when the hourly ticks fire, not the hour each
+// household is checked against.
+exports.sendReminders = onSchedule({ schedule: 'every 1 hours', timeZone: DEFAULT_TZ }, async () => {
   // Build 203: every household under /households; the legacy root one
   // only while none exists yet (i.e. before the step 2 migration ran).
-  // Per-household send hour/timezone come in step 3.
   const householdsSnap = await db.collection('households').get();
   const householdIds = householdsSnap.empty ? [null] : householdsSnap.docs.map((d) => d.id);
   for (const householdId of householdIds) {
@@ -715,7 +783,7 @@ async function sendRemindersFor(householdId) {
   const cfg = mergeNotificationsChecklists(notifications.checklists);
 
   const nowInstant = new Date();
-  const nowParts = parisDateParts(nowInstant);
+  const nowParts = zonedDateParts(nowInstant, await loadHouseholdTz(householdId));
   if (nowParts.hour !== cfg.hour) return;
 
   // Only fetched once we already know this is the configured hour — with
@@ -723,14 +791,13 @@ async function sendRemindersFor(householdId) {
   // read rather than one document, so doing it unconditionally on every
   // hourly tick (as the single old /config/checklists doc read used to,
   // harmlessly) would turn one wasted read/hour into ~123 wasted reads/hour.
-  const maintenance = await loadMaintenance(base);
-  const stateChecklists = (stateSnap.exists && stateSnap.data().checklists) || {};
+  const [maintenance, members] = await Promise.all([loadMaintenance(base), loadMembers(householdId)]);
+  const stateChecklists = readStateChecklists(stateSnap.exists ? stateSnap.data() : {});
 
-  // Both this write and the client's dismiss-action write use targeted
-  // dot-path field updates (never a whole-document write) into the SAME
-  // doc — /config/notificationState is written by two independent parties,
-  // and a whole-object write from either side would clobber whatever the
-  // other just wrote to a different frequency's fields.
+  // Both this write and the client's dismiss-action write are merge writes
+  // of nested fields (never a whole-document write) into the SAME doc —
+  // /config/notificationState is written by two independent parties, and
+  // merge deep-merges maps, so neither clobbers the other's fields.
   const stateUpdates = {};
 
   for (const frequency of FREQUENCIES) {
@@ -751,28 +818,22 @@ async function sendRemindersFor(householdId) {
     if (!occurrenceChanged && daysSinceLastSent < cfg.repeatDays) continue;
 
     let sentAny = false;
-    for (const slug of RECIPIENT_SLUGS) {
-      const breakdown = recipientBreakdown(perList, slug);
+    for (const member of members) {
+      const breakdown = recipientBreakdown(perList, member);
       if (!breakdown.total) continue;
-      const tokens = await resolveRecipientTokens(slug, householdId);
+      const tokens = await memberTokens(member);
       if (!tokens.length) continue;
-      // One send per language, in case a slug's linked accounts differ.
-      for (const lang of SERVER_LANGS) {
-        const langTokens = tokens.filter((tk) => tk.lang === lang);
-        if (!langTokens.length) continue;
-        const { title, body } = buildNotificationText(frequency, breakdown, lang);
-        await sendToTokens(langTokens, title, body, { freq: frequency });
-      }
+      const { title, body } = buildNotificationText(frequency, breakdown, member.lang);
+      await sendToTokens(tokens, title, body, { freq: frequency });
       sentAny = true;
     }
     if (sentAny) {
-      stateUpdates[`checklists.${frequency}.occurrence`] = occKey;
-      stateUpdates[`checklists.${frequency}.lastSentAt`] = nowInstant.toISOString();
+      stateUpdates[frequency] = { occurrence: occKey, lastSentAt: nowInstant.toISOString() };
     }
   }
 
   if (Object.keys(stateUpdates).length) {
-    await db.doc(hpath(base, 'config/notificationState')).set(stateUpdates, { merge: true });
+    await db.doc(hpath(base, 'config/notificationState')).set({ checklists: stateUpdates }, { merge: true });
   }
 }
 
@@ -790,21 +851,22 @@ exports.previewReminders = onCall(async (request) => {
   }
   const householdId = callerSnap.data().householdId || null;
   const base = householdBase(householdId);
-  // Each recipient's preview text in the language they'd actually get it in.
-  const slugLangs = Object.fromEntries(await Promise.all(RECIPIENT_SLUGS.map(async (slug) => [slug, await slugLang(slug, householdId)])));
-
-  const [notifSnap, stateSnap, maintenance] = await Promise.all([
+  const [notifSnap, stateSnap, maintenance, members, tz] = await Promise.all([
     db.doc(hpath(base, 'config/notifications')).get(),
     db.doc(hpath(base, 'config/notificationState')).get(),
     loadMaintenance(base),
+    loadMembers(householdId),
+    loadHouseholdTz(householdId),
   ]);
   const notifications = notifSnap.exists ? notifSnap.data() : {};
   const cfg = mergeNotificationsChecklists(notifications.checklists);
   const nowInstant = new Date();
-  const nowParts = parisDateParts(nowInstant);
-  const stateChecklists = (stateSnap.exists && stateSnap.data().checklists) || {};
+  const nowParts = zonedDateParts(nowInstant, tz);
+  const stateChecklists = readStateChecklists(stateSnap.exists ? stateSnap.data() : {});
 
-  const result = { enabled: notifications.enabled !== false, currentParisHour: nowParts.hour, configuredHour: cfg.hour, frequencies: {} };
+  const result = {
+    enabled: notifications.enabled !== false, timezone: tz, currentHour: nowParts.hour, configuredHour: cfg.hour, frequencies: {},
+  };
   for (const frequency of FREQUENCIES) {
     const perList = computeFrequencyDue(maintenance, frequency, cfg, nowParts);
     const occDate = mostRecentOccurrenceUTC(frequency, cfg, nowParts);
@@ -823,9 +885,13 @@ exports.previewReminders = onCall(async (request) => {
       dismissed,
       lastSentAt: freqState.lastSentAt || null,
       wouldSendNow,
-      recipients: RECIPIENT_SLUGS.map((slug) => {
-        const breakdown = recipientBreakdown(perList, slug);
-        return { slug, ...breakdown, ...(breakdown.total ? buildNotificationText(frequency, breakdown, slugLangs[slug]) : {}) };
+      // Each member's preview text in the language they'd actually get it in.
+      recipients: members.map((member) => {
+        const breakdown = recipientBreakdown(perList, member);
+        return {
+          uid: member.uid, name: member.name, ...breakdown,
+          ...(breakdown.total ? buildNotificationText(frequency, breakdown, member.lang) : {}),
+        };
       }),
     };
   }

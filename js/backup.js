@@ -14,11 +14,11 @@
 // replacement wrote (every subsequent write's isAdmin() check re-reads
 // /users/{currentUid}). Roles/names are managed only through Settings →
 // Personen, backup or no backup.
-import { db, hcol, hdoc } from './firebase-init.js?v=204';
+import { db, hcol, hdoc } from './firebase-init.js?v=205';
 import {
   collection, getDocs, doc, getDoc, setDoc, deleteDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=204';
+import { t, getLocale } from './i18n.js?v=205';
 
 const statusEl = document.getElementById('export-status');
 

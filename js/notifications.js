@@ -12,12 +12,12 @@
 // whether an item is done-for-the-current-period; functions/index.js's
 // sendReminders is what actually reads the send-time half and dispatches
 // the push.
-import { db, hdoc } from './firebase-init.js?v=204';
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { db, hdoc, getHouseholdId } from './firebase-init.js?v=205';
+import { doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   permissionState, enableOnThisDevice, refreshIfAlreadyEnabled, listMyDevices, sendTestNotification, previewReminders,
-} from './push.js?v=204';
-import { t, getLocale } from './i18n.js?v=204';
+} from './push.js?v=205';
+import { t, getLocale } from './i18n.js?v=205';
 
 const notificationsCard = document.querySelector('.settings-card[data-target="notifications"]');
 const panelEl = document.getElementById('settings-panel-notifications');
@@ -40,6 +40,8 @@ const yearlyWeekEl = document.getElementById('notif-yearly-week');
 const yearlyWeekdayEl = document.getElementById('notif-yearly-weekday');
 const hourEl = document.getElementById('notif-hour');
 const repeatDaysEl = document.getElementById('notif-repeat-days');
+const timezoneRowEl = document.getElementById('notif-timezone-row');
+const timezoneEl = document.getElementById('notif-timezone');
 
 const pushStatusEl = document.getElementById('notif-push-status');
 const enablePushBtn = document.getElementById('notif-enable-push-btn');
@@ -102,8 +104,56 @@ async function loadAll() {
     return;
   }
   syncFields();
+  loadTimezone();
   loadPushSection();
 }
+
+// --- Household timezone (Build 205, MULTI_HOUSEHOLD step 3) --------------
+// The reminder hour and every period reset above are in the household's
+// own timezone (/households/{id}.timezone, read by functions/index.js).
+// Only shown in a household — the legacy root household is always
+// Europe/Paris.
+function timeZoneOptions(current) {
+  let zones = [];
+  try {
+    zones = Intl.supportedValuesOf('timeZone');
+  } catch (err) { /* older browser: just the current + this device's zone */ }
+  const device = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return [...new Set([current, device, ...zones].filter(Boolean))].sort();
+}
+
+async function loadTimezone() {
+  const hid = getHouseholdId();
+  timezoneRowEl.classList.toggle('hidden', !hid);
+  if (!hid) return;
+  try {
+    const snap = await getDoc(doc(db, 'households', hid));
+    const current = (snap.exists() && snap.data().timezone) || 'Europe/Paris';
+    timezoneEl.innerHTML = '';
+    timeZoneOptions(current).forEach((zone) => {
+      const opt = document.createElement('option');
+      opt.value = zone;
+      opt.textContent = zone.replace(/_/g, ' ');
+      timezoneEl.appendChild(opt);
+    });
+    timezoneEl.value = current;
+  } catch (err) {
+    console.error('Zeitzone konnte nicht geladen werden', err);
+    timezoneRowEl.classList.add('hidden');
+  }
+}
+
+timezoneEl.addEventListener('change', async () => {
+  const hid = getHouseholdId();
+  if (!hid) return;
+  try {
+    await updateDoc(doc(db, 'households', hid), { timezone: timezoneEl.value });
+    statusEl.textContent = '';
+  } catch (err) {
+    statusEl.textContent = t('notifications.fehler_beim_speichern') + err.message;
+    console.error(err);
+  }
+});
 
 async function save() {
   if (!loadOk) {
@@ -273,14 +323,18 @@ const FREQ_LABELS = {
 };
 
 function formatPreview(result) {
-  const lines = [t('notifications.aktuelle_uhrzeit_europe_paris_00', { currentParisHour: result.currentParisHour, configuredHour: result.configuredHour })];
+  const lines = [t('notifications.aktuelle_uhrzeit_tz', {
+    timezone: result.timezone || 'Europe/Paris',
+    currentHour: result.currentHour ?? result.currentParisHour,
+    configuredHour: result.configuredHour,
+  })];
   Object.entries(result.frequencies).forEach(([freq, info]) => {
     const recipientsWithSomething = info.recipients.filter((r) => r.total > 0);
     if (!recipientsWithSomething.length) return;
     lines.push('');
     lines.push(t('notifications.zeitraum_wuerde_jetzt_senden', { frequency: FREQ_LABELS[freq] || freq, occurrence: info.occurrenceKey || '—', dismissed: info.dismissed ? t('notifications.als_erledigt_markiert') : '', wouldSend: info.wouldSendNow ? t('notifications.ja') : t('notifications.nein') }));
     recipientsWithSomething.forEach((r) => {
-      lines.push(`  ${r.slug}: ${r.title} — ${r.body}`);
+      lines.push(`  ${r.name || r.slug || r.uid}: ${r.title} — ${r.body}`);
     });
   });
   return lines.join('\n');

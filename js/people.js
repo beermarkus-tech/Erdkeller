@@ -1,8 +1,8 @@
-import { auth, db, getHouseholdId } from './firebase-init.js?v=204';
+import { auth, db, getHouseholdId } from './firebase-init.js?v=205';
 import {
   collection, getDocs, doc, updateDoc, query, where,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=204';
+import { t, getLocale } from './i18n.js?v=205';
 
 const peopleCard = document.querySelector('.settings-card[data-target="people"]');
 const peopleListEl = document.getElementById('people-list');
@@ -21,20 +21,10 @@ function roleLabel(role) {
 // instead keeps the doc in place, so that create rule never fires again
 // for this uid — and firestore.rules' tightened isSignedIn() (Build 180)
 // means every OTHER rule in the database that gates on it now denies this
-// uid immediately, on its very next request. recipientSlug is cleared in
-// the same write so a removed person stops being a checklist-reminder
-// recipient right away too.
-
-// Checklisten-Erinnerungen (SPEC.md Step 17): list.recipients on a
-// checklist holds these same hardcoded slugs — there's no other link
-// anywhere between a real signed-in account and "who gets notified about
-// the Autos checklist." This is the one place that mapping gets made.
-const RECIPIENT_SLUG_OPTIONS = [
-  { value: '', get label() { return t('people.kein_empfaenger'); } },
-  { value: 'markus', label: 'Markus' },
-  { value: 'julia', label: 'Julia' },
-  { value: 'sophia', label: 'Sophia' },
-];
+// uid immediately, on its very next request — and the reminder scheduler
+// skips removed accounts (Build 205), so they stop getting reminders too.
+// (recipientSlug is still cleared in the same write: old lists may name
+// that slug until an admin's next visit converts them to uids.)
 
 // The whole Settings tab is already admin-only (app-shell.js), so anyone
 // who can even open this screen is an admin — no separate isAdmin gate
@@ -77,8 +67,8 @@ function makePersonRow(id, data) {
 
   const isSelf = id === auth.currentUser?.uid;
 
-  // A removed person's row skips the recipient picker and role toggle
-  // entirely (both are meaningless once they've lost access) and shows
+  // A removed person's row skips the role toggle
+  // entirely (it is meaningless once they've lost access) and shows
   // only a restore action.
   if (data.removed) {
     const restoreBtn = document.createElement('button');
@@ -92,7 +82,7 @@ function makePersonRow(id, data) {
 
   // Build 201 — a new account waiting for approval: approve (→ member) or
   // reject (→ removed tombstone, same as Entfernen, so it can't re-apply
-  // by signing in again). No recipient picker or role toggle yet.
+  // by signing in again). No role toggle yet.
   if (data.role === 'pending') {
     const approveBtn = document.createElement('button');
     approveBtn.type = 'button';
@@ -110,18 +100,6 @@ function makePersonRow(id, data) {
     return row;
   }
 
-  const recipientSelect = document.createElement('select');
-  recipientSelect.className = 'people-recipient-select';
-  recipientSelect.title = t('people.empfaenger_fuer_checklisten_erinnerungen');
-  RECIPIENT_SLUG_OPTIONS.forEach((opt) => {
-    const optionEl = document.createElement('option');
-    optionEl.value = opt.value;
-    optionEl.textContent = opt.label;
-    if ((data.recipientSlug || '') === opt.value) optionEl.selected = true;
-    recipientSelect.appendChild(optionEl);
-  });
-  recipientSelect.addEventListener('change', () => setRecipientSlug(id, recipientSelect.value));
-  row.appendChild(recipientSelect);
 
   if (isSelf) {
     // Self-demotion is blocked outright, not just confirm-guarded — the
@@ -184,16 +162,6 @@ async function setRemoved(id, data, removed, rejecting = false) {
   } catch (err) {
     console.error(err);
     alert((removed ? t('people.entfernen_fehlgeschlagen') : t('people.wiederherstellen_fehlgeschlagen')) + err.message);
-  }
-}
-
-async function setRecipientSlug(id, slug) {
-  try {
-    await updateDoc(doc(db, 'users', id), { recipientSlug: slug || null });
-  } catch (err) {
-    console.error(err);
-    alert(t('people.empfaenger_konnte_nicht_geaendert_werden') + err.message);
-    await loadPeople();
   }
 }
 

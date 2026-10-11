@@ -111,6 +111,8 @@ await check('household member ticks a checklist item', () => assertSucceeds(upda
 await check('household member cannot rename a checklist item', () => assertFails(updateDoc(doc(as('hmember'), 'households/h1/checklistItems/i1'), { text: 'Y' })));
 await check('nobody creates a household from the client', () => assertFails(setDoc(doc(as('hadmin'), 'households/h3'), { name: 'Three' })));
 await check('household admin renames own household', () => assertSucceeds(updateDoc(doc(as('hadmin'), 'households/h1'), { name: 'Uno' })));
+await check('household admin sets the household timezone', () => assertSucceeds(updateDoc(doc(as('hadmin'), 'households/h1'), { timezone: 'America/New_York' })));
+await check('household member cannot set the timezone', () => assertFails(updateDoc(doc(as('hmember'), 'households/h1'), { timezone: 'Asia/Tokyo' })));
 await check('household admin cannot change createdBy', () => assertFails(updateDoc(doc(as('hadmin'), 'households/h1'), { createdBy: 'x' })));
 await check('household member cannot rename the household', () => assertFails(updateDoc(doc(as('hmember'), 'households/h1'), { name: 'Mine' })));
 await check('household member lists own household roster', () => assertSucceeds(getDocs(query(collection(as('hmember'), 'users'), where('householdId', '==', 'h1')))));

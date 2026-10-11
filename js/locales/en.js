@@ -534,13 +534,11 @@ export default {
   // people
   "people.admin": "Admin",
   "people.mitglied": "Member",
-  "people.kein_empfaenger": "— no recipient —",
   "people.ohne_namen": "(no name)",
   "people.entfernt_am": "Removed on {removedSince}",
   "people.entfernt": "Removed",
   "people.mitglied_seit": "Member since {since}",
   "people.wiederherstellen": "Restore",
-  "people.empfaenger_fuer_checklisten_erinnerungen": "Recipient for checklist reminders",
   "people.du": "{roleLabel} (you)",
   "people.entfernen": "Remove",
   "people.diese_person": "This person",
@@ -549,7 +547,6 @@ export default {
   "people.entfernen_diese_person_verliert_sofort": "Remove {value}? This person immediately loses access to the app and all data.",
   "people.entfernen_fehlgeschlagen": "Couldn't remove: ",
   "people.wiederherstellen_fehlgeschlagen": "Couldn't restore: ",
-  "people.empfaenger_konnte_nicht_geaendert_werden": "Couldn't change recipient: ",
   "people.fehler_beim_laden": "Couldn't load: ",
   // taxonomy
   "taxonomy.fehler_beim_laden": "Couldn't load: ",
@@ -680,7 +677,6 @@ export default {
   "notifications.vierteljaehrlich": "Quarterly",
   "notifications.halbjaehrlich": "Every 6 months",
   "notifications.jaehrlich": "Yearly",
-  "notifications.aktuelle_uhrzeit_europe_paris_00": "Current time (Europe/Paris): {currentParisHour}:00 — configured: {configuredHour}:00",
   "notifications.als_erledigt_markiert": ", marked as done",
   "notifications.zeitraum_wuerde_jetzt_senden": "{frequency} (period {occurrence}{dismissed}) — would send now: {wouldSend}",
   "notifications.laedt": "Loading…",
@@ -961,4 +957,6 @@ export default {
   "people.ablehnen": "Reject",
   "people.ablehnen_confirm": "Reject {value}? This person won't get access to the app.",
   "people.warten_auf_freigabe_count": {"one": "{count} person waiting for approval", "other": "{count} people waiting for approval"},
+  "settings.notifications.zeitzone": "Time zone",
+  "notifications.aktuelle_uhrzeit_tz": "Current time ({timezone}): {currentHour}:00 \u2014 configured: {configuredHour}:00",
 };
