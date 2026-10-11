@@ -10,11 +10,11 @@
 // Naming note: 'doc' is already the Firestore doc() import used all over
 // this codebase, so every jsPDF document instance in this file is named
 // 'pdf' instead, never 'doc', to avoid shadowing it.
-import { db } from './firebase-init.js?v=199';
+import { db } from './firebase-init.js?v=200';
 import {
   collection, getDocs, doc, getDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale } from './i18n.js?v=199';
+import { t, getLocale } from './i18n.js?v=200';
 
 const sectionChecks = document.querySelectorAll('.pdf-section-check');
 const selectAllBtn = document.getElementById('pdf-select-all-btn');
@@ -749,11 +749,13 @@ async function loadTargetGraph() {
 // graphic rather than plain text, per Markus's request — same color
 // thresholds, same current/target figures, right-aligned.
 
-function drawTotalBar(pdf, y, current, target) {
+// `unit`: 'kg' for food, 'L' for the water total (Build 200 — it used to
+// print "kg" for water too, unlike the app's own water card).
+function drawTotalBar(pdf, y, current, target, unit = 'kg') {
   y = ensure(pdf, y, 10);
   const p = pct(current, target);
   const state = stateFor(p, target != null && target > 0);
-  const figText = `${round2(current)} / ${round2(target)} kg (${Math.round(p)} %)`;
+  const figText = `${round2(current)} / ${round2(target)} ${unit} (${Math.round(p)} %)`;
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(11);
   const figW = pdf.getTextWidth(figText);
@@ -841,7 +843,7 @@ async function buildDashboardSection(pdf) {
     y = subheading(pdf, y, t('pdf.wasser_gesamt'));
     if (waterTarget != null) {
       const wWeeks = weeksOfCoverage(waterCurrent, waterTarget, planning);
-      y = drawTotalBar(pdf, y, waterCurrent, waterTarget);
+      y = drawTotalBar(pdf, y, waterCurrent, waterTarget, 'L');
       if (wWeeks != null && weeksTarget != null) {
         y = bodyText(pdf, y, t('pdf.reicht_ca_von_wochen', { weeks: round2(Math.min(wWeeks, 999)), total: round2(weeksTarget) }));
       }
