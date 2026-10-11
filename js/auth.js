@@ -1,4 +1,4 @@
-import { auth, db, setHousehold } from './firebase-init.js?v=205';
+import { auth, db, setHousehold } from './firebase-init.js?v=206';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -11,7 +11,7 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLang } from './i18n.js?v=205';
+import { t, getLang } from './i18n.js?v=206';
 
 const provider = new GoogleAuthProvider();
 
@@ -263,14 +263,22 @@ let renderedRole = null;
 // to re-point dozens of listeners in place.
 let renderedHousehold;
 
-// Waiting for approval (Build 201): the sign-in screen, with an explanation
-// and a sign-out button instead of the Google button. No erdkeller:signedin
-// is dispatched, so no screen tries to read data it isn't allowed to; the
-// profile listener re-renders the moment an admin approves.
+// Signed in but not in a household yet (role 'pending'): the sign-in screen
+// shows the onboarding instead of the Google button (Build 206,
+// js/onboarding.js — accept an invitation or create a household; it was a
+// "waiting for approval" note in Builds 201–205). No erdkeller:signedin is
+// dispatched, so no screen tries to read data it isn't allowed to; the
+// profile listener renders the app the moment the server puts the account
+// into a household.
+let gateShown = false;
 function showPendingGate(pending) {
   signinBtn.classList.toggle('hidden', pending);
   pendingEl.classList.toggle('hidden', !pending);
   pendingSignoutBtn.classList.toggle('hidden', !pending);
+  if (pending !== gateShown) {
+    gateShown = pending;
+    window.dispatchEvent(new CustomEvent('erdkeller:onboarding', { detail: { show: pending } }));
+  }
 }
 
 function renderSignedOut() {

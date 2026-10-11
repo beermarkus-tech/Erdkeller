@@ -1,14 +1,8 @@
-// Alternate tour (HARNESS_TOUR=signup, with HARNESS_USER=<a uid that has no
-// fixture doc>): a stranger's first sign-in → waiting screen → an admin
-// approves them (simulated by writing role 'member' — and, in household
-// mode, the admin's householdId, as js/people.js does — to their doc) → app.
-const asAdmin = (uid, role) => async (page) => page.evaluate(async ({ uid, role, hh }) => {
-  const fb = await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');
-  await fb.updateDoc(fb.doc({}, 'users', uid), hh ? { role, householdId: hh } : { role });
-}, { uid, role, hh: process.env.HARNESS_HOUSEHOLD || '' });
-const uid = process.env.HARNESS_USER || 'u-new';
+// Alternate tour (HARNESS_TOUR=signup, HARNESS_USER=u-pending): an account
+// without a household signs in → onboarding with one invitation (Build
+// 206) → language switch → accepts → the app opens in that household.
 module.exports = [
-  { name: 'signup: first sign-in', run: async () => {} },
-  { name: 'signup: switch language while waiting', run: async (page) => page.click('#auth-gate .lang-btn') },
-  { name: 'signup: approved by an admin', run: asAdmin(uid, 'member') },
+  { name: 'signup: first sign-in (onboarding)', run: async (page) => { await page.waitForTimeout(300); } },
+  { name: 'signup: switch language on onboarding', run: async (page) => page.click('#auth-gate .lang-btn') },
+  { name: 'signup: accept the invitation', run: async (page) => { await page.click('#onboarding-invites .onboarding-primary'); await page.waitForTimeout(500); } },
 ];

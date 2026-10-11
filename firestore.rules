@@ -108,30 +108,26 @@ service cloud.firestore {
     match /users/{userId} {
       // Build 203: the roster is per household — you read the people of
       // your own household (legacy accounts, all without householdId, read
-      // each other exactly as before), and admins additionally see
-      // accounts waiting for approval. A pending account never has a
-      // householdId (the create rule below forbids one, the self-update
-      // rule can't add one, and only an admin's approval sets it), so
-      // "role == pending" alone is the scope.
+      // each other exactly as before). Build 206: accounts without a
+      // household ('pending') are no longer visible to any admin — people
+      // join by invitation or create their own household, both
+      // server-side (functions/index.js), never by an admin's approval.
       allow read: if (hasAuth() && request.auth.uid == userId)
         || (approved() && myHousehold() == null)
-        || (approved() && resource.data.get('householdId', null) == myHousehold())
-        || (isAnyAdmin() && resource.data.get('role', '') == 'pending');
+        || (approved() && resource.data.get('householdId', null) == myHousehold());
       allow create: if hasAuth() && request.auth.uid == userId
         && request.resource.data.role == 'pending'
         && request.resource.data.get('householdId', null) == null;
-      // Admins manage the accounts of their own household, and approve
-      // pending ones INTO it (approval sets role and householdId in one
-      // write). Nobody can move an account to another household or strip
-      // it out of one. Self-updates (name/photo/lang sync in js/auth.js)
-      // may change neither role, removed nor householdId.
+      // Admins manage the accounts of their own household (role, removed).
+      // Nobody can move an account into, out of or between households from
+      // the client — joining (invitation) and creating a household happen
+      // server-side. Self-updates (name/photo/lang sync in js/auth.js) may
+      // change neither role, removed nor householdId.
       allow update: if (
         isAnyAdmin()
-        && (resource.data.get('householdId', null) == myHousehold()
-            || resource.data.get('role', '') == 'pending')
-        && (request.resource.data.get('householdId', null) == resource.data.get('householdId', null)
-            || (resource.data.get('householdId', null) == null
-                && request.resource.data.get('householdId', null) == myHousehold()))
+        && myHousehold() != null
+        && resource.data.get('householdId', null) == myHousehold()
+        && request.resource.data.get('householdId', null) == resource.data.get('householdId', null)
       ) || (
         hasAuth() && request.auth.uid == userId
         && resource.data.get('removed', false) != true
@@ -319,6 +315,34 @@ service cloud.firestore {
       match /config/notificationState {
         allow read, write: if isMember(hid);
       }
+    }
+
+    // Build 206 (MULTI_HOUSEHOLD step 4): invitations. An admin invites an
+    // e-mail address into their own household; the invited person sees and
+    // accepts it after signing in with that address — through server
+    // functions (myInvites/acceptInvite/declineInvite), which match the
+    // address against the verified sign-in e-mail. So from the client only
+    // the inviting household's admins read, create and revoke them.
+    match /invites/{inviteId} {
+      allow read: if isAnyAdmin() && myHousehold() != null
+        && resource.data.householdId == myHousehold();
+      allow create: if isAnyAdmin() && myHousehold() != null
+        && request.resource.data.keys().hasOnly(['householdId', 'email', 'role', 'status', 'createdBy', 'createdAt'])
+        && request.resource.data.householdId == myHousehold()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status == 'open'
+        && request.resource.data.role in ['member', 'admin']
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 200
+        && request.resource.data.email == request.resource.data.email.lower()
+        && request.resource.data.email.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$')
+        && request.resource.data.createdAt is string;
+      allow update: if isAnyAdmin() && myHousehold() != null
+        && resource.data.householdId == myHousehold()
+        && resource.data.status == 'open'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'revokedAt'])
+        && request.resource.data.status == 'revoked';
+      allow delete: if false;
     }
 
     // Everything else stays locked down until its own build step wires up

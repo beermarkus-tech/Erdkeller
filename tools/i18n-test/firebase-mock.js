@@ -30,7 +30,7 @@ export const httpsCallable = (fns, name) => async (payload) => {
   (window.__CALLS__ ||= []).push({ name, payload });
   const r = (window.__CALLABLES__ || {})[name];
   if (r instanceof Error) throw r;
-  return { data: typeof r === 'function' ? r(payload) : (r || {}) };
+  return { data: typeof r === 'function' ? await r(payload) : (r || {}) };
 };
 export const isSupported = async () => false;
 export const getMessaging = () => ({});
