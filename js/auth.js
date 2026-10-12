@@ -1,4 +1,4 @@
-import { auth, db, setHousehold } from './firebase-init.js?v=210';
+import { auth, db, setHousehold } from './firebase-init.js?v=211';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -11,7 +11,7 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLang } from './i18n.js?v=210';
+import { t, getLang } from './i18n.js?v=211';
 
 const provider = new GoogleAuthProvider();
 
@@ -190,6 +190,16 @@ signinBtn.addEventListener('click', async () => {
     }
   }
 });
+
+// Build 211 — after "Konto löschen" (js/account-actions.js): the account no
+// longer exists server-side, so leave exactly like a deliberate sign-out,
+// with a message on the sign-in screen.
+export function signOutAfterDeletion(message) {
+  explicitSignOut = true;
+  clearCachedIdentity();
+  authError.textContent = message || '';
+  signOut(auth).catch(() => {});
+}
 
 signoutButtons.forEach((btn) => btn.addEventListener('click', () => {
   // Clear the cached identity FIRST: a deliberate sign-out must win even if

@@ -17,6 +17,7 @@ const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const { getAuth } = require('firebase-admin/auth');
 
 initializeApp();
 const db = getFirestore();
@@ -103,6 +104,8 @@ const SERVER_TEXT = {
     noVerifiedEmail: 'Dein Google-Konto hat keine bestätigte E-Mail-Adresse.',
     dictationLimit: 'Das Tageslimit von {limit} Diktaten/Fotos für euren Haushalt ist erreicht. Morgen geht es wieder — bis dahin bitte von Hand einlagern.',
     consentRequired: 'Bitte zuerst den Datenschutzhinweis bestätigen.',
+    lastAdmin: 'Du bist der einzige Admin. Mach zuerst jemand anderen zum Admin oder lösche den ganzen Haushalt.',
+    nameMismatch: 'Der Name stimmt nicht — nichts wurde gelöscht.',
     inviteNotFound: 'Einladung nicht gefunden.',
     inviteNotOpen: 'Diese Einladung gilt nicht mehr.',
     inviteExpired: 'Diese Einladung ist abgelaufen — bitte um eine neue.',
@@ -128,6 +131,8 @@ const SERVER_TEXT = {
     noVerifiedEmail: 'Your Google account has no verified e-mail address.',
     dictationLimit: 'Your household has reached today\'s limit of {limit} dictations/photos. It resets tomorrow — until then, please add items by hand.',
     consentRequired: 'Please confirm the privacy notice first.',
+    lastAdmin: 'You are the only admin. Make someone else an admin first, or delete the whole household.',
+    nameMismatch: 'The name doesn\'t match — nothing was deleted.',
     inviteNotFound: 'Invitation not found.',
     inviteNotOpen: 'This invitation is no longer valid.',
     inviteExpired: 'This invitation has expired — please ask for a new one.',
@@ -1209,5 +1214,84 @@ exports.removeMember = onCall(async (request) => {
   await targetSnap.ref.update({ ...CLEAR_MEMBERSHIP(), role: 'pending', leftAt: new Date().toISOString() });
   const devices = await targetSnap.ref.collection('devices').get();
   await Promise.all(devices.docs.map((d) => d.ref.delete()));
+  return { ok: true };
+});
+
+// ---------------------------------------------------------------------------
+// Deleting (Build 211, MULTI_HOUSEHOLD.md step 6b — GDPR, and fair to
+// testers). Both are immediate and final; the app asks first.
+// ---------------------------------------------------------------------------
+
+// Approved, non-removed members of a household other than `exceptUid`.
+async function otherMembers(householdId, exceptUid) {
+  const snap = await db.collection('users').where('householdId', '==', householdId).get();
+  return snap.docs.filter((d) => d.id !== exceptUid && d.data().removed !== true
+    && ['admin', 'member'].includes(d.data().role));
+}
+
+// Everything of one household: its data (recursively), its open
+// invitations (revoked, so nobody can still join it), and every account in
+// it taken out (back to "no household", devices kept).
+async function deleteHouseholdData(householdId) {
+  const members = await db.collection('users').where('householdId', '==', householdId).get();
+  const invites = await db.collection('invites').where('householdId', '==', householdId).where('status', '==', 'open').get();
+  const nowIso = new Date().toISOString();
+  const batch = db.batch();
+  members.docs.forEach((d) => batch.update(d.ref, { ...CLEAR_MEMBERSHIP(), role: 'pending', leftAt: nowIso }));
+  invites.docs.forEach((d) => batch.update(d.ref, { status: 'revoked', revokedAt: nowIso }));
+  await batch.commit();
+  await db.recursiveDelete(db.doc(`households/${householdId}`));
+}
+
+// "Konto löschen": the caller's own account — their /users doc, devices and
+// Google sign-in record for this app. If they are the last person in their
+// household, the household goes with them (nobody else could reach it); if
+// others remain, the household stays, but its last admin can't leave it
+// adminless.
+exports.deleteMyAccount = onCall(async (request) => {
+  const lang = callerLang(request);
+  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
+  const uid = request.auth.uid;
+  const userRef = db.doc(`users/${uid}`);
+  const userSnap = await userRef.get();
+  const user = userSnap.exists ? userSnap.data() : {};
+  const householdId = user.removed === true ? null : (user.householdId || null);
+  let householdDeleted = false;
+  if (householdId) {
+    const others = await otherMembers(householdId, uid);
+    if (!others.length) {
+      await deleteHouseholdData(householdId);
+      householdDeleted = true;
+    } else if (user.role === 'admin' && !others.some((d) => d.data().role === 'admin')) {
+      throw new HttpsError('failed-precondition', st(lang, 'lastAdmin'));
+    }
+  }
+  await db.recursiveDelete(userRef);
+  try {
+    await getAuth().deleteUser(uid);
+  } catch (err) {
+    // The data is gone either way; a leftover sign-in record holds nothing.
+    if (err.code !== 'auth/user-not-found') console.error('deleteMyAccount: auth record not deleted', uid, err);
+  }
+  return { ok: true, householdDeleted };
+});
+
+// "Haushalt löschen": an admin deletes their whole household — all its data
+// for every member. The app makes them type the household's name; the
+// server checks it too, so a stray call can't do it.
+exports.deleteHousehold = onCall({ timeoutSeconds: 300 }, async (request) => {
+  const lang = callerLang(request);
+  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
+  const callerSnap = await db.doc(`users/${request.auth.uid}`).get();
+  const caller = callerSnap.exists ? callerSnap.data() : null;
+  if (!caller || caller.role !== 'admin' || caller.removed === true || !caller.householdId) {
+    throw new HttpsError('permission-denied', st(lang, 'adminsOnly'));
+  }
+  const hhSnap = await db.doc(`households/${caller.householdId}`).get();
+  const typed = String((request.data && request.data.confirmName) || '').trim();
+  if (!hhSnap.exists || !typed || typed !== String(hhSnap.data().name || '').trim()) {
+    throw new HttpsError('failed-precondition', st(lang, 'nameMismatch'));
+  }
+  await deleteHouseholdData(caller.householdId);
   return { ok: true };
 });
