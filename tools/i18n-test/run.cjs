@@ -146,6 +146,9 @@ async function runTour(dir, lang, only, fake, afterStep) {
         createHousehold: async (p) => {
           const fb = await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');
           await fb.setDoc(fb.doc({}, 'households', 'hNew'), { name: p.name, country: p.country, timezone: p.timezone, lang: p.dataLang, createdBy: window.__USER__.uid });
+          // As the server does (Build 209): the starter categories for its data language.
+          const tpl = await (await fetch(`/functions/templates/taxonomy-${p.dataLang === 'en' ? 'en' : 'de'}.json`)).json();
+          await fb.setDoc(fb.doc({}, 'households/hNew/config', 'taxonomy'), { ...tpl, fromTemplate: p.dataLang });
           await fb.setDoc(fb.doc({}, 'users', window.__USER__.uid), { role: 'admin', householdId: 'hNew' }, { merge: true });
           return { householdId: 'hNew' };
         },

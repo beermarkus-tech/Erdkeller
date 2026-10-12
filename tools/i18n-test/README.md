@@ -33,7 +33,7 @@ node tools/i18n-test/run.cjs --live .
 - `HARNESS_TOUR=signup` runs `tour-signup.cjs`: a stranger's sign-up, the waiting screen, then approval.
 - `HARNESS_HOUSEHOLD=h1` runs in household mode: all fixture data under `households/h1/`, every approved account with `householdId: 'h1'`. The app must find the household from the account itself, so identical screens prove every access goes through `hcol()` / `hdoc()` and the household is set before any screen loads.
 - `HARNESS_TOUR=signup HARNESS_USER=u-pending` — onboarding with one invitation, language switch, join (Build 206).
-- `HARNESS_TOUR=create HARNESS_USER=u-new` — onboarding without invitation, create a household, every main screen on the empty household.
+- `HARNESS_TOUR=create HARNESS_USER=u-new` — onboarding without invitation, create a household (with the starter categories of the UI language), every main screen, the categories editor.
 - `HARNESS_TOUR=invite HARNESS_HOUSEHOLD=h1` — inviting someone in Admin → Personen.
 - `HARNESS_TOUR=switch` simulates the household move finishing while the app is open: the app must store the new household, reload once, and not loop.
 - `--calls` prints the server calls the tour made, plus every Firestore write path.
