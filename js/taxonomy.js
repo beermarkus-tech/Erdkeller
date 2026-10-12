@@ -1,12 +1,13 @@
-import { db, hdoc } from './firebase-init.js?v=207';
+import { db, hdoc } from './firebase-init.js?v=208';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=207';
+import { t } from './i18n.js?v=208';
 
 const editorEl = document.getElementById('taxonomy-editor');
 const addTypeBtn = document.getElementById('add-type-btn');
 const expandAllBtn = document.getElementById('expand-all-btn');
 const collapseAllBtn = document.getElementById('collapse-all-btn');
 const statusEl = document.getElementById('taxonomy-status');
+const exportBtn = document.getElementById('export-taxonomy-btn');
 const ref = () => hdoc('config', 'taxonomy');
 
 let taxonomy = { types: [] };
@@ -118,6 +119,28 @@ function focusNewName(id) {
     }
   });
 }
+
+// Build 208 — downloads the category tree on its own (types → categories →
+// subcategories, exactly as stored), without any stock, people or other
+// data. Made for building the starter templates for new households
+// (MULTI_HOUSEHOLD.md step 5), and handy as a small categories-only backup.
+exportBtn.addEventListener('click', () => {
+  if (!loadOk) {
+    statusEl.textContent = t('taxonomy.speichern_blockiert_die_daten_wurden');
+    return;
+  }
+  const d = new Date();
+  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const json = JSON.stringify({ exportedAt: d.toISOString(), taxonomy }, null, 2);
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `erdkeller-kategorien-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
 
 async function loadTaxonomy() {
   try {

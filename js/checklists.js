@@ -61,11 +61,11 @@
 // or triggers a render — never a manual optimistic flip in the same tick,
 // which would be a second writer to the same state and risk a visible
 // flicker if a slightly-lagged snapshot event arrived after it.
-import { auth, db, hdoc, hcol, getHouseholdId } from './firebase-init.js?v=207';
+import { auth, db, hdoc, hcol, getHouseholdId } from './firebase-init.js?v=208';
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, onSnapshot, query, where,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=207';
+import { t } from './i18n.js?v=208';
 
 // --- DOM refs: main screen ------------------------------------------------
 //
