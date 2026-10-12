@@ -1022,4 +1022,6 @@ export default {
   "operator.zuletzt_beigetreten": "Last person joined",
   "operator.laedt": "Loading…",
   "operator.bitte_anmelden": "Please sign in to the app first, then reload this page.",
+  "settings.betrieb": "Operations",
+  "settings.betrieb_sub": "All households at a glance (only for you)",
 };

@@ -4654,3 +4654,9 @@ button.popover-link {
   text-align: right;
   overflow-wrap: anywhere;
 }
+
+/* Build 213 — the operator's link card in Admin (an <a>, not a panel). */
+a.operator-card {
+  text-decoration: none;
+  color: inherit;
+}
