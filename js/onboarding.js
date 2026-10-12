@@ -9,9 +9,9 @@
 // declineInvite, createHousehold) — moving an account into a household is
 // nothing the client is allowed to do itself. On success the server updates
 // /users/{uid}; js/auth.js's profile listener then opens the app.
-import { auth, functions } from './firebase-init.js?v=209';
+import { auth, functions } from './firebase-init.js?v=210';
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { t, getLang } from './i18n.js?v=209';
+import { t, getLang } from './i18n.js?v=210';
 
 const helloEl = document.getElementById('onboarding-hello');
 const invitesEl = document.getElementById('onboarding-invites');
@@ -22,6 +22,7 @@ const countryEl = document.getElementById('onboarding-country');
 const tzEl = document.getElementById('onboarding-tz');
 const createBtn = document.getElementById('onboarding-create');
 const statusEl = document.getElementById('onboarding-status');
+const consentEl = document.getElementById('onboarding-consent');
 
 const myInvitesFn = httpsCallable(functions, 'myInvites');
 const acceptInviteFn = httpsCallable(functions, 'acceptInvite');
@@ -159,6 +160,15 @@ async function loadInvites() {
   render();
 }
 
+// Build 210: joining or creating needs the privacy notice / test terms
+// accepted (the server checks `consent` too and stores when).
+function hasConsent() {
+  if (consentEl.checked) return true;
+  statusEl.textContent = t('onboarding.consent_fehlt');
+  consentEl.focus();
+  return false;
+}
+
 async function run(statusKey, fn) {
   if (busy) return;
   if (!navigator.onLine) {
@@ -181,7 +191,8 @@ async function run(statusKey, fn) {
 }
 
 function acceptInvite(inv) {
-  run('onboarding.trete_bei', () => acceptInviteFn({ inviteId: inv.id, lang: getLang() }));
+  if (!hasConsent()) return;
+  run('onboarding.trete_bei', () => acceptInviteFn({ inviteId: inv.id, consent: true, lang: getLang() }));
 }
 
 function declineInvite(inv) {
@@ -199,8 +210,9 @@ createBtn.addEventListener('click', () => {
     nameEl.focus();
     return;
   }
+  if (!hasConsent()) return;
   run('onboarding.lege_an', () => createHouseholdFn({
-    name, country: countryEl.value, timezone: deviceTimeZone(), dataLang: getLang(), lang: getLang(),
+    name, country: countryEl.value, timezone: deviceTimeZone(), dataLang: getLang(), lang: getLang(), consent: true,
   }));
 });
 
@@ -208,6 +220,7 @@ createBtn.addEventListener('click', () => {
 // not replace it with the default in the other language.
 nameEl.addEventListener('input', () => { nameEl.dataset.auto = '0'; });
 recheckBtn.addEventListener('click', () => loadInvites());
+consentEl.addEventListener('change', () => { if (consentEl.checked && statusEl.textContent === t('onboarding.consent_fehlt')) statusEl.textContent = ''; });
 
 window.addEventListener('erdkeller:onboarding', (e) => {
   shown = e.detail.show;

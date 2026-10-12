@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2E4034">
+<title>Erdkeller — Datenschutz / Privacy</title>
+<link rel="icon" href="icons/icon-192.png">
+<!-- Build 210 (MULTI_HOUSEHOLD.md step 6): privacy notice and test terms,
+     shown before joining or creating a household (js/onboarding.js) and
+     linked from the account menu. Deliberately a plain page with no
+     scripts beyond the language switch, no external fonts and no
+     tracking. When the content changes, bump PRIVACY_VERSION in
+     functions/index.js to the new date. -->
+<style>
+  :root { --paper: #F4F2EA; --charcoal: #20241F; --cellar: #2E4034; --stone: #D3CFC0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--charcoal); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-family: Georgia, serif; font-size: 26px; margin: 8px 0 4px; }
+  h2 { font-size: 17px; margin: 24px 0 6px; }
+  p, li { margin: 0 0 8px; }
+  ul { padding-left: 20px; margin: 0 0 8px; }
+  .meta { color: #6b6a5f; font-size: 13px; margin-bottom: 16px; }
+  .switch { float: right; font-size: 14px; }
+  a { color: var(--cellar); }
+  .box { background: white; border: 1px solid var(--stone); border-radius: 12px; padding: 12px 14px; margin: 12px 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+
+<section lang="de" id="de">
+  <a class="switch" href="#en" data-lang="en">English</a>
+  <h1>Datenschutz &amp; Testbetrieb</h1>
+  <p class="meta">Stand: 12. Oktober 2026</p>
+
+  <div class="box">
+    <p><strong>Kurz gesagt:</strong> Erdkeller ist ein privates, kostenloses Testprojekt. Eure Daten liegen bei Google Firebase in der EU, nur euer Haushalt sieht sie, nichts wird verkauft oder für Werbung genutzt. Ohne Garantie — bitte selbst Backups machen und nichts besonders Sensibles speichern.</p>
+  </div>
+
+  <h2>1. Testbetrieb</h2>
+  <ul>
+    <li>Erdkeller ist ein privates Projekt im Testbetrieb, kostenlos und ohne jede Garantie für Verfügbarkeit oder Fehlerfreiheit.</li>
+    <li>Daten können durch Fehler verloren gehen, und der Test kann jederzeit enden. Wir sagen nach Möglichkeit vorher Bescheid. Macht regelmäßig ein Backup (Admin → Sicherung).</li>
+    <li>Bitte speichert keine besonders sensiblen Daten (z. B. Gesundheitsdaten, Ausweis- oder Bankdaten).</li>
+  </ul>
+
+  <h2>2. Verantwortlich &amp; Kontakt</h2>
+  <p>Der Betreiber dieses Tests, erreichbar unter <a href="mailto:contact@solidcutlist.com">contact@solidcutlist.com</a> — für alle Fragen, Auskunft und Löschwünsche.</p>
+
+  <h2>3. Welche Daten gespeichert werden</h2>
+  <ul>
+    <li><strong>Von eurem Google-Konto:</strong> Name, E-Mail-Adresse, Profilbild und eine Konto-ID (für die Anmeldung).</li>
+    <li><strong>Was ihr eingebt:</strong> Vorräte, Checklisten, Kontakte, Notizen, Rezepte, Planung und Einstellungen eures Haushalts; Haushaltsname, Land, Zeitzone und Sprache.</li>
+    <li><strong>Einladungen:</strong> die E-Mail-Adresse der eingeladenen Person.</li>
+    <li><strong>Push-Benachrichtigungen:</strong> eine Geräte-Kennung, wenn ihr Erinnerungen auf einem Gerät einschaltet.</li>
+    <li><strong>Nutzung:</strong> wie oft euer Haushalt pro Tag das KI-Diktat nutzt (für das Tageslimit), und wann ihr diesem Hinweis zugestimmt habt.</li>
+    <li>Im Browser speichert die App eure Sprache und euren Anmeldestatus (damit sie offline startet). Keine Werbe- oder Tracking-Cookies.</li>
+  </ul>
+
+  <h2>4. Wo die Daten liegen</h2>
+  <ul>
+    <li>Datenbank: Google Firebase / Google Cloud, Region <strong>EU</strong> (Belgien und Niederlande).</li>
+    <li>Serverfunktionen (KI-Diktat, Erinnerungen, Einladungen) laufen derzeit in einem Google-Rechenzentrum in den <strong>USA</strong>; die Daten werden dort verarbeitet, aber nicht dauerhaft gespeichert.</li>
+    <li>Die App selbst wird über GitHub Pages ausgeliefert, Schriftarten über Google Fonts; beide sehen dabei eure IP-Adresse, aber keine eurer Daten.</li>
+  </ul>
+
+  <h2>5. KI-Diktat und Foto</h2>
+  <p>Wenn ihr das Diktat oder ein Foto nutzt, werden der erkannte Text bzw. das Foto zusammen mit eurer Produktliste, euren Kategorien und (beim Diktat) dem aktuellen Bestand an <strong>Anthropic (USA)</strong> geschickt, um daraus Einträge vorzuschlagen. Nach den Geschäftsbedingungen von Anthropic werden solche Daten nicht zum Training ihrer Modelle verwendet. Die Spracherkennung selbst übernimmt euer Browser bzw. Betriebssystem (bei Chrome z. B. Google). Wer das nicht möchte, nutzt das Diktat einfach nicht — alles geht auch von Hand.</p>
+
+  <h2>6. Wer eure Daten sehen kann</h2>
+  <ul>
+    <li>Die Mitglieder eures Haushalts. Andere Haushalte sehen nichts davon.</li>
+    <li>Als Inhaber des Google-Cloud-Projekts hat der Betreiber technisch Zugriff auf die Datenbank. Haushaltsdaten werden nicht angesehen, außer um ein Problem zu beheben, das ihr meldet; Zugriffe über die Konsole werden protokolliert. Für den Betrieb dienen nur Übersichtsdaten (Haushaltsname, Anzahl Personen, Datum, Diktat-Nutzung).</li>
+    <li>Keine Weitergabe oder Verkauf an Dritte, keine Werbung.</li>
+  </ul>
+
+  <h2>7. Daten anderer Personen</h2>
+  <p>Wenn ihr Daten anderer Personen speichert (z. B. Kontakte mit Telefonnummer und Adresse), seid ihr dafür verantwortlich, dass das in Ordnung ist.</p>
+
+  <h2>8. Löschen</h2>
+  <ul>
+    <li>Ihr könnt euer Konto und (als Admin) euren Haushalt in der App löschen: Profilbild → „Konto löschen“ bzw. „Haushalt löschen“. Die Daten werden dabei sofort entfernt.</li>
+    <li>Oder per E-Mail an <a href="mailto:contact@solidcutlist.com">contact@solidcutlist.com</a> — wir löschen innerhalb von 30 Tagen.</li>
+    <li>Endet der Test, werden alle Daten gelöscht.</li>
+  </ul>
+
+  <h2>9. Eure Rechte</h2>
+  <p>Ihr habt das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit (Backup als Datei: Admin → Sicherung) und Widerspruch, sowie das Recht auf Beschwerde bei einer Datenschutz-Aufsichtsbehörde. Grundlage der Verarbeitung ist eure Einwilligung bzw. die Bereitstellung der App, die ihr nutzt (Art. 6 Abs. 1 a und b DSGVO); die Einwilligung könnt ihr jederzeit widerrufen, indem ihr euer Konto löscht.</p>
+</section>
+
+<section lang="en" id="en" hidden>
+  <a class="switch" href="#de" data-lang="de">Deutsch</a>
+  <h1>Privacy &amp; test terms</h1>
+  <p class="meta">Last updated: October 12, 2026</p>
+
+  <div class="box">
+    <p><strong>In short:</strong> Erdkeller is a private, free test project. Your data is stored with Google Firebase in the EU, only your household can see it, and nothing is sold or used for advertising. No guarantees — please make your own backups and don't store anything particularly sensitive.</p>
+  </div>
+
+  <h2>1. Test status</h2>
+  <ul>
+    <li>Erdkeller is a private project in testing, free of charge and without any guarantee of availability or correctness.</li>
+    <li>Data may be lost through bugs, and the test may end at any time. We'll try to give notice beforehand. Please make regular backups (Admin → Backup).</li>
+    <li>Please don't store particularly sensitive data (e.g. health data, ID or bank details).</li>
+  </ul>
+
+  <h2>2. Who is responsible &amp; contact</h2>
+  <p>The operator of this test, reachable at <a href="mailto:contact@solidcutlist.com">contact@solidcutlist.com</a> — for any questions, data access and deletion requests.</p>
+
+  <h2>3. What is stored</h2>
+  <ul>
+    <li><strong>From your Google account:</strong> name, e-mail address, profile picture and an account ID (for signing in).</li>
+    <li><strong>What you enter:</strong> your household's stock, checklists, contacts, notes, recipes, planning and settings; the household name, country, time zone and language.</li>
+    <li><strong>Invitations:</strong> the invited person's e-mail address.</li>
+    <li><strong>Push notifications:</strong> a device identifier, if you turn reminders on for a device.</li>
+    <li><strong>Usage:</strong> how often your household uses AI dictation per day (for the daily limit), and when you agreed to this notice.</li>
+    <li>In your browser the app keeps your language and sign-in state (so it can start offline). No advertising or tracking cookies.</li>
+  </ul>
+
+  <h2>4. Where the data is</h2>
+  <ul>
+    <li>Database: Google Firebase / Google Cloud, region <strong>EU</strong> (Belgium and the Netherlands).</li>
+    <li>Server functions (AI dictation, reminders, invitations) currently run in a Google data center in the <strong>USA</strong>; data is processed there but not stored there permanently.</li>
+    <li>The app itself is served by GitHub Pages, and fonts by Google Fonts; both see your IP address, but none of your data.</li>
+  </ul>
+
+  <h2>5. AI dictation and photos</h2>
+  <p>When you use dictation or a photo, the recognized text or the photo is sent to <strong>Anthropic (USA)</strong> together with your product list, your categories and (for dictation) your current stock, to suggest entries. Under Anthropic's commercial terms such data is not used to train their models. Speech recognition itself is done by your browser or operating system (in Chrome, for example, by Google). If you'd rather not, simply don't use dictation — everything works by hand too.</p>
+
+  <h2>6. Who can see your data</h2>
+  <ul>
+    <li>The members of your household. Other households see none of it.</li>
+    <li>As owner of the Google Cloud project, the operator technically has access to the database. Household data is not looked at except to fix a problem you report, and access through the console is logged. Running the test only uses overview data (household name, number of people, dates, dictation usage).</li>
+    <li>No sharing with or selling to third parties, no advertising.</li>
+  </ul>
+
+  <h2>7. Other people's data</h2>
+  <p>If you store other people's data (e.g. contacts with phone numbers and addresses), you are responsible for making sure that's okay.</p>
+
+  <h2>8. Deleting</h2>
+  <ul>
+    <li>You can delete your account, and (as an admin) your household, in the app: profile picture → "Delete account" or "Delete household". The data is removed immediately.</li>
+    <li>Or by e-mail to <a href="mailto:contact@solidcutlist.com">contact@solidcutlist.com</a> — we delete within 30 days.</li>
+    <li>When the test ends, all data is deleted.</li>
+  </ul>
+
+  <h2>9. Your rights</h2>
+  <p>You have the right to access, rectification, erasure, restriction of processing, data portability (backup as a file: Admin → Backup) and objection, and the right to lodge a complaint with a data protection authority. The legal basis is your consent and providing the app you use (Art. 6(1)(a) and (b) GDPR); you can withdraw consent at any time by deleting your account.</p>
+</section>
+
+</main>
+<script>
+  // Language: #en/#de in the link, else the app's own choice, else the device.
+  (function () {
+    function pick() {
+      var h = location.hash.replace('#', '');
+      if (h === 'en' || h === 'de') return h;
+      try { var s = localStorage.getItem('erdkeller-lang'); if (s === 'en' || s === 'de') return s; } catch (e) {}
+      return String(navigator.language || '').toLowerCase().indexOf('de') === 0 ? 'de' : 'en';
+    }
+    function show(lang) {
+      document.getElementById('de').hidden = lang !== 'de';
+      document.getElementById('en').hidden = lang !== 'en';
+      document.documentElement.lang = lang;
+    }
+    show(pick());
+    window.addEventListener('hashchange', function () { show(pick()); window.scrollTo(0, 0); });
+  })();
+</script>
+</body>
+</html>

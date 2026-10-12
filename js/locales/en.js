@@ -990,4 +990,8 @@ export default {
   "onboarding.name_fehlt": "Please enter a name for the household.",
   "people.aus_haushalt_entfernen_confirm": "Remove {value} from the household? They immediately lose access to the app and all data. You can invite them again later.",
   "people.einladung_keine_gmail_confirm": "{email} isn't a Gmail address. Sign-in is with Google — this only works if the address belongs to a Google account (e.g. a company address on Google Workspace). Invite anyway?",
+  "onboarding.consent_html": "I have read the <a href=\"privacy.html\" target=\"_blank\" rel=\"noopener\">privacy notice</a> and agree to the test terms (no guarantees, data may be lost).",
+  "onboarding.consent_fehlt": "Please read the privacy notice and tick the box first.",
+  "auth.datenschutz_testbetrieb": "Privacy & test terms",
+  "nav.datenschutz": "Privacy",
 };

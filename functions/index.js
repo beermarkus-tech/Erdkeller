@@ -101,6 +101,8 @@ const SERVER_TEXT = {
     noDevice: 'Kein Gerät für diesen Account registriert.',
     testBody: 'Testbenachrichtigung — wenn du das siehst, funktioniert es.',
     noVerifiedEmail: 'Dein Google-Konto hat keine bestätigte E-Mail-Adresse.',
+    dictationLimit: 'Das Tageslimit von {limit} Diktaten/Fotos für euren Haushalt ist erreicht. Morgen geht es wieder — bis dahin bitte von Hand einlagern.',
+    consentRequired: 'Bitte zuerst den Datenschutzhinweis bestätigen.',
     inviteNotFound: 'Einladung nicht gefunden.',
     inviteNotOpen: 'Diese Einladung gilt nicht mehr.',
     inviteExpired: 'Diese Einladung ist abgelaufen — bitte um eine neue.',
@@ -124,6 +126,8 @@ const SERVER_TEXT = {
     noDevice: 'No device registered for this account.',
     testBody: 'Test notification — if you can see this, it works.',
     noVerifiedEmail: 'Your Google account has no verified e-mail address.',
+    dictationLimit: 'Your household has reached today\'s limit of {limit} dictations/photos. It resets tomorrow — until then, please add items by hand.',
+    consentRequired: 'Please confirm the privacy notice first.',
     inviteNotFound: 'Invitation not found.',
     inviteNotOpen: 'This invitation is no longer valid.',
     inviteExpired: 'This invitation has expired — please ask for a new one.',
@@ -253,6 +257,7 @@ function extractJsonArray(text) {
   return trimmed.slice(start, end + 1);
 }
 
+const DICTATION_PER_DAY = 20;
 const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 120 }, async (request) => {
@@ -327,6 +332,28 @@ exports.parseDictation = onCall({ secrets: [anthropicApiKey], timeoutSeconds: 12
       { type: 'image', source: { type: 'base64', media_type: data.mimeType, data: imageBase64 } },
       { type: 'text', text: prompt },
     ];
+  }
+
+  // Build 210 (MULTI_HOUSEHOLD step 6): a daily limit per household — every
+  // call costs money and the test is open to strangers. Counted before the
+  // AI call (an attempt costs too), per calendar day in the household's
+  // timezone, in /households/{id}/usage/dictation-YYYY-MM-DD (server-only:
+  // no client rule reaches it). Default DICTATION_PER_DAY; a household's
+  // own `dictationLimit` field (console only) overrides it.
+  if (caller.householdId) {
+    const hh = householdSnap && householdSnap.exists ? householdSnap.data() : {};
+    const limit = Number.isFinite(hh.dictationLimit) ? hh.dictationLimit : DICTATION_PER_DAY;
+    const p = zonedDateParts(new Date(), validTimeZone(hh.timezone));
+    const day = `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+    const usageRef = db.doc(`${base}/usage/dictation-${day}`);
+    const allowed = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(usageRef);
+      const count = snap.exists ? (snap.data().count || 0) : 0;
+      if (count >= limit) return false;
+      tx.set(usageRef, { day, count: count + 1, updatedAt: new Date().toISOString() }, { merge: true });
+      return true;
+    });
+    if (!allowed) throw new HttpsError('resource-exhausted', st(lang, 'dictationLimit').replace('{limit}', String(limit)));
   }
 
   let response;
@@ -954,6 +981,17 @@ exports.sendTestNotification = onCall(async (request) => {
 const INVITE_DAYS = 14;
 const COUNTRY_RE = /^[A-Z]{2}$/;
 
+// Build 210: joining or creating a household requires agreeing to the
+// privacy notice and test terms (privacy.html). The version is the
+// notice's date; stored on the account with the time of agreeing.
+const PRIVACY_VERSION = '2026-10-12';
+function assertConsent(request, lang) {
+  if (!request.data || request.data.consent !== true) {
+    throw new HttpsError('failed-precondition', st(lang, 'consentRequired'));
+  }
+  return { consentAt: new Date().toISOString(), consentVersion: PRIVACY_VERSION };
+}
+
 // Build 209 (MULTI_HOUSEHOLD.md step 5): the categories a new household
 // starts with, by its data language — copied from Markus's household, the
 // English one translated (functions/templates/README.md lists both).
@@ -1054,6 +1092,7 @@ exports.acceptInvite = onCall(async (request) => {
   const email = verifiedEmail(request, lang);
   const inviteId = String((request.data && request.data.inviteId) || '');
   if (!inviteId || inviteId.includes('/')) throw new HttpsError('invalid-argument', st(lang, 'inviteNotFound'));
+  const consent = assertConsent(request, lang);
   const uid = request.auth.uid;
   const inviteRef = db.doc(`invites/${inviteId}`);
   const userRef = db.doc(`users/${uid}`);
@@ -1071,9 +1110,9 @@ exports.acceptInvite = onCall(async (request) => {
     const nowIso = new Date().toISOString();
     const role = inv.role === 'admin' ? 'admin' : 'member';
     if (user) {
-      tx.update(userRef, { ...CLEAR_MEMBERSHIP(), role, householdId: inv.householdId, joinedAt: nowIso, email });
+      tx.update(userRef, { ...CLEAR_MEMBERSHIP(), ...consent, role, householdId: inv.householdId, joinedAt: nowIso, email });
     } else {
-      tx.set(userRef, { ...newUserFields(request), lang, role, householdId: inv.householdId, joinedAt: nowIso, email });
+      tx.set(userRef, { ...newUserFields(request), ...consent, lang, role, householdId: inv.householdId, joinedAt: nowIso, email });
     }
     tx.update(inviteRef, { status: 'accepted', acceptedBy: uid, acceptedAt: nowIso });
     return { householdId: inv.householdId, role };
@@ -1113,6 +1152,7 @@ exports.createHousehold = onCall(async (request) => {
   const data = request.data || {};
   const name = typeof data.name === 'string' ? data.name.trim().slice(0, 80) : '';
   if (!name) throw new HttpsError('invalid-argument', st(lang, 'nameRequired'));
+  const consent = assertConsent(request, lang);
   const country = typeof data.country === 'string' && COUNTRY_RE.test(data.country) ? data.country : null;
   const timezone = validTimeZone(data.timezone);
   const dataLang = normLang(data.dataLang || lang);
@@ -1133,9 +1173,9 @@ exports.createHousehold = onCall(async (request) => {
       ...TAXONOMY_TEMPLATES[dataLang], updatedAt: nowIso, fromTemplate: dataLang,
     });
     if (user) {
-      tx.update(userRef, { ...CLEAR_MEMBERSHIP(), role: 'admin', householdId: householdRef.id, joinedAt: nowIso, email });
+      tx.update(userRef, { ...CLEAR_MEMBERSHIP(), ...consent, role: 'admin', householdId: householdRef.id, joinedAt: nowIso, email });
     } else {
-      tx.set(userRef, { ...newUserFields(request), lang, role: 'admin', householdId: householdRef.id, joinedAt: nowIso, email });
+      tx.set(userRef, { ...newUserFields(request), ...consent, lang, role: 'admin', householdId: householdRef.id, joinedAt: nowIso, email });
     }
     return { householdId: householdRef.id };
   });

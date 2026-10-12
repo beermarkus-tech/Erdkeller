@@ -15,12 +15,12 @@
 // the edit sheet → "Registrieren" writes every line through the same
 // /products (if new) + /stockItems + /stockLog shape js/stock-checkin.js's
 // own confirm handler already uses.
-import { db, functions, hdoc, hcol } from './firebase-init.js?v=209';
+import { db, functions, hdoc, hcol } from './firebase-init.js?v=210';
 import {
   collection, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { t, getLang, getLocale } from './i18n.js?v=209';
+import { t, getLang, getLocale } from './i18n.js?v=210';
 
 const startBtn = document.getElementById('start-dictate-btn');
 const modal = document.getElementById('dictate-modal');
@@ -657,6 +657,13 @@ function processParsedItems(items, retry) {
   appendProposalBubble(lines);
 }
 
+// Build 210 — the household's daily dictation limit (functions/index.js):
+// the server's message (already in the user's language) says it all, and
+// "try again" would only fail again until tomorrow.
+function isDailyLimit(err) {
+  return !!err && (err.code === 'functions/resource-exhausted' || err.code === 'resource-exhausted');
+}
+
 async function handleTranscript(transcript) {
   appendUserBubble(transcript);
   const pendingBubble = appendPendingBubble(t('dictate.analysiere'));
@@ -670,7 +677,8 @@ async function handleTranscript(transcript) {
     console.error(err);
     setBusy(false);
     pendingBubble.remove();
-    appendErrorBubble(t('dictate.verbindung_zur_erkennung_fehlgeschlagen'), () => handleTranscript(transcript));
+    if (isDailyLimit(err)) appendErrorBubbleSimple(err.message);
+    else appendErrorBubble(t('dictate.verbindung_zur_erkennung_fehlgeschlagen'), () => handleTranscript(transcript));
     return;
   }
 
@@ -693,7 +701,8 @@ async function handlePhoto(dataUri) {
     console.error(err);
     setBusy(false);
     pendingBubble.remove();
-    appendErrorBubble(t('dictate.verbindung_zur_erkennung_fehlgeschlagen'), () => handlePhoto(dataUri));
+    if (isDailyLimit(err)) appendErrorBubbleSimple(err.message);
+    else appendErrorBubble(t('dictate.verbindung_zur_erkennung_fehlgeschlagen'), () => handlePhoto(dataUri));
     return;
   }
 

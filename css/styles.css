@@ -4574,3 +4574,38 @@ nav.bottomnav button .icon {
 #invite-list a.select-mode-btn {
   text-decoration: none;
 }
+
+/* Build 210 — privacy notice: consent on the onboarding screen, links. */
+.onboarding-consent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  color: var(--charcoal);
+  background: var(--warn-bg);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  text-align: left;
+}
+.onboarding-consent input {
+  margin-top: 2px;
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.onboarding-consent a,
+.auth-privacy-link,
+.popover-link {
+  color: var(--cellar);
+}
+.auth-privacy-link {
+  font-size: 12px;
+  margin-top: 8px;
+}
+.popover-link {
+  display: block;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}

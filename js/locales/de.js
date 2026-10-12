@@ -987,4 +987,8 @@ export default {
   "onboarding.name_fehlt": "Bitte einen Namen für den Haushalt eingeben.",
   "people.aus_haushalt_entfernen_confirm": "{value} aus dem Haushalt entfernen? Die Person verliert sofort den Zugriff auf die App und alle Daten. Du kannst sie später wieder einladen.",
   "people.einladung_keine_gmail_confirm": "{email} ist keine Gmail-Adresse. Die Anmeldung läuft über Google — das klappt nur, wenn zu dieser Adresse ein Google-Konto gehört (z. B. eine Firmenadresse mit Google Workspace). Trotzdem einladen?",
+  "onboarding.consent_html": "Ich habe den <a href=\"privacy.html\" target=\"_blank\" rel=\"noopener\">Datenschutzhinweis</a> gelesen und bin mit dem Testbetrieb einverstanden (ohne Garantie, Daten können verloren gehen).",
+  "onboarding.consent_fehlt": "Bitte zuerst den Datenschutzhinweis lesen und das Häkchen setzen.",
+  "auth.datenschutz_testbetrieb": "Datenschutz & Testbetrieb",
+  "nav.datenschutz": "Datenschutz",
 };

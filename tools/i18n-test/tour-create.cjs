@@ -11,7 +11,7 @@ const nav = (tab) => async (page) => {
 module.exports = [
   { name: 'create: first sign-in (onboarding)', run: async (page) => { await page.waitForTimeout(300); } },
   { name: 'create: name it', run: async (page) => { await page.fill('#onboarding-name', 'Familie Neu'); } },
-  { name: 'create: create household', run: async (page) => { await page.click('#onboarding-create'); await page.waitForTimeout(500); } },
+  { name: 'create: create household', run: async (page) => { await page.check('#onboarding-consent'); await page.click('#onboarding-create'); await page.waitForTimeout(500); } },
   { name: 'create: overview', run: nav('dashboard') },
   { name: 'create: stock', run: nav('stock') },
   { name: 'create: checklists', run: nav('checklists') },
