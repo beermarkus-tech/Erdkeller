@@ -210,7 +210,7 @@ Each step is its own build, with the harness and rules tests.
 5. **Templates. Built in Build 209** — needs `firebase deploy` (functions).
    - Markus's categories (types → categories → subcategories, with icons and planning settings), exported 2026-10-12 with a temporary button (Build 208, removed again in 209), are the German template `functions/templates/taxonomy-de.json`; `taxonomy-en.json` is the English translation — same ids, icons and settings, only names differ (tested). Side-by-side list for review: `functions/templates/README.md`.
    - `createHousehold` writes the template matching the household's data language (UI language at creation) as `config/taxonomy`. Existing households are untouched. Categories only for now (crisis types / checklists: maybe later).
-   - Open point for Markus: the Medikamente subcategories "Menière" and "Hormone" are specific to his family; every new household would get them.
+   - The family-specific Medikamente subcategories "Menière" and "Hormone" were replaced by "Allergien / Allergies" in both templates (Markus, 2026-10-12).
 6. **Opening up.** Privacy notice, test disclaimer and consent at sign-up; delete household / delete account; dictation limits; budget alert; metadata-only operator page.
 
 ## 10. Open questions

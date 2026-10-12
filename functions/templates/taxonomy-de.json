@@ -309,9 +309,9 @@
           "name": "Hausapotheke",
           "subcategories": [
             {
-              "sym": "🦻",
-              "name": "Menière",
-              "id": "dfc21d2a-c24f-4d4e-98eb-13630d5d169d"
+              "sym": "🌼",
+              "name": "Allergien",
+              "id": "a11e7915-0000-4000-8000-a11e7915a11e"
             },
             {
               "sym": "🦟",
@@ -332,11 +332,6 @@
               "id": "601812ce-fc3d-4c1c-86f1-1dd9578c55a6",
               "sym": "🤕",
               "name": "Schmerzen"
-            },
-            {
-              "sym": "👧",
-              "name": "Hormone",
-              "id": "876a14df-b6ac-4152-8e40-eaec3daaf3fb"
             },
             {
               "sym": "💊",
