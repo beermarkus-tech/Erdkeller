@@ -994,4 +994,12 @@ export default {
   "onboarding.consent_fehlt": "Please read the privacy notice and tick the box first.",
   "auth.datenschutz_testbetrieb": "Privacy & test terms",
   "nav.datenschutz": "Privacy",
+  "account.konto_loeschen": "Delete account",
+  "account.haushalt_loeschen": "Delete household",
+  "account.konto_loeschen_confirm": "Permanently delete your account?\n\nYour access and your Erdkeller sign-in are deleted immediately. If you are the last person in the household, the whole household is deleted with all its data. This can't be undone.",
+  "account.konto_geloescht": "Your account has been deleted.",
+  "account.haushalt_loeschen_prompt": "Permanently delete the whole household “{name}” with ALL its data (stock, checklists, contacts, notes, recipes, settings) for every member?\n\nMake a backup first (Admin → Backup) if you want to keep anything.\n\nType the household's name to confirm:",
+  "account.haushalt_geloescht": "The household has been deleted.",
+  "account.loeschen_fehlgeschlagen": "Deleting failed: ",
+  "account.nur_online": "Deleting needs an internet connection.",
 };

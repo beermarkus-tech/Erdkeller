@@ -991,4 +991,12 @@ export default {
   "onboarding.consent_fehlt": "Bitte zuerst den Datenschutzhinweis lesen und das Häkchen setzen.",
   "auth.datenschutz_testbetrieb": "Datenschutz & Testbetrieb",
   "nav.datenschutz": "Datenschutz",
+  "account.konto_loeschen": "Konto löschen",
+  "account.haushalt_loeschen": "Haushalt löschen",
+  "account.konto_loeschen_confirm": "Dein Konto endgültig löschen?\n\nDein Zugang und deine Anmeldung bei Erdkeller werden sofort gelöscht. Bist du die letzte Person im Haushalt, wird der ganze Haushalt mit allen Daten gelöscht. Das lässt sich nicht rückgängig machen.",
+  "account.konto_geloescht": "Dein Konto wurde gelöscht.",
+  "account.haushalt_loeschen_prompt": "Den ganzen Haushalt „{name}“ mit ALLEN Daten (Bestand, Checklisten, Kontakte, Notizen, Rezepte, Einstellungen) für alle Mitglieder endgültig löschen?\n\nMach vorher ein Backup (Admin → Sicherung), falls du etwas behalten willst.\n\nZum Bestätigen den Namen des Haushalts eintippen:",
+  "account.haushalt_geloescht": "Der Haushalt wurde gelöscht.",
+  "account.loeschen_fehlgeschlagen": "Löschen fehlgeschlagen: ",
+  "account.nur_online": "Löschen geht nur mit Internetverbindung.",
 };

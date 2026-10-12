@@ -4609,3 +4609,16 @@ nav.bottomnav button .icon {
   font-weight: 600;
   text-decoration: none;
 }
+
+/* Build 211 — delete account / household in the account menu. */
+button.popover-link {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+}
+.popover-danger {
+  color: var(--danger);
+}

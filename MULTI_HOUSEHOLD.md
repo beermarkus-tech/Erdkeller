@@ -33,7 +33,7 @@ Everything suggested so far, in order. Tick it off as it gets done.
 - [x] **Limit AI dictation to 20 per household per day** (decided 2026-10-11). Build 210: counted per household per local calendar day in `/households/{id}/usage/dictation-YYYY-MM-DD` before the AI call; the 21st gets a friendly DE/EN message, no retry button. A household's own `dictationLimit` field (Firebase console only) overrides 20 — e.g. set your own household to 1000.
 - [ ] **Add a Google Cloud budget alert** (Billing → Budgets & alerts).
 - [ ] **Enable Cloud Data Access audit logs** for Firestore, so any console look at data is recorded (Section 8).
-- [ ] **Let testers delete their household and their account** themselves (GDPR, and it's fair).
+- [x] **Let testers delete their household and their account** themselves (GDPR, and it's fair). Build 211: account menu (profile picture) → "Konto löschen" (everyone; also on the onboarding screen) deletes the /users doc, devices and the Firebase sign-in record — the last person of a household takes the household with them, the last admin of a household with members is refused; "Haushalt löschen" (admins) needs the household's name typed in and deletes all its data, revokes its open invitations and takes every member out (their accounts stay, back to onboarding).
 - [ ] **Build a metadata-only operator page** (Section 8).
 
 **Later (not needed for the test)**

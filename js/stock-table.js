@@ -1,11 +1,11 @@
-import { db, hdoc, hcol } from './firebase-init.js?v=210';
-import { PALETTE } from './year-colors.js?v=210';
-import { openAddFlow } from './stock-checkin.js?v=210';
-import { switchTabWithoutReset } from './app-shell.js?v=210';
+import { db, hdoc, hcol } from './firebase-init.js?v=211';
+import { PALETTE } from './year-colors.js?v=211';
+import { openAddFlow } from './stock-checkin.js?v=211';
+import { switchTabWithoutReset } from './app-shell.js?v=211';
 import {
   doc, getDoc, collection, getDocs, deleteDoc, updateDoc, setDoc, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=210';
+import { t } from './i18n.js?v=211';
 
 const stocktableCard = document.querySelector('.settings-card[data-target="stocktable"]');
 const settingsPanelStocktable = document.getElementById('settings-panel-stocktable');

@@ -1,8 +1,8 @@
-import { db, hcol } from './firebase-init.js?v=210';
+import { db, hcol } from './firebase-init.js?v=211';
 import {
   collection, getDocs, query, orderBy, limit, writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=210';
+import { t } from './i18n.js?v=211';
 
 function formatLogRow(entry) {
   const icon = entry.action === 'in' ? '⬇' : '⬆';

@@ -12,6 +12,8 @@ These dev tools are not part of the app. `rules.test.mjs` runs the repo's `fires
 
 `invites.test.cjs` (Build 206) runs the invitation and household-creation functions (`myInvites`, `acceptInvite`, `declineInvite`, `createHousehold`) against the emulator.
 
+`deletion.test.cjs` (Build 211) runs `deleteMyAccount` and `deleteHousehold` against the Firestore and Auth emulators.
+
 `dictation.test.cjs` (Build 210) runs `parseDictation` with a fake AI service: the daily limit per household, counted on the household's own calendar day, and a household's own override.
 
 `reminders.test.cjs` (Build 205) runs the real reminder scheduler from `functions/index.js` against the emulator, with push sending replaced by a recorder: recipients are household members, each household on its own timezone, removed members and other households get nothing, "remind again after N days" and "done for this period" hold.
