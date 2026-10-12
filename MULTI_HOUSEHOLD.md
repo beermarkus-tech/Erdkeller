@@ -28,13 +28,23 @@ Everything suggested so far, in order. Tick it off as it gets done.
 **Before posting on Reddit**
 - [x] **Clean up the categories and data.** Done; exported 2026-10-12 and used for the templates (Build 209).
 - [x] **Answer the open questions in Section 10:** cloud region, dictation for testers, contact address. Answered 2026-10-11 (Section 10).
-- [ ] **Build steps 1–6 of Section 9.**
+- [x] **Build steps 1–6 of Section 9.** Done with Builds 202–212; what's left for opening is the console list below.
 - [x] **Write a privacy notice and test disclaimer, shown at sign-up and linked in the app** (Section 7). Build 210: `privacy.html` (DE/EN); joining or creating a household requires ticking it (server checks `consent`, stores `consentAt`/`consentVersion` = `PRIVACY_VERSION` in functions/index.js — bump it when the text changes); linked on the sign-in screen and in the account menu. *Not legal advice:* depending on the country, a privacy notice may need the operator's real name and postal address instead of only an e-mail.
 - [x] **Limit AI dictation to 20 per household per day** (decided 2026-10-11). Build 210: counted per household per local calendar day in `/households/{id}/usage/dictation-YYYY-MM-DD` before the AI call; the 21st gets a friendly DE/EN message, no retry button. A household's own `dictationLimit` field (Firebase console only) overrides 20 — e.g. set your own household to 1000.
 - [ ] **Add a Google Cloud budget alert** (Billing → Budgets & alerts).
 - [ ] **Enable Cloud Data Access audit logs** for Firestore, so any console look at data is recorded (Section 8).
 - [x] **Let testers delete their household and their account** themselves (GDPR, and it's fair). Build 211: account menu (profile picture) → "Konto löschen" (everyone; also on the onboarding screen) deletes the /users doc, devices and the Firebase sign-in record — the last person of a household takes the household with them, the last admin of a household with members is refused; "Haushalt löschen" (admins) needs the household's name typed in and deletes all its data, revokes its open invitations and takes every member out (their accounts stay, back to onboarding).
-- [ ] **Build a metadata-only operator page** (Section 8).
+- [x] **Build a metadata-only operator page** (Section 8). Build 212: `<app address>/operator.html` (not linked in the app), served by `listHouseholds` for the verified addresses in `_system/config.operators`: households with created date, country/language/time zone, member count, admins (name, e-mail), open invitations, dictations in the last 7 days and the limit, last dictation, last join; totals, accounts without a household, and whether sign-up is open. Never any household content (tested).
+
+**Before opening sign-up (Markus, in the consoles — Build 212):**
+- [ ] **Deploy** (same command as always).
+- [ ] **Firestore console → create the settings document:** Firestore Database → Start collection `_system` → Document ID `config` → fields: `operators` (array, one string: your Google address), `openSignup` (boolean, `false` for now), optionally `allowEmails` (array of addresses allowed to create a household before opening).
+- [ ] **Your own household's dictation limit:** Firestore → `households` → your household → add field `dictationLimit` (number) e.g. `1000`. Otherwise you get the 20/day like everyone.
+- [ ] **Budget alert:** console.cloud.google.com → Billing → Budgets & alerts → Create budget → project erdkeller-cdbb9 → amount e.g. 10 €/month → alert at 50 %, 90 %, 100 % → e-mail to you. (It only warns; it doesn't stop anything.)
+- [ ] **Audit logs for console access:** console.cloud.google.com → IAM & Admin → Audit Logs → "Cloud Firestore API" → tick "Data Read" and "Data Write" → Save. Afterwards Logs Explorer shows who read data and when. Check the log volume after a week (within the free tier for a small test).
+- [ ] **Look at `privacy.html` once** and decide whether it should name you (and an address) as the responsible person — rules differ by country; this is not legal advice.
+- [ ] **Open it:** set `openSignup` to `true` — then post on Reddit. Set it back to `false` to close again (existing households keep working).
+- [ ] *Optional, later:* move the Cloud Functions from the US (us-central1, default) to Europe — then the privacy notice can say "EU only" except for the AI dictation.
 
 **Later (not needed for the test)**
 - [ ] **Imperial units** as a separate setting. Country is the trigger (I18N.md 8.3).
@@ -211,7 +221,7 @@ Each step is its own build, with the harness and rules tests.
    - Markus's categories (types → categories → subcategories, with icons and planning settings), exported 2026-10-12 with a temporary button (Build 208, removed again in 209), are the German template `functions/templates/taxonomy-de.json`; `taxonomy-en.json` is the English translation — same ids, icons and settings, only names differ (tested). Side-by-side list for review: `functions/templates/README.md`.
    - `createHousehold` writes the template matching the household's data language (UI language at creation) as `config/taxonomy`. Existing households are untouched. Categories only for now (crisis types / checklists: maybe later).
    - The family-specific Medikamente subcategories "Menière" and "Hormone" were replaced by "Allergien / Allergies" in both templates (Markus, 2026-10-12).
-6. **Opening up.** Privacy notice, test disclaimer and consent at sign-up; delete household / delete account; dictation limits; budget alert; metadata-only operator page.
+6. **Opening up. Built in Builds 210–212**: privacy notice + consent and the dictation limit (210), delete account / household (211), operator page (212) — see Section 0 for each, and for the console steps left to Markus before opening sign-up.
 
 ## 10. Open questions
 

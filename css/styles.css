@@ -4622,3 +4622,35 @@ button.popover-link {
 .popover-danger {
   color: var(--danger);
 }
+
+/* Build 212 — operator overview page (operator.html). */
+.operator-page {
+  background: var(--paper);
+}
+.operator-main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+.operator-summary,
+.operator-card {
+  background: white;
+  border: 1px solid var(--stone-dark);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin: 12px 0;
+}
+.operator-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  padding: 3px 0;
+}
+.operator-main a {
+  color: var(--cellar);
+}
+.operator-line span:last-child {
+  text-align: right;
+  overflow-wrap: anywhere;
+}

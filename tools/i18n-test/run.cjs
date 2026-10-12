@@ -135,6 +135,14 @@ async function runTour(dir, lang, only, fake, afterStep) {
           await fb.updateDoc(fb.doc({}, 'users', window.__USER__.uid), hh ? { role: 'member', householdId: hh } : { role: 'member' });
           return { householdId: hh || null, role: 'member' };
         },
+        listHouseholds: () => ({
+          households: [
+            { id: 'h2', name: 'Familie Test', createdAt: '2026-10-10T00:00:00Z', lang: 'en', country: 'US', timezone: 'America/Chicago', members: 1, admins: [{ name: 'Tester', email: 't@example.com' }], lastJoinedAt: '2026-10-10', openInvites: 1, dictationLimit: 20, dictation7: 3, lastDictation: '2026-10-09' },
+            { id: 'h1', name: 'Erdkeller', createdAt: '2026-10-01T00:00:00Z', lang: 'de', country: 'DE', timezone: 'Europe/Paris', members: 3, admins: [{ name: 'Test Admin', email: 'admin@example.com' }], lastJoinedAt: '2026-10-05', openInvites: 0, dictationLimit: 1000, dictation7: 12, lastDictation: '2026-10-10' },
+          ],
+          accountsWithoutHousehold: 2,
+          signup: { open: false, allowEmails: 1 },
+        }),
         removeMember: async (p) => {
           const fb = await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');
           const ref = fb.doc({}, 'users', p.uid);
@@ -172,8 +180,9 @@ async function runTour(dir, lang, only, fake, afterStep) {
     page.on('dialog', async (d) => { dialogs.push(`${d.type()}: ${d.message()}`); await d.dismiss(); });
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error' || /i18n/.test(m.text())) errors.push('console: ' + m.text()); });
-    // HARNESS_QUERY='?login=…' opens the app as an invitation link does.
-    await page.goto(base + '/index.html' + (process.env.HARNESS_QUERY || ''));
+    // HARNESS_QUERY='?login=…' opens the app as an invitation link does;
+    // HARNESS_PAGE=operator.html opens another page of the app instead.
+    await page.goto(base + '/' + (process.env.HARNESS_PAGE || 'index.html') + (process.env.HARNESS_QUERY || ''));
     await page.clock.runFor(3000);
     await page.waitForTimeout(300);
     for (const step of TOUR) {

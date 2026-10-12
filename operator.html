@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2E4034">
+<meta name="robots" content="noindex">
+<title>Erdkeller — Betrieb</title>
+<link rel="icon" href="icons/icon-192.png?v=212">
+<link rel="stylesheet" href="css/styles.css?v=212">
+<!-- Build 212 (MULTI_HOUSEHOLD.md step 6c): the operator overview —
+     households, sizes, dictation use; metadata only, never content.
+     Only verified e-mails in _system/config.operators get data
+     (functions/index.js listHouseholds). Not linked from the app: open
+     <app address>/operator.html while signed in to the app. -->
+</head>
+<body class="operator-page app-ready">
+<div class="operator-main">
+  <h1 class="display" data-i18n="operator.titel">Betrieb</h1>
+  <p class="settings-note" data-i18n="operator.hinweis">Nur Übersichtsdaten — keine Inhalte der Haushalte.</p>
+  <p class="taxonomy-status" id="operator-status"></p>
+  <div id="operator-summary" class="operator-summary"></div>
+  <div id="operator-list"></div>
+  <p><a href="./" data-i18n="operator.zur_app">‹ Zur App</a></p>
+</div>
+<script type="module" src="js/i18n.js?v=212"></script>
+<script type="module" src="js/operator.js?v=212"></script>
+</body>
+</html>

@@ -106,6 +106,7 @@ const SERVER_TEXT = {
     consentRequired: 'Bitte zuerst den Datenschutzhinweis bestätigen.',
     lastAdmin: 'Du bist der einzige Admin. Mach zuerst jemand anderen zum Admin oder lösche den ganzen Haushalt.',
     nameMismatch: 'Der Name stimmt nicht — nichts wurde gelöscht.',
+    operatorsOnly: 'Nur für den Betreiber.',
     inviteNotFound: 'Einladung nicht gefunden.',
     inviteNotOpen: 'Diese Einladung gilt nicht mehr.',
     inviteExpired: 'Diese Einladung ist abgelaufen — bitte um eine neue.',
@@ -133,6 +134,7 @@ const SERVER_TEXT = {
     consentRequired: 'Please confirm the privacy notice first.',
     lastAdmin: 'You are the only admin. Make someone else an admin first, or delete the whole household.',
     nameMismatch: 'The name doesn\'t match — nothing was deleted.',
+    operatorsOnly: 'Operator only.',
     inviteNotFound: 'Invitation not found.',
     inviteNotOpen: 'This invitation is no longer valid.',
     inviteExpired: 'This invitation has expired — please ask for a new one.',
@@ -1294,4 +1296,88 @@ exports.deleteHousehold = onCall({ timeoutSeconds: 300 }, async (request) => {
   }
   await deleteHouseholdData(caller.householdId);
   return { ok: true };
+});
+
+// ---------------------------------------------------------------------------
+// Operator overview (Build 212, MULTI_HOUSEHOLD.md step 6c / Section 8).
+//
+// For the person running the test: which households exist, how big, how
+// active the paid AI dictation is — METADATA ONLY. It never returns any
+// household content (stock, checklists, contacts, notes, recipes, names of
+// products…). Allowed for the verified e-mail addresses listed in
+// `_system/config.operators` (Firebase console), nobody else — and there is
+// no security rule giving operators client access to any household.
+// ---------------------------------------------------------------------------
+
+async function assertOperator(request, lang) {
+  if (!request.auth) throw new HttpsError('unauthenticated', st(lang, 'signIn'));
+  const email = verifiedEmail(request, lang);
+  const snap = await db.doc('_system/config').get();
+  const operators = snap.exists && Array.isArray(snap.data().operators) ? snap.data().operators : [];
+  if (!operators.map((e) => emailKey(e)).includes(emailKey(email))) {
+    throw new HttpsError('permission-denied', st(lang, 'operatorsOnly'));
+  }
+  return snap.exists ? snap.data() : {};
+}
+
+exports.listHouseholds = onCall(async (request) => {
+  const lang = callerLang(request);
+  const config = await assertOperator(request, lang);
+  const [householdsSnap, usersSnap, invitesSnap] = await Promise.all([
+    db.collection('households').get(),
+    db.collection('users').get(),
+    db.collection('invites').where('status', '==', 'open').get(),
+  ]);
+  const byHousehold = new Map();
+  usersSnap.docs.forEach((d) => {
+    const u = d.data();
+    if (!u.householdId || u.removed === true || !['admin', 'member'].includes(u.role)) return;
+    const list = byHousehold.get(u.householdId) || [];
+    list.push(u);
+    byHousehold.set(u.householdId, list);
+  });
+  const openInvites = new Map();
+  invitesSnap.docs.forEach((d) => {
+    const hid = d.data().householdId;
+    openInvites.set(hid, (openInvites.get(hid) || 0) + 1);
+  });
+  // Dictation use, last 7 local days (the usage docs are named by day).
+  const since = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const households = await Promise.all(householdsSnap.docs.map(async (d) => {
+    const h = d.data();
+    const members = byHousehold.get(d.id) || [];
+    const usage = await d.ref.collection('usage').get();
+    let dictation7 = 0;
+    let lastDictation = null;
+    usage.docs.forEach((u) => {
+      const day = u.data().day || u.id.replace('dictation-', '');
+      if (day >= since) dictation7 += u.data().count || 0;
+      if (!lastDictation || day > lastDictation) lastDictation = day;
+    });
+    return {
+      id: d.id,
+      name: h.name || '',
+      createdAt: h.createdAt || null,
+      lang: h.lang || null,
+      country: h.country || null,
+      timezone: h.timezone || null,
+      members: members.length,
+      admins: members.filter((m) => m.role === 'admin').map((m) => ({ name: m.name || '', email: m.email || '' })),
+      lastJoinedAt: members.map((m) => m.joinedAt || '').sort().pop() || null,
+      openInvites: openInvites.get(d.id) || 0,
+      dictationLimit: Number.isFinite(h.dictationLimit) ? h.dictationLimit : DICTATION_PER_DAY,
+      dictation7,
+      lastDictation,
+    };
+  }));
+  households.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  const withoutHousehold = usersSnap.docs.filter((d) => {
+    const u = d.data();
+    return !u.householdId || u.removed === true;
+  }).length;
+  return {
+    households,
+    accountsWithoutHousehold: withoutHousehold,
+    signup: { open: config.openSignup === true, allowEmails: Array.isArray(config.allowEmails) ? config.allowEmails.length : 0 },
+  };
 });

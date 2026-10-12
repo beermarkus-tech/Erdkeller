@@ -2,9 +2,9 @@
   "name": "erdkeller-rules-test",
   "private": true,
   "type": "module",
-  "description": "Firestore security-rules tests (rules.test.mjs) and Cloud Functions tests on the emulators (reminders, invites, dictation, deletion). Dev only.",
+  "description": "Firestore security-rules tests (rules.test.mjs) and Cloud Functions tests on the emulators (reminders, invites, dictation, deletion, operator). Dev only.",
   "scripts": {
-    "test": "NODE_PATH=node_modules firebase emulators:exec --only firestore,auth --project demo-erdkeller \"node rules.test.mjs && node reminders.test.cjs && node invites.test.cjs && node dictation.test.cjs && node deletion.test.cjs\""
+    "test": "NODE_PATH=node_modules firebase emulators:exec --only firestore,auth --project demo-erdkeller \"node rules.test.mjs && node reminders.test.cjs && node invites.test.cjs && node dictation.test.cjs && node deletion.test.cjs && node operator.test.cjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.0",

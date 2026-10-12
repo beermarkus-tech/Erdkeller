@@ -35,6 +35,7 @@ node tools/i18n-test/run.cjs --live .
 - `HARNESS_TOUR=signup HARNESS_USER=u-pending` — onboarding with one invitation, language switch, join (Build 206).
 - `HARNESS_TOUR=create HARNESS_USER=u-new` — onboarding without invitation, create a household (with the starter categories of the UI language), every main screen, the categories editor.
 - `HARNESS_TOUR=invite HARNESS_HOUSEHOLD=h1` — inviting someone in Admin → Personen.
+- `HARNESS_TOUR=operator HARNESS_PAGE=operator.html` — the operator overview page with sample data (Build 212).
 - `HARNESS_TOUR=switch` simulates the household move finishing while the app is open: the app must store the new household, reload once, and not loop.
 - `--calls` prints the server calls the tour made, plus every Firestore write path.
 

@@ -12,6 +12,8 @@ These dev tools are not part of the app. `rules.test.mjs` runs the repo's `fires
 
 `invites.test.cjs` (Build 206) runs the invitation and household-creation functions (`myInvites`, `acceptInvite`, `declineInvite`, `createHousehold`) against the emulator.
 
+`operator.test.cjs` (Build 212) runs `listHouseholds`: operators only, overview fields only, no household content.
+
 `deletion.test.cjs` (Build 211) runs `deleteMyAccount` and `deleteHousehold` against the Firestore and Auth emulators.
 
 `dictation.test.cjs` (Build 210) runs `parseDictation` with a fake AI service: the daily limit per household, counted on the household's own calendar day, and a household's own override.
