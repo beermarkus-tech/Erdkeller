@@ -4,11 +4,11 @@
 // Both run server-side (functions/index.js deleteMyAccount/deleteHousehold)
 // and are final, so they ask first — the household one by having the
 // household's name typed in, which the server checks again.
-import { db, functions, getHouseholdId } from './firebase-init.js?v=211';
+import { db, functions, getHouseholdId } from './firebase-init.js?v=212';
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { t, getLang } from './i18n.js?v=211';
-import { signOutAfterDeletion } from './auth.js?v=211';
+import { t, getLang } from './i18n.js?v=212';
+import { signOutAfterDeletion } from './auth.js?v=212';
 
 const deleteMyAccountFn = httpsCallable(functions, 'deleteMyAccount');
 const deleteHouseholdFn = httpsCallable(functions, 'deleteHousehold');
