@@ -22,14 +22,14 @@
 // via a batch's own denormalized category/subcategory name text.
 // Stück-tracked products have no such conversion and are excluded from
 // every kg sum for now (flagged to Markus, to be solved later).
-import { db, hdoc, hcol } from './firebase-init.js?v=209';
+import { db, hdoc, hcol } from './firebase-init.js?v=210';
 import {
   doc, getDoc, getDocs, collection,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=209';
-import { openAtSubcategory } from './stock-checkin.js?v=209';
-import { openMaintenanceDue } from './checklists.js?v=209';
-import { t, getLocale } from './i18n.js?v=209';
+import { openFilteredBySubcategory, openFilteredByProductSearch } from './stock-table.js?v=210';
+import { openAtSubcategory } from './stock-checkin.js?v=210';
+import { openMaintenanceDue } from './checklists.js?v=210';
+import { t, getLocale } from './i18n.js?v=210';
 
 const dashTabBtns = document.querySelectorAll('.seg-btn[data-dash-tab]');
 const dashTabPanels = document.querySelectorAll('.dash-tab[data-dash-tab-panel]');

@@ -11,7 +11,11 @@ const db = getFirestore();
 let failed = 0;
 const check = (name, ok, extra = '') => { if (!ok) failed++; console.log((ok ? ' ok  ' : 'FAIL ') + name + (extra ? ` (${extra})` : '')); };
 const as = (uid, email, verified = true) => ({ uid, token: { email, email_verified: verified, name: uid.toUpperCase() } });
-const call = (fn, auth, data = {}) => fns[fn].run({ auth, data });
+// Joining/creating needs consent (Build 210); the tests send it unless they
+// test its absence (pass consent: false).
+const call = (fn, auth, data = {}) => fns[fn].run({
+  auth, data: ['acceptInvite', 'createHousehold'].includes(fn) ? { consent: true, ...data } : data,
+});
 async function code(p) { try { await p; return 'ok'; } catch (e) { return e.code || e.message; } }
 const daysAgo = (d) => new Date(Date.now() - d * 86400000).toISOString();
 
@@ -38,9 +42,11 @@ const daysAgo = (d) => new Date(Date.now() - d * 86400000).toISOString();
   check('someone else cannot accept it', (await code(call('acceptInvite', as('intruder', 'evil@x.com'), { inviteId: 'i1' }))) === 'permission-denied');
   check('expired invitation is refused', (await code(call('acceptInvite', as('new', 'new@x.com'), { inviteId: 'old' }))) === 'failed-precondition');
   check('unknown invitation is refused', (await code(call('acceptInvite', as('new', 'new@x.com'), { inviteId: 'nope' }))) === 'not-found');
+  check('accepting without consent is refused', (await code(call('acceptInvite', as('new', 'new@x.com'), { inviteId: 'i1', consent: false }))) === 'failed-precondition');
   const res = await call('acceptInvite', as('new', 'new@x.com'), { inviteId: 'i1' });
   const u = (await db.doc('users/new').get()).data();
   check('accepting puts the account into the household as member', res.householdId === 'h1' && u.householdId === 'h1' && u.role === 'member' && u.email === 'new@x.com');
+  check('…and records the consent', !!u.consentAt && u.consentVersion === '2026-10-12');
   check('the invitation is marked accepted', (await db.doc('invites/i1').get()).data().status === 'accepted');
   check('a second invitation cannot move them again', (await code(call('acceptInvite', as('new', 'new@x.com'), { inviteId: 'adm' }))) === 'failed-precondition');
   check('an accepted invitation cannot be reused', (await code(call('acceptInvite', as('new2', 'new@x.com'), { inviteId: 'i1' }))) === 'failed-precondition');
@@ -94,6 +100,7 @@ const daysAgo = (d) => new Date(Date.now() - d * 86400000).toISOString();
   check('closed until openSignup', (await code(call('createHousehold', as('solo', 'solo@x.com'), { name: 'Solo' }))) === 'permission-denied');
   await db.doc('_system/config').set({ allowEmails: ['Solo@x.com'] });
   check('a name is required', (await code(call('createHousehold', as('solo', 'solo@x.com'), { name: '  ' }))) === 'invalid-argument');
+  check('creating without consent is refused', (await code(call('createHousehold', as('solo', 'solo@x.com'), { name: 'Solo', consent: false }))) === 'failed-precondition');
   const created = await call('createHousehold', as('solo', 'solo@x.com'), { name: 'Familie Solo', country: 'US', timezone: 'America/Chicago', dataLang: 'en', lang: 'en' });
   const hh = (await db.doc(`households/${created.householdId}`).get()).data();
   const so = (await db.doc('users/solo').get()).data();

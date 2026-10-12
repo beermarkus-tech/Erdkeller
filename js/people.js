@@ -1,9 +1,9 @@
-import { auth, db, getHouseholdId, functions } from './firebase-init.js?v=209';
+import { auth, db, getHouseholdId, functions } from './firebase-init.js?v=210';
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
 import {
   collection, getDocs, doc, setDoc, updateDoc, query, where,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLocale, getLang } from './i18n.js?v=209';
+import { t, getLocale, getLang } from './i18n.js?v=210';
 
 const removeMemberFn = httpsCallable(functions, 'removeMember');
 

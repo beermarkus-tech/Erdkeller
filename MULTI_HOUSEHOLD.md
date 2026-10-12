@@ -29,8 +29,8 @@ Everything suggested so far, in order. Tick it off as it gets done.
 - [x] **Clean up the categories and data.** Done; exported 2026-10-12 and used for the templates (Build 209).
 - [x] **Answer the open questions in Section 10:** cloud region, dictation for testers, contact address. Answered 2026-10-11 (Section 10).
 - [ ] **Build steps 1–6 of Section 9.**
-- [ ] **Write a privacy notice and test disclaimer, shown at sign-up and linked in the app** (Section 7).
-- [ ] **Limit AI dictation to 20 per household per day** (decided 2026-10-11). Enforce it server-side in `parseDictation` with a per-household daily counter, and show a friendly "daily limit reached" message in DE/EN.
+- [x] **Write a privacy notice and test disclaimer, shown at sign-up and linked in the app** (Section 7). Build 210: `privacy.html` (DE/EN); joining or creating a household requires ticking it (server checks `consent`, stores `consentAt`/`consentVersion` = `PRIVACY_VERSION` in functions/index.js — bump it when the text changes); linked on the sign-in screen and in the account menu. *Not legal advice:* depending on the country, a privacy notice may need the operator's real name and postal address instead of only an e-mail.
+- [x] **Limit AI dictation to 20 per household per day** (decided 2026-10-11). Build 210: counted per household per local calendar day in `/households/{id}/usage/dictation-YYYY-MM-DD` before the AI call; the 21st gets a friendly DE/EN message, no retry button. A household's own `dictationLimit` field (Firebase console only) overrides 20 — e.g. set your own household to 1000.
 - [ ] **Add a Google Cloud budget alert** (Billing → Budgets & alerts).
 - [ ] **Enable Cloud Data Access audit logs** for Firestore, so any console look at data is recorded (Section 8).
 - [ ] **Let testers delete their household and their account** themselves (GDPR, and it's fair).

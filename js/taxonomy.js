@@ -1,6 +1,6 @@
-import { db, hdoc } from './firebase-init.js?v=209';
+import { db, hdoc } from './firebase-init.js?v=210';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=209';
+import { t } from './i18n.js?v=210';
 
 const editorEl = document.getElementById('taxonomy-editor');
 const addTypeBtn = document.getElementById('add-type-btn');
