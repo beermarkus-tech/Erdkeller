@@ -9,9 +9,9 @@
 // declineInvite, createHousehold) — moving an account into a household is
 // nothing the client is allowed to do itself. On success the server updates
 // /users/{uid}; js/auth.js's profile listener then opens the app.
-import { auth, functions } from './firebase-init.js?v=207';
+import { auth, functions } from './firebase-init.js?v=208';
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { t, getLang } from './i18n.js?v=207';
+import { t, getLang } from './i18n.js?v=208';
 
 const helloEl = document.getElementById('onboarding-hello');
 const invitesEl = document.getElementById('onboarding-invites');
