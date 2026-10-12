@@ -954,6 +954,14 @@ exports.sendTestNotification = onCall(async (request) => {
 const INVITE_DAYS = 14;
 const COUNTRY_RE = /^[A-Z]{2}$/;
 
+// Build 209 (MULTI_HOUSEHOLD.md step 5): the categories a new household
+// starts with, by its data language — copied from Markus's household, the
+// English one translated (functions/templates/README.md lists both).
+const TAXONOMY_TEMPLATES = {
+  de: require('./templates/taxonomy-de.json'),
+  en: require('./templates/taxonomy-en.json'),
+};
+
 // The caller's verified sign-in address, lower-cased — the only identity an
 // invitation is matched against.
 function verifiedEmail(request, lang) {
@@ -1120,6 +1128,9 @@ exports.createHousehold = onCall(async (request) => {
     const nowIso = new Date().toISOString();
     tx.set(householdRef, {
       name, createdAt: nowIso, createdBy: uid, lang: dataLang, country, timezone,
+    });
+    tx.set(householdRef.collection('config').doc('taxonomy'), {
+      ...TAXONOMY_TEMPLATES[dataLang], updatedAt: nowIso, fromTemplate: dataLang,
     });
     if (user) {
       tx.update(userRef, { ...CLEAR_MEMBERSHIP(), role: 'admin', householdId: householdRef.id, joinedAt: nowIso, email });

@@ -1,8 +1,8 @@
 // Alternate tour (HARNESS_TOUR=create, HARNESS_USER=<uid with no fixture
 // doc>, e.g. u-new): a stranger's first sign-in → onboarding with no
 // invitation → creates a household of their own (Build 206) → the app
-// opens on a completely EMPTY household; every main screen must render
-// without errors.
+// opens on a new household that has only the starter categories (Build
+// 209); every main screen must render without errors.
 const c = (sel) => async (page) => page.click(sel);
 const nav = (tab) => async (page) => {
   const btn = page.locator(`.nav-btn[data-tab="${tab}"]`).filter({ visible: true }).first();
@@ -18,4 +18,9 @@ module.exports = [
   { name: 'create: info', run: nav('info') },
   { name: 'create: admin', run: nav('settings') },
   { name: 'create: people', run: c('.settings-card[data-target="people"]') },
+  { name: 'create: starter categories', run: async (page) => {
+    await page.click('#settings-panel-people [data-back]');
+    await page.click('.settings-card[data-target="data"]');
+    await page.click('#expand-all-btn');
+  } },
 ];

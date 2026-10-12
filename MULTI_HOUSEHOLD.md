@@ -26,7 +26,7 @@ Everything suggested so far, in order. Tick it off as it gets done.
 - [ ] **5. A few weeks later:** delete the old root data (ask Claude for the exact steps then). Until then the rules' legacy root blocks and the app's "no household" path stay, harmlessly — they go with the data.
 
 **Before posting on Reddit**
-- [ ] **Clean up the categories and data.** This blocks the starter templates (step 5 in Section 9).
+- [x] **Clean up the categories and data.** Done; exported 2026-10-12 and used for the templates (Build 209).
 - [x] **Answer the open questions in Section 10:** cloud region, dictation for testers, contact address. Answered 2026-10-11 (Section 10).
 - [ ] **Build steps 1–6 of Section 9.**
 - [ ] **Write a privacy notice and test disclaimer, shown at sign-up and linked in the app** (Section 7).
@@ -207,7 +207,10 @@ Each step is its own build, with the harness and rules tests.
      - *Not Gmail-only, on purpose:* Google sign-in works for any address that is a Google account (Gmail, Google Workspace company addresses, other addresses registered with Google). Non-Gmail addresses get a "are you sure?" instead of a block. Gmail spelling variants match (dots, "+tag", googlemail.com): invites carry `emailKey`, the server re-checks.
      - *Sign-in window:* a private/incognito window knows no Google accounts, so Google must ask for the address — not something the app can change. The invitation link now carries `?login=<address>`, which pre-fills it in Google's window and otherwise shows the account chooser (instead of silently using the last account).
      - *"Blocked" after accepting:* the address had been removed earlier, and removal left a `removed:true` tombstone that signed the account out on every visit. Removing someone (🗑️) now takes the account out of the household server-side (`removeMember`: household, role and devices cleared) — they see the onboarding screen and can be invited again; no "restore" any more (re-invite instead). Old tombstones are treated as "no household": the person gets onboarding, can accept a new invitation, and admins can clear the leftover row with 🗑️.
-5. **Templates.** An "export as template" admin action, the de-DE template from Markus's cleaned-up data, its en-US translation, and `createHousehold`.
+5. **Templates. Built in Build 209** — needs `firebase deploy` (functions).
+   - Markus's categories (types → categories → subcategories, with icons and planning settings), exported 2026-10-12 with a temporary button (Build 208, removed again in 209), are the German template `functions/templates/taxonomy-de.json`; `taxonomy-en.json` is the English translation — same ids, icons and settings, only names differ (tested). Side-by-side list for review: `functions/templates/README.md`.
+   - `createHousehold` writes the template matching the household's data language (UI language at creation) as `config/taxonomy`. Existing households are untouched. Categories only for now (crisis types / checklists: maybe later).
+   - Open point for Markus: the Medikamente subcategories "Menière" and "Hormone" are specific to his family; every new household would get them.
 6. **Opening up.** Privacy notice, test disclaimer and consent at sign-up; delete household / delete account; dictation limits; budget alert; metadata-only operator page.
 
 ## 10. Open questions

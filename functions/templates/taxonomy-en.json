@@ -1,0 +1,412 @@
+{
+  "types": [
+    {
+      "sym": "🧭",
+      "id": "c3ef7da4-4d92-4d31-aece-c630fe485846",
+      "categories": [
+        {
+          "kcalPerKg": 2000,
+          "planningMode": "off",
+          "id": "28afe25c-1037-40f6-a33a-1adea8e294f6",
+          "name": "Light & Fire",
+          "subcategories": [
+            {
+              "sym": "🕯️",
+              "name": "Candles / Lighters / Matches",
+              "id": "f9afb298-6762-4e0e-8729-d0cdcf799fd9"
+            },
+            {
+              "sym": "🔦",
+              "id": "c49817f7-bf08-45a5-ac4c-80d31238cf9d",
+              "name": "Flashlights / Lamps"
+            },
+            {
+              "name": "Batteries",
+              "sym": "🔋",
+              "id": "c1855ed2-9ced-4338-b898-56ef33e50460"
+            }
+          ],
+          "planningEnabled": false,
+          "macroType": "fett",
+          "sym": "💡"
+        }
+      ],
+      "name": "Equipment"
+    },
+    {
+      "id": "2ad47ad2-1a5a-4e05-a485-a8da67281c27",
+      "categories": [
+        {
+          "id": "af4cf338-be06-4fd2-aa53-18090476046f",
+          "subcategories": [
+            {
+              "sym": "🐟",
+              "name": "Canned fish",
+              "id": "60b4c456-2fff-487f-ab9c-29e1969bf34a"
+            },
+            {
+              "sym": "🥩",
+              "name": "Canned meat / Sausage / Ham",
+              "id": "a1c88eba-2f24-4f9f-be30-90272f406c45"
+            },
+            {
+              "id": "f13d947f-265c-4a13-8cba-0a25e6ef01db",
+              "name": "Stew (meat)",
+              "sym": "🍲"
+            },
+            {
+              "sym": "🥚",
+              "name": "Eggs / Powdered eggs",
+              "id": "b8ef6668-6430-4976-9fe6-089d92a33c43"
+            }
+          ],
+          "kcalPerKg": 2000,
+          "planningMode": "calorie",
+          "sym": "🥩",
+          "name": "Fish, Meat, Eggs",
+          "planningEnabled": true,
+          "macroType": "protein"
+        },
+        {
+          "id": "02f9f888-8ddc-4151-b000-10f8de2e3fe5",
+          "name": "Vegetables",
+          "sym": "🍆",
+          "planningMode": "diversity",
+          "diversityFloorGramsPerPersonDay": 50,
+          "subcategories": [
+            {
+              "id": "a248e094-8aec-47d8-a4b7-a05c257804c3",
+              "name": "Tomatoes / Pasta sauce",
+              "sym": "🍅"
+            },
+            {
+              "name": "Stew (vegetable)",
+              "id": "6864ce80-5dfb-4c12-b2ab-0213be9624e2",
+              "sym": "🍛"
+            },
+            {
+              "id": "1a5a94c7-7cab-4656-8eae-ec7d097ded8d",
+              "name": "Pickled vegetables",
+              "sym": "🥒"
+            },
+            {
+              "id": "968d411e-f526-4d37-b019-b3ca76e1160f",
+              "sym": "🥕",
+              "name": "Fresh vegetables / Potatoes"
+            }
+          ]
+        },
+        {
+          "id": "75944c8b-97e6-41ce-b196-af2d80248b83",
+          "macroType": "fett",
+          "sym": "🛢️",
+          "kcalPerKg": 7000,
+          "subcategories": [
+            {
+              "id": "308ab211-6ac1-478e-9c3f-2b325c98c2f9",
+              "sym": "🛢️",
+              "name": "Fats & Oils"
+            },
+            {
+              "id": "9bf14be1-c03f-4a6e-aedd-407ab081a232",
+              "name": "Nuts & Seeds",
+              "sym": "🌰"
+            }
+          ],
+          "name": "Fats, Oils, Nuts"
+        },
+        {
+          "macroType": "kohlenhydrat",
+          "name": "Grains & Legumes",
+          "id": "1e5415b3-c61a-4926-ac76-5f2442eb34f8",
+          "subcategories": [
+            {
+              "id": "79bbaa48-7260-4ef7-834d-271321a7a451",
+              "name": "Flour / Bread mix",
+              "sym": "🌾"
+            },
+            {
+              "id": "58131305-b031-4314-948f-87c0019127d6",
+              "sym": "🥣",
+              "name": "Oats / Muesli / Oatmeal"
+            },
+            {
+              "sym": "🍚",
+              "id": "c5780890-8ffe-40e3-b6e3-17e67ad93476",
+              "name": "Rice / Rice pudding"
+            },
+            {
+              "id": "7f3b9178-7c6a-462e-943e-630353d7b7f8",
+              "sym": "🍝",
+              "name": "Pasta / Couscous / Semolina"
+            },
+            {
+              "id": "c7b36815-80a6-4fc3-bcb9-90464a54ef69",
+              "sym": "🍞",
+              "name": "Bread / Crispbread / Rusks"
+            },
+            {
+              "id": "0209ef0d-ef14-4932-9f46-87636d9667ba",
+              "name": "Beans & Lentils",
+              "sym": "🫛"
+            }
+          ],
+          "planningMode": "calorie",
+          "sym": "🌾",
+          "kcalPerKg": 3600
+        },
+        {
+          "sym": "🐮",
+          "planningMode": "calorie",
+          "kcalPerKg": 2800,
+          "name": "Milk & Dairy",
+          "subcategories": [
+            {
+              "name": "Milk / Powdered milk",
+              "sym": "🥛",
+              "id": "b20f491c-1d47-42ce-a312-cc4ae477e6e5"
+            },
+            {
+              "sym": "🧀",
+              "name": "Dairy products",
+              "id": "31d669fc-dba7-4d43-8c5d-39302bbbf413"
+            }
+          ],
+          "macroType": "fett",
+          "id": "e150891d-f42d-41cf-aee7-e880aa33f8b1"
+        },
+        {
+          "subcategories": [
+            {
+              "id": "62478762-7d33-4a05-b855-f9d79c42f28d",
+              "sym": "🍑",
+              "name": "Canned fruit / Compote / Applesauce"
+            },
+            {
+              "sym": "🍒",
+              "id": "17375bf0-8790-4d98-9c47-ffb6271fc6e3",
+              "name": "Dried fruit"
+            },
+            {
+              "sym": "🍌",
+              "name": "Fresh fruit",
+              "id": "7ac2efc1-cfaa-4347-b7c7-70a51602e409"
+            }
+          ],
+          "diversityFloorGramsPerPersonDay": 30,
+          "sym": "🍎",
+          "name": "Fruit",
+          "id": "d0c4ed4c-ccbe-4980-8803-be9a499dee39"
+        },
+        {
+          "id": "d288e5a9-4916-4c33-bf15-558c17b5a831",
+          "sym": "🍵",
+          "kcalPerKg": 4000,
+          "subcategories": [
+            {
+              "id": "87f7c5e2-a545-408f-ab33-30383a01fd41",
+              "sym": "🍯",
+              "name": "Jam / Honey / Sugar"
+            },
+            {
+              "sym": "🍬",
+              "id": "8e0d22c8-0c3f-4837-a0fd-aa80f62123bb",
+              "name": "Sweets / Snacks"
+            },
+            {
+              "name": "Coffee / Tea",
+              "sym": "☕",
+              "id": "9953e289-0f64-49ee-8e8d-6caca8f4f233"
+            },
+            {
+              "sym": "🍜",
+              "id": "8567b0e5-5769-440e-a376-2cf32adc62dc",
+              "name": "Instant soups / Dried meals"
+            },
+            {
+              "name": "Salt / Spices / Sauces",
+              "sym": "🧂",
+              "id": "61ffc1d7-77e9-45b5-b5bd-d2c2400666d5"
+            }
+          ],
+          "macroType": "kohlenhydrat",
+          "name": "Sugar, Spices, Coffee"
+        },
+        {
+          "subcategories": [
+            {
+              "name": "Alcohol",
+              "sym": "🍷",
+              "id": "252aed70-f6cd-46ff-8f1e-99f6e2c37f8d"
+            },
+            {
+              "name": "Juices",
+              "id": "ef0b8b3b-3394-4f3e-8b6f-8c03656dcbb6",
+              "sym": "🍹"
+            }
+          ],
+          "sym": "🍾",
+          "id": "5a631f58-9b57-4a0e-9029-75b2e344cde2",
+          "name": "Beverages"
+        }
+      ],
+      "typeClass": "food",
+      "name": "Food",
+      "sym": "🥫"
+    },
+    {
+      "categories": [
+        {
+          "id": "63406b0f-6814-495f-a4c9-f6d596e4e8f3",
+          "subcategories": [
+            {
+              "id": "d21a5335-56eb-44a0-96e2-8d8faff3d364",
+              "sym": "🐶",
+              "name": "Dog"
+            },
+            {
+              "id": "268bb6a7-ad05-4b36-832c-20719d055df4",
+              "sym": "🐱",
+              "name": "Cat"
+            },
+            {
+              "name": "Chickens",
+              "id": "cbee64e5-6873-4715-99ee-2e18f59fffa8",
+              "sym": "🐔"
+            },
+            {
+              "name": "Goats",
+              "id": "e59f07ef-61f7-4956-822e-c71c7c9813b9",
+              "sym": "🐐"
+            }
+          ],
+          "sym": "🌾",
+          "name": "Feed"
+        },
+        {
+          "subcategories": [
+            {
+              "name": "Cat",
+              "id": "06c4954f-1c9b-4180-808c-eb6269b67244",
+              "sym": "🐱"
+            }
+          ],
+          "sym": "🪏",
+          "id": "4b8c9a6a-9cc6-4208-bf75-8aca8b7c1b35",
+          "name": "Supplies"
+        }
+      ],
+      "sym": "🐈",
+      "name": "Animals",
+      "id": "5153760c-7f4d-4fac-a53e-6c43562b7a5e"
+    },
+    {
+      "name": "Medicine",
+      "id": "790807a9-c3ac-48bd-b65a-dbd31d8f9b60",
+      "categories": [
+        {
+          "id": "98f4ad34-bb86-4b0f-8ba0-517ea226da84",
+          "name": "Medicine cabinet",
+          "subcategories": [
+            {
+              "sym": "🦻",
+              "name": "Menière's",
+              "id": "dfc21d2a-c24f-4d4e-98eb-13630d5d169d"
+            },
+            {
+              "sym": "🦟",
+              "name": "Insect bites",
+              "id": "b6be7266-f265-4523-9db1-9bf2091bd7b1"
+            },
+            {
+              "id": "8d742899-8192-48ed-8ecb-9714a5a46ac6",
+              "name": "Stomach",
+              "sym": "🤢"
+            },
+            {
+              "sym": "🤧",
+              "name": "Colds",
+              "id": "3b6a2820-638e-4d4e-8542-65db10b1a014"
+            },
+            {
+              "id": "601812ce-fc3d-4c1c-86f1-1dd9578c55a6",
+              "sym": "🤕",
+              "name": "Pain"
+            },
+            {
+              "sym": "👧",
+              "name": "Hormones",
+              "id": "876a14df-b6ac-4152-8e40-eaec3daaf3fb"
+            },
+            {
+              "sym": "💊",
+              "name": "Supplements",
+              "id": "d4473c32-e14a-4d13-81b0-a646ed467c06"
+            }
+          ],
+          "sym": "⚕️"
+        },
+        {
+          "name": "Emergency",
+          "id": "7845ae3b-836d-4861-9cde-9d37ca4d6afa",
+          "sym": "🚨",
+          "subcategories": [
+            {
+              "name": "Stomach & Bowel",
+              "id": "8dbc4a27-b267-4512-880b-bdb977bb9ae1",
+              "sym": "🤮"
+            },
+            {
+              "id": "915c0b82-7484-4b42-a6ec-ce35cb57a692",
+              "name": "Infection",
+              "sym": "🤒"
+            },
+            {
+              "name": "Injury",
+              "id": "94eda9be-2c7d-4e0a-a5c0-a668abfed6a1",
+              "sym": "🚑"
+            },
+            {
+              "id": "25437951-d085-4540-9c86-d390127fe5f4",
+              "name": "Water purification",
+              "sym": "💧"
+            }
+          ]
+        }
+      ],
+      "sym": "💊"
+    },
+    {
+      "typeClass": "water",
+      "name": "Water",
+      "sym": "💧",
+      "id": "1a852b2b-5b05-4718-9aec-01a721a2d7aa",
+      "categories": [
+        {
+          "sym": "💧",
+          "name": "Drinking water",
+          "id": "623ad6ff-7cab-437a-b376-8db85a718ed7",
+          "subcategories": [
+            {
+              "id": "165e835a-53a4-4bcc-b394-cd26e352fa66",
+              "sym": "💧",
+              "name": "Drinking water"
+            }
+          ]
+        },
+        {
+          "sym": "💦",
+          "subcategories": [
+            {
+              "name": "Non-drinking water",
+              "sym": "💦",
+              "id": "142999aa-e73f-4e4d-a2b2-04b773648789"
+            }
+          ],
+          "name": "Non-drinking water",
+          "id": "b901fe3c-18dd-473f-bd28-d8375dec8aac"
+        }
+      ]
+    }
+  ]
+}

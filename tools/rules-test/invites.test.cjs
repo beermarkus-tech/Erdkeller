@@ -106,6 +106,24 @@ const daysAgo = (d) => new Date(Date.now() - d * 86400000).toISOString();
   const h2 = (await db.doc(`households/${c2.householdId}`).get()).data();
   check('openSignup lets anyone in; bad country/timezone are cleaned', h2.country === null && h2.timezone === 'Europe/Paris' && h2.lang === 'de');
 
+  // Build 209: starter categories by data language
+  const taxOf = async (id) => (await db.doc(`households/${id}/config/taxonomy`).get()).data();
+  const enTax = await taxOf(created.householdId);
+  const deTax = await taxOf(c2.householdId);
+  check('an English household starts with the English categories', enTax && enTax.fromTemplate === 'en' && enTax.types.some((t) => t.name === 'Food'));
+  check('a German household starts with the German categories', deTax && deTax.fromTemplate === 'de' && deTax.types.some((t) => t.name === 'Lebensmittel'));
+  // The two templates must differ only in names: same ids, icons, planning settings, order.
+  const strip = (node) => {
+    if (Array.isArray(node)) return node.map(strip);
+    if (node && typeof node === 'object') return Object.fromEntries(Object.entries(node).filter(([k]) => k !== 'name').map(([k, v]) => [k, strip(v)]));
+    return node;
+  };
+  const tde = require('../../functions/templates/taxonomy-de.json');
+  const ten = require('../../functions/templates/taxonomy-en.json');
+  check('German and English templates are identical except for the names', JSON.stringify(strip(tde)) === JSON.stringify(strip(ten)));
+  const names = (node, out = []) => { if (node.name) out.push(node.name); [...(node.types || []), ...(node.categories || []), ...(node.subcategories || [])].forEach((c) => names(c, out)); return out; };
+  check('every English name is filled in', names(ten).every((n) => typeof n === 'string' && n.trim()));
+
   console.log(failed ? `\n${failed} invitation test(s) FAILED` : '\nall invitation tests passed');
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error('ERR', e); process.exit(1); });

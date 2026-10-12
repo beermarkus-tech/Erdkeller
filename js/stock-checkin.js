@@ -1,11 +1,11 @@
-import { db, hdoc, hcol } from './firebase-init.js?v=208';
-import { renderRecentLog } from './stock-log.js?v=208';
-import { renderResultLines } from './format-batch.js?v=208';
-import { switchTabWithoutReset, setHeader } from './app-shell.js?v=208';
+import { db, hdoc, hcol } from './firebase-init.js?v=209';
+import { renderRecentLog } from './stock-log.js?v=209';
+import { renderResultLines } from './format-batch.js?v=209';
+import { switchTabWithoutReset, setHeader } from './app-shell.js?v=209';
 import {
   doc, getDoc, collection, getDocs, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t } from './i18n.js?v=208';
+import { t } from './i18n.js?v=209';
 
 const stockHomeEl = document.getElementById('stock-home');
 const stockFlowEl = document.getElementById('stock-flow');
