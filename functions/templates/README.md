@@ -1,6 +1,6 @@
 # Starter templates for new households
 
-Categories (types → categories → subcategories) a household starts with, picked by its data language when it is created (`createHousehold`, functions/index.js). Copied from Markus's household on 2026-10-12 (Build 209); the English one is a translation with the same ids, icons and planning settings — only the names differ (`tools/rules-test/invites.test.cjs` checks that).
+Categories (types → categories → subcategories) a household starts with, picked by its data language when it is created (`createHousehold`, functions/index.js). Copied from Markus's household on 2026-10-12 (Build 209), with two family-specific medicine subcategories replaced by "Allergien"; the English one is a translation with the same ids, icons and planning settings — only the names differ (`tools/rules-test/invites.test.cjs` checks that).
 
 To change a template, edit `taxonomy-de.json` / `taxonomy-en.json` and deploy the functions. Existing households are never touched.
 
@@ -58,12 +58,11 @@ To change a template, edit `taxonomy-de.json` / `taxonomy-en.json` and deploy th
 | ↳ | 🐱 | Katze | Cat |
 | **Type** | 💊 | **Medikamente** | **Medicine** |
 | Category | ⚕️ | Hausapotheke | Medicine cabinet |
-| ↳ | 🦻 | Menière | Menière's |
+| ↳ | 🌼 | Allergien | Allergies |
 | ↳ | 🦟 | Insektenstiche | Insect bites |
 | ↳ | 🤢 | Magen | Stomach |
 | ↳ | 🤧 | Erkältung | Colds |
 | ↳ | 🤕 | Schmerzen | Pain |
-| ↳ | 👧 | Hormone | Hormones |
 | ↳ | 💊 | Nahrungsergänzung | Supplements |
 | Category | 🚨 | Notfall | Emergency |
 | ↳ | 🤮 | Magen/Darm | Stomach & Bowel |
