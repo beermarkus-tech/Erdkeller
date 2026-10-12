@@ -20,11 +20,11 @@ export const getAuth = initializeAuth;
 export const indexedDBLocalPersistence = {}, browserLocalPersistence = {}, browserSessionPersistence = {};
 export const browserPopupRedirectResolver = {};
 export class GoogleAuthProvider { setCustomParameters(p) { window.__AUTH_PARAMS__ = p; } }
-export function onAuthStateChanged(auth, cb) { setTimeout(() => cb(user), 0); return () => {}; }
+export function onAuthStateChanged(auth, cb) { window.__AUTH_CB__ = cb; setTimeout(() => cb(user), 0); return () => {}; }
 export const signInWithPopup = async () => ({ user });
 export const signInWithRedirect = async () => {};
 export const getRedirectResult = async () => null;
-export const signOut = async () => {};
+export const signOut = async () => { if (window.__AUTH_CB__) setTimeout(() => window.__AUTH_CB__(null), 0); };
 export const getFunctions = () => ({});
 export const httpsCallable = (fns, name) => async (payload) => {
   (window.__CALLS__ ||= []).push({ name, payload });

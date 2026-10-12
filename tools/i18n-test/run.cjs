@@ -135,6 +135,8 @@ async function runTour(dir, lang, only, fake, afterStep) {
           await fb.updateDoc(fb.doc({}, 'users', window.__USER__.uid), hh ? { role: 'member', householdId: hh } : { role: 'member' });
           return { householdId: hh || null, role: 'member' };
         },
+        // Only the default test admin is the operator (Build 213).
+        amIOperator: () => ({ operator: !window.__USER__ }),
         listHouseholds: () => ({
           households: [
             { id: 'h2', name: 'Familie Test', createdAt: '2026-10-10T00:00:00Z', lang: 'en', country: 'US', timezone: 'America/Chicago', members: 1, admins: [{ name: 'Tester', email: 't@example.com' }], lastJoinedAt: '2026-10-10', openInvites: 1, dictationLimit: 20, dictation7: 3, lastDictation: '2026-10-09' },

@@ -1,4 +1,4 @@
-import { auth, db, setHousehold } from './firebase-init.js?v=212';
+import { auth, db, setHousehold } from './firebase-init.js?v=213';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -11,7 +11,7 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { t, getLang } from './i18n.js?v=212';
+import { t, getLang } from './i18n.js?v=213';
 
 const provider = new GoogleAuthProvider();
 
@@ -328,7 +328,36 @@ function showPendingGate(pending) {
   }
 }
 
+// Build 213 — every screen keeps what it loaded (live listeners, in-memory
+// lists) for the life of the page, and none of them re-subscribe when the
+// account changes. So once any data has been shown, ending that session —
+// sign-out, account deleted, a different account signing in — reloads the
+// page: nothing of one person's household can survive into the next
+// person's session on the same device (seen in the field: a brand-new
+// household showed the previous account's maintenance checklists). A
+// message meant for the sign-in screen is carried over the reload.
+let dataLoadedFor = null; // uid whose data the screens were told to load
+const SIGNOUT_MESSAGE_KEY = 'erdkeller-signout-message';
+try {
+  const carried = sessionStorage.getItem(SIGNOUT_MESSAGE_KEY);
+  if (carried) {
+    authError.textContent = carried;
+    sessionStorage.removeItem(SIGNOUT_MESSAGE_KEY);
+  }
+} catch (err) { /* ignore */ }
+
+function reloadClean() {
+  try {
+    if (authError.textContent) sessionStorage.setItem(SIGNOUT_MESSAGE_KEY, authError.textContent);
+  } catch (err) { /* ignore */ }
+  location.reload();
+}
+
 function renderSignedOut() {
+  if (dataLoadedFor) {
+    reloadClean();
+    return;
+  }
   renderedRole = null;
   renderedHousehold = undefined;
   paintedIdentity = null;
@@ -398,6 +427,7 @@ function renderSignedIn(identity) {
     if (identity.role === 'pending') return;
     renderedHousehold = household;
     setHousehold(household);
+    dataLoadedFor = (auth.currentUser && auth.currentUser.uid) || identity.uid || 'unknown';
     window.dispatchEvent(new CustomEvent('erdkeller:signedin', { detail: { role: identity.role } }));
   }
 }
@@ -440,6 +470,12 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   if (user) {
+    // Build 213 — a different account than the one whose data is on screen
+    // (an account switch without a sign-out in between): start clean.
+    if (dataLoadedFor && dataLoadedFor !== user.uid) {
+      reloadClean();
+      return;
+    }
     // Paint straight away from whatever we already know, so the UI never
     // waits on Firestore just to show the shell. The snapshot below
     // refines this the moment it arrives (from cache offline, from the

@@ -1320,6 +1320,19 @@ async function assertOperator(request, lang) {
   return snap.exists ? snap.data() : {};
 }
 
+// Build 213 — whether to show the "Betrieb" card in Admin. Answers only
+// yes/no about the caller, so it's harmless for anyone to ask.
+exports.amIOperator = onCall(async (request) => {
+  const lang = callerLang(request);
+  try {
+    await assertOperator(request, lang);
+    return { operator: true };
+  } catch (err) {
+    if (err instanceof HttpsError && err.code !== 'unauthenticated') return { operator: false };
+    throw err;
+  }
+});
+
 exports.listHouseholds = onCall(async (request) => {
   const lang = callerLang(request);
   const config = await assertOperator(request, lang);

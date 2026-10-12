@@ -47,6 +47,13 @@ const day = (d) => new Date(Date.now() - d * 86400000).toISOString().slice(0, 10
   const raw = JSON.stringify(r);
   check('no household content anywhere in the answer', !raw.includes('Dr. Secret') && !raw.includes('123') && !raw.includes('quantity'));
 
+  // Build 213: the yes/no for the Admin card
+  const am = async (auth) => (await fns.amIOperator.run({ auth, data: {} })).operator;
+  check('amIOperator: yes for the operator', (await am(as('op.erator@gmail.com'))) === true);
+  check('amIOperator: no for a household admin', (await am(as('m@x.com'))) === false);
+  check('amIOperator: no for an unverified address', (await am(as('op.erator@gmail.com', false))) === false);
+  check('amIOperator: signed-out is refused', (await code(fns.amIOperator.run({ auth: null, data: {} }))) === 'unauthenticated');
+
   console.log(failed ? `\n${failed} operator test(s) FAILED` : '\nall operator tests passed');
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error('ERR', e); process.exit(1); });

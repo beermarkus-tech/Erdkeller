@@ -1019,4 +1019,6 @@ export default {
   "operator.zuletzt_beigetreten": "Zuletzt jemand beigetreten",
   "operator.laedt": "Lädt…",
   "operator.bitte_anmelden": "Bitte zuerst in der App anmelden, dann diese Seite neu laden.",
+  "settings.betrieb": "Betrieb",
+  "settings.betrieb_sub": "Alle Haushalte im Überblick (nur für dich)",
 };
