@@ -813,6 +813,7 @@ These need to happen outside Claude Code — mostly account/console setup that o
 - Label printer/size — to decide once a printer is chosen (template stays flexible until then)
 - **Drag-to-reorder doesn't work on real devices yet** (taxonomy editor, Settings → Data, Step 4): implemented with the Pointer Events API to avoid native HTML5 drag-and-drop's lack of touch support, but on an actual test it still doesn't work — on mobile, a press-and-hold just selects text; on tablet, it opens the browser's context menu. Something about the current handling isn't actually suppressing the platform's default touch/long-press behavior on the drag handle. Deliberately deferred — revisit later.
 
+- **Onboarding for new households** (welcome tour, floating setup checklist, guided planning steps, "How it works" on the Overview) — planned, not built: see **`ONBOARDING.md`**.
 - **Multiple households / opening the app to testers** (e.g. via Reddit) — designed, not built: see **`MULTI_HOUSEHOLD.md`** (data model, email invitations, per-language starter templates, country choice, privacy notice, cost limits, operator role, build order and a to-do list). Prerequisite done in Build 201 (new accounts need approval); data-access helper in Build 202; household model, rules and the one-time move in Build 203.
 - **Language follow-ups** — imperial units as a separate setting, an English household dataset, more languages: see `I18N.md` Section 10.
 
