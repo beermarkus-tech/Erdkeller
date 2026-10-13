@@ -1,10 +1,10 @@
 // Operator overview page (operator.html, Build 212) — see that file and
 // functions/index.js listHouseholds. Reuses the app's sign-in: whoever is
 // signed in to the app in this browser is signed in here.
-import { auth, functions } from './firebase-init.js?v=213';
+import { auth, functions } from './firebase-init.js?v=214';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { t, getLang, getLocale } from './i18n.js?v=213';
+import { t, getLang, getLocale } from './i18n.js?v=214';
 
 const statusEl = document.getElementById('operator-status');
 const summaryEl = document.getElementById('operator-summary');
