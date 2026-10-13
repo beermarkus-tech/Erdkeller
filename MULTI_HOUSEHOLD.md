@@ -233,4 +233,4 @@ Each step is its own build, with the harness and rules tests.
 - **Template cleanup:** when will Markus's data cleanup be done? It blocks step 5, not steps 1–4.
 - **Cloud region:** answered, **`eur3`**. That's Firestore's EU multi-region (data stored in Belgium and the Netherlands), for the privacy notice.
 - **Dictation for testers:** answered, **on, limited to 20 dictations per household per day**.
-- **Operator contact address** for the privacy notice and data-deletion requests: answered, **contact@solidcutlist.com**.
+- **Operator contact address** for the privacy notice and data-deletion requests: answered, **contact@solidhomesteadplans.com**. Changed to contact@solidhomesteadplans.com on 2026-10-13.
