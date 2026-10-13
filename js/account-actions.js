@@ -4,15 +4,16 @@
 // Both run server-side (functions/index.js deleteMyAccount/deleteHousehold)
 // and are final, so they ask first — the household one by having the
 // household's name typed in, which the server checks again.
-import { db, functions, getHouseholdId } from './firebase-init.js?v=213';
+import { auth, db, functions, getHouseholdId } from './firebase-init.js?v=214';
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js";
-import { t, getLang } from './i18n.js?v=213';
-import { signOutAfterDeletion } from './auth.js?v=213';
+import { t, getLang } from './i18n.js?v=214';
+import { signOutAfterDeletion } from './auth.js?v=214';
 
 const deleteMyAccountFn = httpsCallable(functions, 'deleteMyAccount');
 const deleteHouseholdFn = httpsCallable(functions, 'deleteHousehold');
 const amIOperatorFn = httpsCallable(functions, 'amIOperator');
+const listHouseholdsFn = httpsCallable(functions, 'listHouseholds');
 const operatorCard = document.getElementById('operator-card');
 
 const accountBtns = document.querySelectorAll('.delete-account-btn');
@@ -73,20 +74,69 @@ householdBtns.forEach((btn) => btn.addEventListener('click', deleteHousehold));
 // operator: the server decides (functions/index.js amIOperator, the
 // addresses in _system/config.operators). The page itself checks again,
 // so a card shown by mistake would still reveal nothing.
-async function checkOperator() {
-  if (!navigator.onLine) return;
+//
+// Build 214 — made robust after the card stayed hidden for the operator:
+// - wait until Firebase Auth has really resolved (the first erdkeller:
+//   signedin can come from the cached identity, before the session exists,
+//   and an unauthenticated call simply fails);
+// - if amIOperator itself fails (e.g. not deployed yet), ask listHouseholds
+//   instead — it answers the same question by succeeding or refusing;
+// - remember a "yes" per account on this device, so the card shows at once
+//   on the next start (and offline); a server "no" removes it again.
+const OPERATOR_KEY = 'erdkeller-operator-uid';
+
+function rememberedOperator(uid) {
+  try { return !!uid && localStorage.getItem(OPERATOR_KEY) === uid; } catch (err) { return false; }
+}
+
+function setOperator(uid, yes) {
+  operatorCard.classList.toggle('hidden', !yes);
+  try {
+    if (yes) localStorage.setItem(OPERATOR_KEY, uid);
+    else if (localStorage.getItem(OPERATOR_KEY) === uid) localStorage.removeItem(OPERATOR_KEY);
+  } catch (err) { /* ignore */ }
+}
+
+async function askServer() {
   try {
     const { data } = await amIOperatorFn({ lang: getLang() });
-    operatorCard.classList.toggle('hidden', !(data && data.operator));
+    return !!(data && data.operator);
   } catch (err) {
-    operatorCard.classList.add('hidden');
+    console.warn('amIOperator failed, asking listHouseholds instead', err);
+  }
+  try {
+    await listHouseholdsFn({ lang: getLang() });
+    return true;
+  } catch (err) {
+    const code = String(err.code || '');
+    if (code.endsWith('permission-denied') || code.endsWith('failed-precondition')) return false;
+    throw err;
   }
 }
+
+async function checkOperator() {
+  if (auth.authStateReady) await auth.authStateReady();
+  const uid = auth.currentUser && auth.currentUser.uid;
+  if (!uid) return;
+  if (rememberedOperator(uid)) operatorCard.classList.remove('hidden');
+  if (!navigator.onLine) return;
+  try {
+    setOperator(uid, await askServer());
+  } catch (err) {
+    // Network or server trouble: keep whatever we knew, try again later.
+    console.error('Operator check failed', err);
+  }
+}
+window.addEventListener('online', () => {
+  if (!operatorCard.dataset.admin) return;
+  checkOperator();
+});
 
 // Only an admin of a real household sees "Haushalt löschen".
 window.addEventListener('erdkeller:signedin', (e) => {
   const show = e.detail.role === 'admin' && !!getHouseholdId();
   householdBtns.forEach((btn) => btn.classList.toggle('hidden', !show));
+  operatorCard.dataset.admin = e.detail.role === 'admin' ? '1' : '';
   if (e.detail.role === 'admin') checkOperator();
   else operatorCard.classList.add('hidden');
 });
